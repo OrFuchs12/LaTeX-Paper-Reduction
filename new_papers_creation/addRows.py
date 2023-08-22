@@ -109,15 +109,15 @@ def compile_latex_to_pdf(latex_file_path):
         print("Error during LaTeX to PDF conversion:", e)
  
  
-text_to_add = "We consider a multi-level jury problem in which experts are" 
+text_to_add = r"\\noindent We consider a multi-level jury problem in which experts are" 
         
 def main():
-    # tex_file_path = "new_papers_creation\\AAAI-12\\aaai12-29 copy.tex"
-    tex_file_path = "new_papers_creation\Who Reviews The Reviewers_ A Multi-Level Jury Problem\AAAI2024\example2lines.tex"
+    tex_file_path = "new_papers_creation\\AAAI-12\\aaai12-29 copy.tex"
+    # tex_file_path = "new_papers_creation\Who Reviews The Reviewers_ A Multi-Level Jury Problem\AAAI2024\example2lines.tex"
     add_clearpage_before_bibliography(tex_file_path)
     pdf_file_path = compile_latex_to_pdf(tex_file_path)
     keyword = "References"
-    line_threshold = 66
+    line_threshold = 40
     lines = 0
     while (lines != 3):
         text_to_add = "We consider a multi-level jury problem in which experts are\n" 
