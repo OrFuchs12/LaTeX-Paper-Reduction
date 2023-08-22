@@ -43,10 +43,9 @@ def count_lines_in_page(pdf_path, page_number):
         page = pdf.pages[page_number]  
         text = page.extract_text()
         lines = text.strip().split('\n')
-        for line in lines: #check if page number is considered a line
-            if line == str(page_number+1): #page number starts from 0
-                lines.remove(line)
-                print("removed page number", page_number+1)
+        if lines[-1] == str(page_number+1): #check if page number was added like a line
+            lines.remove(lines[-1])
+            print("removed page number", page_number+1)
         print(lines)
         line_count = len(lines)
     return line_count
