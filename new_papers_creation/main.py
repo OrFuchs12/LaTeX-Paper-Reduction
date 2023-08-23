@@ -5,7 +5,7 @@ import os
 
 # directory_path = "/Users/amitvitkovsky/Downloads/AAAI-12"
 # directory_path = "/Users/amitvitkovsky/Downloads/AAAI13-QDEC"
-directory_path = "new_papers_creation\AAAI13-QDEC"
+directory_path = "new_papers_creation/AAAI13-QDEC"
 tex_file_path = find_tex_file(directory_path)
 if tex_file_path != None :
     if has_aaai_format(tex_file_path):

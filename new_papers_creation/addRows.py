@@ -24,14 +24,24 @@ def add_to_latex(tex_file_path, lines):
             modified = (
             file_content[:match.start()]
             + lines
-            +'\n'
             + file_content[match.start():]
             )
             with open(tex_file_path, "w") as output_file:
                 output_file.write(modified)
                 
-def remove_from_latex(tex_file_path, lines):
-    pass           
+def remove_from_latex(tex_file_path, chars):
+    with open(tex_file_path, "r") as input_file:
+        file_content = input_file.read()
+    pattern = r"\\clearpage\s*\\bibliography\{(.*?)\}"
+    match = re.search(pattern, file_content)
+    print("match is  ", match.start())
+    if match:
+        modified = (
+        file_content[:match.start()-chars]
+        + file_content[match.start():]
+        )
+        with open(tex_file_path, "w") as output_file:
+            output_file.write(modified)
 
 def find_bibliography_format(line):
     pattern = r'\\bibliography\{(.*?)\}'
@@ -109,33 +119,53 @@ def compile_latex_to_pdf(latex_file_path):
  
  
 text_to_add = r"\\noindent We consider a multi-level jury problem in which experts are" 
+
+def create_new_file_in_directory(file_path,directory_path):
+    # create a new file with the same name as the original file, but with the suffix '_changed' and the same content as the original file.
+    new_file_name = os.path.splitext(os.path.basename(file_path))[0] + " copy.tex"
+    new_file_path = os.path.join(directory_path, new_file_name)
+    with open(file_path, 'r') as original_file:
+            content = original_file.read()
+
+    with open(new_file_path, 'w') as new_file:
+        new_file.write(content)
+    return new_file_path
+
         
 def main():
-    tex_file_path = "new_papers_creation\\AAAI-12\\aaai12-29 copy.tex"
+    tex_file_path = create_new_file_in_directory("new_papers_creation/aaai_docs/main.tex","new_papers_creation/aaai_docs")
     # tex_file_path = "new_papers_creation\Who Reviews The Reviewers_ A Multi-Level Jury Problem\AAAI2024\example2lines.tex"
     add_clearpage_before_bibliography(tex_file_path)
     pdf_file_path = compile_latex_to_pdf(tex_file_path)
     keyword = "References"
     line_threshold = 40
     lines = 0
+    added_rows =False
+    page_number = find_page_number_before_bibliography(pdf_file_path, keyword)
+    print("page number before bibliography is", page_number)
+    lines = count_lines_in_page(pdf_file_path, page_number)
     while (lines != 3):
         text_to_add = "We consider a multi-level jury problem in which experts are\n" 
-        page_number = find_page_number_before_bibliography(pdf_file_path, keyword)
-        print("page number before bibliography is", page_number)
-        lines = count_lines_in_page(pdf_file_path, page_number)
         print("lines in page", lines)
         if lines == 3:
-            print("paper is all ready with 3 lines on the last page")
+            print("paper is allready with 3 lines on the last page")
             return
         if lines < 3: 
-            add_to_latex(tex_file_path, text_to_add)
+            add_to_latex(tex_file_path, (3-lines)*text_to_add)
         elif lines > line_threshold:
+            added_rows = True
             add_to_latex(tex_file_path, text_to_add*(132-lines))
         else:
-            remove_from_latex(tex_file_path, lines)
-            print("lines are more than 3 but less than threshold")
-            return
+            if added_rows:
+                remove_from_latex(tex_file_path, len(text_to_add)*(lines-3))# the search functions works with chars
+                print("lines are more than 3 but less than threshold")
+                added_rows = False
+            else:
+                add_to_latex(tex_file_path, text_to_add*(132-lines)) 
+                added_rows = True
         pdf_file_path = compile_latex_to_pdf(tex_file_path)
+        page_number = find_page_number_before_bibliography(pdf_file_path, keyword)
+        lines = count_lines_in_page(pdf_file_path, page_number)
         
     
 main()
