@@ -1,0 +1,108 @@
+\section*{Algorithms}
+
+
+Basic definitions\frm{Expand}
+\begin{itemize}
+    \item Stochastic policy $\policy(\anaction \mid \astate) = \prob{\singleaction_{t} = \anaction \mid \state_{t} = \astate}$
+    \item A complete RL history $\history_{t} = \singleobservation_{1}, \singlereward_{1}, \singleaction_{t}, \dots, \singleaction_{t-1}, \singleobservation_{t},\singlereward_{t}$
+    \item An observation history $\observation = \singleobservation_{1}, \singleaction_{1}, \singleobservation_{2} \singleaction_{2}, \dots, \singleobservation_{N} \singleaction_{N}$
+\end{itemize}
+
+\subsection{Naive approach, assuming state-action observations}
+\label{subsec:naiveGR}
+
+We present three(?) different methods for ...
+
+\frm[inline]{The following method is incomplete}
+
+% \begin{algorithm}[H]
+%     \caption{State-action-based recognition}
+%     \label{alg:state-action-recognition}
+\begin{algorithmic}
+    \Require Candidate policies $\policy_{\agent}(\anaction \mid \astate)$ (implicitly the goals). 
+    \Require Alternative, sets of histories for each agent $\history^{\agent}$ 
+    \Require An observation $\observation$ history to be recognized
+    \Function{Recognize}{}
+    \State train $\policy_{\agent}(\anaction \mid \astate)$ using $\history^{\agent}$
+    \ForAll{$\agent \in \agentspace$} \Comment{Compute plans for each agent}
+        \State Generate all plans optimal plans $\plan_{i}$ that achieve $\agent$ while following all observations $\observation$
+    \EndFor
+    \State create a pseudo-policy where $\policy_{\grsolution}(\anaction_{i} \mid \astate_{i}) = 1$ for each $\tuple{\singleobservation_{1}, \singleaction_{1}} \in \observation$ \reuth{what about other actions / unvisited states?}
+    \ForAll{$\agent \in \agentspace$}
+    \State $KL_{\agent} \gets \displaystyle\sum_{\forall{i} \in |\observation|} \frac{\kldiv(\policy_{\agent}(* \mid \astate_{i}),\policy_{\grsolution}(* \mid \astate_{i}))}{|\observation|}$ \Comment{Compute average\frm{Average?, Norm?} KL divergence for observation}
+    \EndFor
+    \State \textbf{return} $\displaystyle\argmin_{\agent \in \agentspace}KL_{\agent}$
+    \EndFunction
+\end{algorithmic}
+% \end{algorithm}
+
+\subsection{Observations as states}
+\label{subsec:stateGR}
+
+The second approach we consider uses the following assumptions:
+
+\begin{itemize}
+    \item A q-value table or function approximator $\qvaluefunction[\goalstate]{s,a}: \statespace \times \actionspace \mapsto \mathbb{R}$
+    \begin{itemize}
+        \item From which you can derive a softmax stochastic policy $\policy(\anaction \mid \astate) = \prob{\singleaction_{t} = \anaction \mid \state_{t} = \astate}$ as follows $\policy(\anaction \mid \astate) = \frac{\qvaluefunction{s,a}}{\sum_{\anaction' \in \actionspace}\qvaluefunction{s,\anaction'}}$
+    \end{itemize}
+    \item There exists an (unknown) complete RL history $\history_{t} = \singleobservation_{1}, \singlereward_{1}, \singleaction_{t}, \dots, \singleaction_{t-1}, \singleobservation_{t},\singlereward_{t}$
+    \item We have access to an observation history $\observation = \singleobservation_{1}, \singleobservation_{2}, \dots, \singleobservation_{N}$ containing states
+\end{itemize}
+
+The intuition behind the approach in Algorithm~\ref{alg:state-recognition} is that we identify, for each state $\astate$, which agent/policy has it as part of its optimal path. 
+The assumptions here are that all goals have the same value to all agents, and the observations are at the same approximate distance to the goal following the order of the observations (so the order is important here). 
+Thus, the correct goal should have the highest accumulated reward for the observations. 
+
+\begin{algorithm}[H]
+    \caption{State-based recognition}
+    \label{alg:state-recognition}
+\begin{algorithmic}
+    \Require Q-value functions $\qvaluefunction[\agent]{\anaction, \astate}$ (implicitly the goals of $\agent$). 
+    \Require Alternative, sets of histories for each agent $\history^{\agent}$ so we can train different $\qvaluevector$s
+    \Require An observation $\observation$ history to be recognized
+    \Function{RecognizeFromStates}{}
+    \State train $\qvaluefunction[\agent]{\anaction, \astate}$ using $\history^{\agent}$
+    \ForAll{$\agent \in \agentspace$}\Comment{Compute the expected optimal rewards for observed states}
+        % \State $QO_{\agent} \gets \displaystyle\sum_{\forall{i} \in |\observation|} \max_{\anaction}\qvaluefunction[\agent]{\anobservation_{i},a}$ \Comment{We accumulate the optimal q-value for the observed states for each agent}
+        \State $QO^{\agent} \gets \displaystyle\sum_{\forall{i} \in |\observation|}\frac{\max_{\anaction}\qvaluefunction[\agent]{\anobservation_{i},a}}{\max_{\agent \in \agentspace}\qvaluefunction[\agent]{\anobservation_{i},a}}$ \Comment{Accumulate  optimal q-value for the observed states for each agent}
+    \EndFor
+    \State \textbf{return} $\displaystyle\argmax_{\agent \in \agentspace}QO^{\agent}$\Comment{The correct goal whose observations have maximal value}
+    \EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Observations as actions}
+
+\begin{itemize}
+    \item Stochastic policy $\policy(\anaction \mid \astate) = \prob{\singleaction_{t} = \anaction \mid \state_{t} = \astate}$
+    \item There exists an (unknown) complete RL history $\history_{t} = \singleobservation_{1}, \singlereward_{1}, \singleaction_{t}, \dots, \singleaction_{t-1}, \singleobservation_{t},\singlereward_{t}$
+    \item We have access to an observation history $\observation = \singleobservation_{1}, \singleobservation_{2}, \dots, \singleobservation_{N}$ containing actions
+\end{itemize}
+
+There are two parts of this algorithm. 
+In the first part, we find all states for which the observation is an optimal action (i.e., it is the learned optimal policy). 
+In the second part, for the states associated with an action, we choose the state with the maximal reward (presumed to be the state in the optimal path) and associate this reward with the observation. 
+Finally, we sum the optimal rewards for each agent and return the agent with the highest normalized reward. 
+
+\begin{algorithm}[H]
+    \caption{Action-based recognition}
+    \label{alg:action-recognition}
+\begin{algorithmic}
+    \Require Q-value functions $\qvaluefunction[\agent]{\anaction, \astate}$ (implicitly the goals of $\agent$). 
+    \Require Alternative, sets of histories for each agent $\history^{\agent}$ so we can train different $\qvaluevector$s
+    \Require An observation $\observation$ history to be recognized
+    \Function{RecognizeFromActions}{}
+    \State train $\qvaluefunction[\agent]{\anaction, \astate}$ using $\history^{\agent}$
+    \ForAll{$i \in |\observation|$}
+        \ForAll{$\agent \in \agentspace$}
+            \State $S^{\agent}_{i} \gets \set{s \mid \anobservation_{i} = \displaystyle\argmax_{\anaction}\qvaluefunction[\agent]{s, \anaction}}$
+            \State $QO^{\agent}_{i} \gets \displaystyle\max_{s_i \in S^{\agent}_{i}}\max_{\anaction}\qvaluefunction[\agent]{s_{i},a}$
+        \EndFor
+        \State $\forall{\agent \in \agentspace}~QO^{\agent}_{i} \gets \frac{QO^{\agent}_{i}}{\max_{\agent \in \agentspace}QO^{\agent}_{i}}$ \Comment{Normalize values}
+    \EndFor
+    \State $\forall{\agent \in \agentspace}~QO^{\agent}_{i} \gets \sum_{i \in |\observations|} QO^{\agent}_{i}$
+    \State \textbf{return} $\displaystyle\argmax_{\agent \in \agentspace}QO^{\agent}$\Comment{The correct goal whose observations have maximal value}
+    \EndFunction
+\end{algorithmic}
+\end{algorithm}

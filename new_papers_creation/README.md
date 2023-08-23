@@ -24,10 +24,17 @@ addRows :
           4. if we have less than 66 than we need to remove the number of lines -3 
           
        4. compile again to check changes 
+   
 
 TODO: 
 1. fix add_to_latex and implement remove_from_latex
 2. check with all papers 
+3. find a way to reduce the number of compilations in addrows 
+4. problem we found out - some files have problemtic commands
+5. some directories have a lot tex file, we need to find out how to pick the right one , we have a few cases:  --> fixed
+   1. if one of the files named main.tex - this is the file we looking for
+   2. else , we open each file and look for the file that include the command '\begin{document}'
+   
 
 
 edge cases for page number to check: 
