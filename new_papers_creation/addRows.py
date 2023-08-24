@@ -60,6 +60,42 @@ def count_lines_in_page(pdf_path, page_number):
         line_count = len(lines)
     return line_count
 
+def getLines(pdf_path, page_number):
+     with pdfplumber.open(pdf_path) as pdf:
+        try:
+            page = pdf.pages[page_number]  
+            text = page.extract_text()
+            lines = text.strip().split('\n')
+            return lines
+        except:
+            print("error in getLines")
+            return None
+    
+def find_last_line_text(lines, last_index=-1):
+        return lines[last_index]
+    
+def search_last_line(tex_file_path, last_line_to_remove):
+    with open(tex_file_path, "r") as input_file:
+        file_content = input_file.read()
+    pattern = r"{}".format(last_line_to_remove)
+    try:
+        match = re.search(pattern, file_content)    
+        if match:
+            modified = (
+            file_content[:match.start()]
+            + file_content[match.end():]
+            )
+            with open(tex_file_path, "w") as output_file:
+                output_file.write(modified)
+            print("removed last line", last_line_to_remove)
+            return True
+        else:
+            print("last line not found")
+            return False
+    except:
+        print("error in search_last_line")
+        return False
+
 def find_page_number_before_bibliography(pdf_path, bibliography_keyword):
     pdf_document = fitz.open(pdf_path)
     found_page_number = None
@@ -137,7 +173,7 @@ def create_3Lines_page(new_file_path):
     add_clearpage_before_bibliography(new_file_path)
     pdf_file_path = compile_latex_to_pdf(new_file_path)
     keyword = "References"
-    line_threshold = 40
+    line_threshold = 66
     lines = 0
     added_rows =False
     page_number = find_page_number_before_bibliography(pdf_file_path, keyword)
@@ -165,9 +201,19 @@ def create_3Lines_page(new_file_path):
                     lines = count_lines_in_page(pdf_file_path, page_number)
                     
                 added_rows = False
-            else:
-                add_to_latex(new_file_path, text_to_add*(ESTIMATED_LINES_PER_PAGE-lines)) 
-                added_rows = True
+            else: #3<lines<threshold
+                # add_to_latex(new_file_path, text_to_add*(ESTIMATED_LINES_PER_PAGE-lines)) 
+                # added_rows = True
+                lines_on_last_page = getLines(pdf_file_path, page_number)
+                last_line_to_remove = find_last_line_text(lines_on_last_page, -1)
+                while not search_last_line(new_file_path, last_line_to_remove):
+                    lines_on_last_page.remove(lines_on_last_page[-1])
+                    if len(lines_on_last_page) == 0:
+                        lines_on_last_page = getLines(pdf_file_path, page_number-1)
+                    last_line_to_remove = find_last_line_text(lines_on_last_page, -1)
+                
+
+                
         pdf_file_path = compile_latex_to_pdf(new_file_path)
         page_number = find_page_number_before_bibliography(pdf_file_path, keyword)
         lines = count_lines_in_page(pdf_file_path, page_number)
@@ -175,3 +221,7 @@ def create_3Lines_page(new_file_path):
 
 # pdf_file = "new_papers_creation\\AAAI13-QDEC\\QDEC-POMDP.8.pdf"
 # pdf_file = "new_papers_creation\\AAAI-12\\aaai12-29 copy.pdf"
+
+
+latex = "new_papers_creation\\AAAI-12\\aaai12-29_changed.tex"
+create_3Lines_page(latex)
