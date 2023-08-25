@@ -3,8 +3,21 @@ import subprocess
 import csv
 import pdfplumber
 from collections import defaultdict
+import re
 from addRows import *
 
+
+def remove_comments(input_file_path, output_file_path):
+    with open(input_file_path, 'r', encoding='utf-8') as input_file:
+        content = input_file.read()
+        
+        # Remove single-line comments that start with %
+        content_without_comments = re.sub(r'%[^\n]*', '', content)
+        
+        with open(output_file_path, 'w', encoding='utf-8') as output_file:
+            output_file.write(content_without_comments)
+            
+            
 #assuming the papers already seperated with bibliography on new page
 #works only on one paper at a time
 def analyze_pdf(pdf_file_path):
@@ -15,19 +28,17 @@ def analyze_pdf(pdf_file_path):
         pdf_data['num_pages'] = len(pdf.pages)
         
         page_number = find_page_number_before_bibliography(pdf_file_path, "References")
-        
         lines = count_lines_in_page(pdf_file_path, page_number)
+        pdf_data['num_lines_last_page'] = lines
+        
         # last_page = pdf.pages[-1]
         # last_page_text = last_page.extract_text()
-        pdf_data['num_lines_last_page'] = lines
+        # pdf_data['num_lines_last_page']=  len(last_page_text.strip().split('\n'))
         
         for page in pdf.pages:
             pdf_data['num_pictures'] += len(page.images)
             
-            # for char in page.chars:
-            #     if char['fontname'] == 'ZapfDingbats':  # Assuming formulas use this font
-            #         pdf_data['num_formulas'] += 1
-            #         pdf_data['num_algorithms'] += 1
+    
     
     return pdf_data
 
@@ -35,12 +46,29 @@ def analyze_latex(tex_file_path):
     # Analyze the LaTeX document and extract section, graph, and table counts
     latex_data = defaultdict(int)
     
-    with open(tex_file_path, 'r') as tex_file:
+    with open(tex_file_path, 'r', encoding='utf-8') as tex_file:
         content = tex_file.read()
-        latex_data['num_sections'] = content.count('\\section{')
-        latex_data['num_graphs'] = content.count('\\begin{figure}')
-        latex_data['num_tables'] = content.count('\\begin{table}')
-        latex_data['num_algorithms'] = content.count('\\begin{algorithm}')
+        
+        # Count the number of non-commented sections
+        section_pattern = re.compile(r'\\section{')
+        num_sections = len(section_pattern.findall(content))
+        latex_data['num_sections'] = num_sections
+        # latex_data['num_sections'] = content.count('\\section{')
+       # Count the number of non-commented graphs
+        graph_pattern = re.compile(r'\\includegraphics{')  # Adjust the pattern
+        num_graphs = len(graph_pattern.findall(content))
+        latex_data['num_graphs'] = num_graphs
+        
+        # Count the number of non-commented tables
+        table_pattern = re.compile(r'\\begin{table}')  # Adjust the pattern
+        num_tables = len(table_pattern.findall(content))
+        latex_data['num_tables'] = num_tables
+        
+        # Count the number of non-commented algorithms
+        algorithm_pattern = re.compile(r'\\begin{algorithm}')  # Adjust the pattern
+        num_algorithms = len(algorithm_pattern.findall(content))
+        latex_data['num_algorithms'] = num_algorithms
+        
         latex_data['num_equations'] = content.count('\\begin{equation}')
     
     return latex_data
@@ -56,7 +84,7 @@ def create_summary_csv(data, csv_file_path):
             writer.writerow({'Metric': metric, 'Value': value})
 
 def latex_pdf_statistics(tex_file_path, pdf_file_path, summary_csv_file_path):
-   
+    remove_comments(tex_file_path,tex_file_path)
     analyze_result_pdf = analyze_pdf(pdf_file_path)
     analyze_result_latex = analyze_latex(tex_file_path)
     
