@@ -17,19 +17,26 @@ ESTIMATED_LINES_PER_PAGE = 10
     
     
     
-def check_content_on_second_row(pdf_path, page_number=0):
+def check_content_on_second_column(pdf_path, page_number=0):
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[page_number]
+        
+        # Extract text and images from the page
         text_blocks = page.extract_words()
         images = page.images
-        tables = page.extract_tables()  
-        page_height = page.height
-        second_row_top = page_height * (1 / 3) 
-        second_row_bottom = page_height * (2 / 3)  
-        text_on_second_row = any(block for block in text_blocks if second_row_top <= block['top'] <= second_row_bottom)
-        images_on_second_row = any(image for image in images if second_row_top <= image['top'] <= second_row_bottom)
-        tables_on_second_row = any(table for table in tables if second_row_top <= table[0][1] <= second_row_bottom)
-        return text_on_second_row or images_on_second_row or tables_on_second_row
+        tables = page.extract_tables()
+        
+        # Calculate the x-coordinate range for the second column
+        page_width = page.width
+        second_column_left = page_width * (1 / 2)  # Adjust as needed
+        second_column_right = page_width  # Adjust as needed
+        
+        # Check if any text or images fall within the second column
+        text_on_second_column = any(block for block in text_blocks if second_column_left <= block['x0'] <= second_column_right)
+        images_on_second_column = any(image for image in images if second_column_left <= image['x0'] <= second_column_right)
+        tables_on_second_column = any(table for table in tables if second_column_left <= table[0][0] <= second_column_right)
+        
+        return text_on_second_column or images_on_second_column or tables_on_second_column
 
 def add_to_latex(tex_file_path, lines):
         with open(tex_file_path, "r") as input_file:
@@ -208,7 +215,7 @@ def create_3Lines_page(new_file_path):
             return
         if lines < 3: 
             add_to_latex(new_file_path, (3-lines)*text_to_add)
-        elif check_content_on_second_row(pdf_file_path, page_number):
+        elif check_content_on_second_column(pdf_file_path, page_number):
             added_rows = True
             add_to_latex(new_file_path, text_to_add*(ESTIMATED_LINES_PER_PAGE))
 
@@ -222,7 +229,7 @@ def create_3Lines_page(new_file_path):
                     lines = count_lines_in_page(pdf_file_path, page_number)
                     
                 added_rows = False
-            else: #more than 3 lines and no content on second row
+            else: #more than 3 lines and no content on second col
                 lines_on_last_page = getLines(pdf_file_path, page_number, next)
                 last_line_to_remove = find_last_line_text(lines_on_last_page, -1)
                 while not search_last_line(new_file_path, last_line_to_remove):
@@ -245,10 +252,10 @@ def create_3Lines_page(new_file_path):
 latex = "new_papers_creation\Who Reviews The Reviewers_ A Multi-Level Jury Problem\AAAI2024\example2lines.tex"
 # pdf_file = "new_papers_creation\Who Reviews The Reviewers_ A Multi-Level Jury Problem\AAAI2024\example2lines.pdf"
 # page = find_page_number_before_bibliography(pdf_file, "References")
-# print(check_content_on_second_row(pdf_file, page))
+# print(check_content_on_second_column(pdf_file, page))
 
 # latex = "new_papers_creation\\AAAI-12\\aaai12-29_changed.tex"
 # pdf = "new_papers_creation\\AAAI-12\\aaai12-29_changed.pdf"
 # page = find_page_number_before_bibliography(pdf, "References")
-# print(check_content_on_second_row(pdf, page))
+# print(check_content_on_second_column(pdf, page))
 create_3Lines_page(latex)
