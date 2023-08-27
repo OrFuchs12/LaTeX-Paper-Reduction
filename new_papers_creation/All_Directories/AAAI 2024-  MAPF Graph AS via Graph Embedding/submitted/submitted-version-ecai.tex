@@ -1,0 +1,1710 @@
+\documentclass{ecai}
+\usepackage{graphicx}
+\usepackage{latexsym}
+
+%%\ecaisubmission   % inserts page numbers. Use only for submission of paper.
+                  % Do NOT use for camera-ready version of paper.
+
+
+
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xspace}
+
+\usepackage{hyperref}
+\usepackage{xcolor}
+\newcommand{\tuple}[1]{\ensuremath{\langle #1\rangle}}
+% \newcommand{\Omri}[1]{\textcolor{orange}{\textsc{Omri}: #1}}
+% \newcommand{\Carmel}[1]{\textcolor{red}{\textsc{Carmel}: #1}}
+% \newcommand{\Roni}[1]{\textcolor{green}{\textsc{Roni}: #1}}
+\newcommand{\Omri}[1]{}
+\newcommand{\Carmel}[1]{}
+\newcommand{\Roni}[1]{}
+\newcommand{\shortcite}[1]{\cite{#1}}
+\newcommand{\gtv}[1]{\ensuremath{\textit{G2V}}\xspace}
+\newcommand{\fgtv}[1]{\ensuremath{\textit{FG2V}}\xspace}
+\newcommand{\kaduri}[1]{\ensuremath{\textit{KBS}}\xspace}
+\newcommand{\mapfgas}[1]{\ensuremath{\textit{MAG}}\xspace}
+\hypersetup{
+    colorlinks=true,
+    linkcolor={blue!50!black},
+    citecolor={blue!80!black},
+    urlcolor={blue!50!black}
+}
+\newtheorem{example}{Example}
+
+
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{Algorithm Selection for Optimal Multi-Agent Path Finding via Graph Embedding}
+
+% \author[A]{\fnms{First}~\snm{Author}\orcid{....-....-....-....}\thanks{Corresponding Author. Email: somename@university.edu.}}
+% \author[B]{\fnms{Second}~\snm{Author}\orcid{....-....-....-....}}
+% \author[B]{\fnms{Third}~\snm{Author}\orcid{....-....-....-....}} % use of \orcid{} is optional
+
+% \author[A]{\fnms{Carmel}~\snm{Shabalin}\orcid{0000-0002-3297-6265}\thanks{Corresponding Author. Email: carmelshablin@gmail.com}}
+% \address[A]{Ben-Gurion University of the Negev}
+
+% \address[A]{Short Affiliation of First Author}
+% \address[B]{Short Affiliation of Second Author and Third Author}
+
+\begin{abstract}
+%ECAI: The abstract should contain no more than 200 words.
+Multi-agent path finding (MAPF) is the problem of finding paths for multiple agents such that they do not collide. 
+Finding optimal solutions to MAPF is NP-Hard, yet modern optimal solvers can scale to hundreds of agents and even thousands in some cases. 
+Different solvers employ different approaches, and there is no single state of the art approach all problems. 
+Furthermore, there are no clear, provable, guidelines for choosing when each optimal MAPF solver to use. 
+Prior work employed Algorithm Selection (AS) techniques to learn such guidelines from past data. 
+A major challenge when employing AS for choosing an optimal MAPF algorithm is how to encode the given MAPF problem. 
+Prior work either used hand-crafted features, graph embedding of the shortest paths, or an image representation of problem. Each encoding is lossy, in the sense that it does not capture some aspect of the MAPF proboem. 
+%\Carmel{what is meaning 'loss-y'}, as it overlooks some aspect of the problem. RONI: IGNORING START AND GOAL LOCATIONS, IGNORING PARTS OF THE GRAPH, ETC. 
+We propose a graph encoding of the MAPF problem, and show how it can be used on-the-fly with a modern graph embedding algorithm called FEATHER. 
+We also show how this encoding can be effectively joined with existing encodings, resulting in a novel AS method we call MAPF Algorithm selection via Graph embedding (\mapfgas\ ). %, produces new state of the art results for optimal MAPF AS. % includes also an embedding of the entire graph together with all prior encodings.  
+An extensive experimental evaluation of \mapfgas\ on several MAPF algorithm selection tasks reveals that it outperforms existing methods significantly. 
+%that We evaluate an optimal MAPF AS algorithm that uses this encoding, and compare it with prior work. 
+%Our results show a clear correlation to predicting best (fastest) algorithm, and demonstrate empirically that a combination of graph-based features and hand-crafted features achieve state of the art performance.
+\end{abstract}
+
+\end{frontmatter}
+
+\section{Introduction}
+\label{scn:Intro}
+%TO FIX (copied from KAduri Experimental Evaluation)
+
+Multi-Agent Pathfinding (MAPF) is the problem of finding paths for a group of agents, moving each agent from its initial location to a designated target location. 
+The main constraint in MAPF is that the agents must not collide. 
+% Applications
+MAPF has received significant interest recently in the scientific community and in industry, as it has applications in robotics~\cite{veloso2015cobots} and automated warehouses~\cite{wurman2008coordinating}. 
+Finding an optimal solution to MAPF with respect to various optimization criteria, is known to be NP Hard~\cite{anOptimization2010surynek,structure2013yu}. 
+Nevertheless, a range of practical algorithms that guarantee optimality exists~\cite{kornhauser1984pebble,surynek2009novel}. 
+It has been shown that these algorithms are able to find optimal solutions to MAPF problems with more than 100 agents with less than one minute of runtime~\cite{li2021pairwise}. 
+
+% Different approaches work in different places
+Different optimal MAPF algorithms employ different problem solving techniques. For example, EPEA*~\cite{goldenberg2014enhanced} employs a heuristic search technique, BCP~\cite{lam2022branch} uses optimization techniques, and SAT-MDD~\cite{surynek2016efficient} compiles MAPF to Boolean Satisfiability. 
+% Appropriately choosing the right MAPF solver can allow finding provably optimal solutions to MAPF problems with more than 100 agents with less than one minute of runtime~\cite{li2021pairwise}. 
+Correspondingly, different solvers work best for different MAPF problems, and no algorithm has emerged to dominate all others. 
+The variance in performance can be great, where some algorithms perform poorly on some instances but significantly outperform all others on other instances. 
+On a recently performed extensive comparison of 5 optimal MAPF algorithms~\cite{kaduri2021experimental}, it was shown that even the least effective algorithm had some grids in which it was able to solve problems with 4 times more agents than all other evaluated algorithms. % SAT-MDD
+Thus, developing methods for selecting the best optimal MAPF search algorithm for a given problem is a worthwhile endeavor. % UP to here edits
+
+
+% the algorithm performing 
+% Kaduri et al.~\shortcite{kaduri2021experimental} 
+% performed an extensive comparison of 5 optimal MAPF algorithms 
+% showed that the SAT-MDD algorithm is the fastest
+% is the fastest showed that SAT-MDD solves on some grids 4 times mor the performance of 
+
+
+The problem of determining which algorithm from a given set of algorithms is expected to perform best on a given problem instance is known as the 
+Algorithm Selection (AS) problem~\cite{rice1976algorithm,kerschke2019automated}.\footnote{Technically, this problem is called the \emph{per-instance AS} problem.}
+Several recent works have developed AS techniques for optimal MAPF~\cite{kaduri2020algorithm,ren2021mapfast,alkazzi2022mapfaster}. 
+They used supervised learning to
+train a classifier that chooses the best optimal MAPF algorithm for a given MAPF problem, from a portfolio of optimal MAPF algorithms that include EPEA*~\cite{goldenberg2014enhanced}, ICTS~\cite{sharon2013increasing}, SAT-MDD~\cite{surynek2016efficient}, CBSH~\cite{felner2018adding}, and Lazy CBS~\cite{gange2019lazy}.  
+%\Carmel{algorithms portfolio is missing in paper?} \Roni{Not sure what you mean. I just added above also the reference for MAPFAST if that's what you were saying} \Carmel{I meant introduce the solvers in our dataset} RONI: DONE
+% While they achieved remarkable results, their algorithm portfolio only included search-based MAPF algorithm. Specifically, they did not consider using MDD-SAT or Lazy CBS. \Roni{MAPFASTER also included SAT and BCP (but not Lazy CBS as far as I can tell}
+A key challenge faced by all prior work on AS for optimal MAPF is how to encode a given MAPF problem, as an input to the supervised learner. Prior works proposed hand-crafted MAPF-related features, casting the MAPF problem as an image~\cite{alkazzi2022mapfaster}, and graph embedding of a subgraph containing the shortest paths from start to goal. Neither of these encodings completely captures the encoded MAPF problem.
+
+
+
+To this end, we propose two contributions.
+The first contribution is a different encoding of the MAPF problem called \fgtv\ , that fully utilizes the power of graph embedding algorithms by encoding the entire graph, augmented with artificial edges marking the start and goal vertex of every agent. 
+This embedding is done using FEATHER~\cite{rozemberczki2020characteristic}, a modern graph embedding algorithm. %\Roni{Maybe there is something interesting about how we trained it in our context}
+The resulting embedding yields superior results in most cases, but not always. 
+The second contribution is a simple method for integrating multiple encodings, which enables a more comprehensive encoding of the problem. This method can be used with different embeddings in a seamless manner. The resulting AS method is called \mapfgas\ . 
+Our third contribution is a comprehensive evaluation of \mapfgas\ on a standard benchmark over three different AS tasks, which differ in how similar are the train and test problems. Our results show that \mapfgas\ is superior to baseline methods, demonstrating the first practical AS method for MAPF that utilizes graph embeddings. 
+
+% We compared experimentally the different AS algorithms on a standard optimal MAPF dataset. Our results show that ....
+% \Roni{detail our results}
+
+%FROM MAPFASTER: The proposed portfolio contains Search-Based algorithms: CBS [25], CBSH [27], an Optimization-Based algorithm: BCP [28], and a Satisfiability-Based algorithm: SAT [29]
+
+% Recently, a benchmark of MAPF problems in grid environments
+% have been proposed (Stern et al. 2019), which includes a diverse set of XX grids. another more recent benchmark proposed (by Jingyao Ren) which includes a diverse set of XX grids from defrent grid types 
+
+
+
+\section{Background}
+\label{scn:Background}
+
+
+For completeness, we provide here a brief background on MAPF, AS for MAPF, and graph embedding. 
+
+\subsection{MAPF}
+A MAPF problem is defined by a tuple $\tuple{k,G,s,t}$ 
+where 
+$k$ is the number of agents, 
+$G = (V;E)$ is an undirected graph, 
+$s: [1\ldots, k]\rightarrow V$ maps an agent to its source vertex, 
+and $t: [1,\ldots, k]\rightarrow V$ maps an agent to its target vertex. 
+Initially each agent is in its source vertex.
+In every time step, each agent either waits
+in its current vertex or moves to one of the vertices adjacent to it. 
+A single-agent plan for agent $i$ is a sequence of move/wait actions that moves $i$ from $s(i)$ to $t(i)$. 
+A solution to a MAPF problem is a set of single-agent plans, one for each agent, such that the agents do not collide with each other. 
+
+In the classical MAPF problem, the cost of a solution is either the sum of actions in all single-agent plans (also known as the sum of costs) or the number of actions in the longest single-agent plan (also known as makespan). 
+MAPF extensions that consider non-unit action costs, large agents, and continuous time have been explored~\cite{atzmon2020generalizing,andreychuk2022multi,li2019multi}. 
+In this work we focus on classical MAPF. 
+
+
+Optimal MAPF algorithms are algorithms that are guaranteed to return optimal solutions according to a predefined solution cost function. Two commonly studied MAPF solution cost functions are the \emph{sum of costs (SOC)} and \emph{makespan}. SOC is the sum of actions (move or wait) performed by all agents until all agents reach their goals. Makespac is the maximal number of actions each agent makes until all agents reach their goal. While our approach is agnostic to the chosen cost function, we used considered SOC in our experiments and unless stated otherwise consider a solution to be optimal if it minimizes SOC. 
+
+
+Different optimal algorithms have been proposed for solving classical MAPF problems. 
+Prime examples are EPEA*~\cite{goldenberg2014enhanced}, SAT-MDD~\cite{anOptimization2010surynek}, CBS~\cite{sharon2015conflict,felner2018adding} and its many extensions, BCP~\cite{lam2022branch}, Lazy CBS~\cite{gange2019lazy}, and ICTS~\cite{sharon2013increasing}. These algorithms apply a range of techniques: some use heuristic search on dedicated state spaces, other compile the problem to Boolean Satisfiability (SAT) and call an off-the-shelf SAT solver, while others borrow ideas from constraint programming. 
+No algorithm fully dominates the other, and different  problems are solved best with different algorithms. This raised the need for an automated way to select which optimal MAPF solver to use for a given problem. 
+
+
+
+
+\subsection{AS for MAPF}
+
+
+
+Previously proposed AS methods for MAPF followed a standard supervised learning paradigm, 
+and differ mainly in the type of features they extract. 
+Sigurdson et al.~\cite{sigurdson2019automatic} and Ren et al.~\cite{ren2021mapfast} mapped a given MAPF problem to an image and extracted image-based features with a Convolutional Neural Networks (CNN). 
+Kaduri, Boyarski, and Stern~\cite{kaduri2020algorithm} proposed a set of hand-crafted, MAPF-specific features, such as the number of agents divided
+by the number of unblocked cells in the grid. 
+We refer to these features as the \kaduri features. 
+Ren et al. also explored the potential of using features that are based on mapping the given MAPF problem to a graph and using a \emph{graph embedding} method. 
+While their exploration showed that graph embedding can provide useful features for MAPF AS, they do not provide a practical method to use it. In fact, they consider their method to be ``not a deployable algorithm selector in any reasonable sense''~\cite{ren2021mapfast}, since it could not be used on any MAPF problem not observed during training. 
+We overcome this limitation in our work.  
+ \Carmel{this sentence is very misleading, for example Kaduri method can be deployed it can be used on problems/maps that are not part of train}\Roni{But this sentence is about the G2V method. They wrote it themselves (it's a quote). I rephrased a bit after your comment to make it clearer. Let me know if you're happy or not with it.}
+%\Roni{Maybe even pull this to the intro. Let me think about it}
+
+
+%Therefore, it is not a deployable algorithm selector in any reasonable sense.
+
+
+Kaduri et al.~\cite{kaduri2021experimental} distinguished between three types of AS problems for MAPF: 
+(1) in-grid AS, (2) in-grid-type, and (3) between-grid-type. 
+In-grid AS means the train and test problems are all from the same underlying graph. 
+In-grid-type means the train and test problems are on different grids, but their grids are similar topologically. 
+\Carmel{more accurate - In-grid-type means the train and test problems are from the same grid types but totally different maps}
+\Roni{I rephrased}
+Between-grid-type means that graphs in the train and test problems are completely different, e.g., training on maze-like graphs and testing on graphs that represent road map in a city. Most prior work has focused on the in-grid AS problem, which is, of course, significantly easier. 
+
+
+% Therefore, it is not a deployable algorithm
+% selector in any reasonable sense
+
+% While their results were encouraging, they could not apply  to extract a vector representation of. We describe th
+
+
+% extracting 
+% specifically designed for MAPF, and demonstrated their use in an AS method for optimal MAPF. 
+
+% to select suboptimal MAPF algorithms. 
+
+% Algorithm Selection for classical MAPF has been previously studied~\cite{sigurdson2019automatic,kaduri2020algorithm. 
+% The approaches proposed so far can be classified as either hand-crafted
+
+% Sigurdson et al.~\cite{sigurdson2019automatic} mapped a MAPF problem to an image and applied Convolutional Neural Networks (CNN) to select suboptimal MAPF algorithms. 
+% Kaduri et al~\cite{kaduri2020algorithm} proposed a set of hand-crafted features, specifically designed for MAPF, and demonstrated their use in an AS method for optimal MAPF. 
+% Ren et al.~\cite{ren2021mapfast} introduced MAPFAST, which is an AS for optimal MAPF that, similar to Sigurdson et al., employs a customized CNN architecture 
+% ~\cite{kaduri2020algorithm,alkazzi2022mapfaster,ren2021mapfast,sigordson}. 
+% \Roni{Some text on prior work on AS for MAPF}
+
+
+\subsection{Graph Embedding Algorithms}
+%\Roni{Some text on graph embedding}. 
+
+% In this work, we utilize \emph{graph embedding} methods to encode classical MAPF problems.
+Node embedding methods  are algorithms for encoding a node in a graph into a low-dimensional continuous vector~\cite{goyal2018graph}. 
+Similarly, graph embedding methods are algorithms for encoding an entire graph $G$ into a low-dimensional continuous vector~\cite{goyal2018graph}, referred to as the \emph{embedding} of $G$. 
+Ideally, graphs with similar structure will have embedding that are close in terms of their Euclidean distance. 
+Graph embeddings have proven to be useful features for various machine learning tasks such as classification~\cite{you2020cross}.
+\Carmel{grammar not clear to me: why mentioning the classification task has input a graph?} 
+\Roni{I simplified}
+
+
+Graph2Vec~\cite{narayanan2017graph2vec} is a neural graph embedding algorithm that accepts a set of graphs and outputs an embedding for each graph by analyzing local neighborhood of their nodes. It runs stochastic gradient descent to optimize a loss function that ensures similar graphs in the input set of graphs will have a similar embedding. Notably, it cannot be effectively used on other graphs without re-training, and thus its usefulness for our purposes is limited. 
+FEATHER~\cite{rozemberczki2020characteristic} is a recently proposed algorithm that serves as both a node embedding and a graph embedding algorithm. 
+Its embedding is based on the likelihood of reaching each node in a random walk. 
+Unlike Graph2Vec, it does not require an optimization step, and can reasonably used to embed a single graph.  
+% plicable to new graphs
+% that is computed by performing a set of random walks over the embedded graph. 
+The embeddings created by FEATHER have shown to be effective in node-level and graph-level machine learning tasks, such as classifying fake users in a social network and link prediction.
+\Carmel{I think for this examples we citing}\Roni{We already cited the FEATHER paper, which does this. If there's a follow up paper with applications of FEATHER- yes! please add it} 
+FEATHER has an additional positive property that it describes isomorphic graphs with the same representation and exhibits robustness to data corruption. 
+\Omri{Last sentence is not clear (to me) - what do we mean by data corruption and why invariant to isomorphism is interesting for our use case?}
+\Roni{ Ideally, at least for \fgtv\ , isomorphic graph corresponds to the same MAPF problem and so same AS algorithm should be selected. So, this invariant is good for us. Not sure worth elaborating on this.}
+
+% \Roni{What do you mean by node-level ML tasks? can you give an example?}. \Carmel{example - fake user(node) finding in network such as facebook or link(friendship) prediction } 
+% vertices and collecting selected node characteristic functions. 
+% collects various 
+% Rozemberczki et al.~\shortcite{rozemberczki2020characteristic}, proposed FEATHER, a flexible notion of characteristic functions \Roni{What is this?} defined on graph vertices to describe the distribution of vertex features \Roni{Which vertex features are you referring to?} \Carmel{each node has its vector representation based on transition probabilities of random walk.} at multiple scales. 
+% %, Introduce FEATHER \Omri{Remove last two words and comma since we wrote FEATHER above}. 
+% FEATHER is a computationally
+% efficient algorithm to calculate a specific variant of these characteristic functions where the probability weights of the characteristic function are defined as the transition probabilities of random walks. Features extracted by this procedure are useful for
+% node-level machine learning tasks \Roni{What do you mean by node-level ML tasks? can you give an example?}. \Carmel{example - fake user(node) finding in network such as facebook or link(friendship) prediction } 
+
+
+% vertices and collecting selected node characteristic functions. 
+% collects various 
+% Rozemberczki et al.~\shortcite{rozemberczki2020characteristic}, proposed FEATHER, a flexible notion of characteristic functions \Roni{What is this?} defined on graph vertices to describe the distribution of vertex features \Roni{Which vertex features are you referring to?} \Carmel{each node has its vector representation based on transition probabilities of random walk.} at multiple scales. 
+% %, Introduce FEATHER \Omri{Remove last two words and comma since we wrote FEATHER above}. 
+% FEATHER is a computationally
+% efficient algorithm to calculate a specific variant of these characteristic functions where the probability weights of the characteristic function are defined as the transition probabilities of random walks. Features extracted by this procedure are useful for
+% node-level machine learning tasks \Roni{What do you mean by node-level ML tasks? can you give an example?}. \Carmel{example - fake user(node) finding in network such as facebook or link(friendship) prediction } 
+% Also discuss the pooling of these node representations, resulting in compact descriptors of graphs that can serve as features for graph classification algorithms. 
+% \Roni{Not clear. What do you mean by ``pooling'' in this context?} \Carmel{Example you have 10 nodes in G1 and each node has its vector representation based on random walk - now for the sake of having 1 vector representation for the entire graph you need to do something so they do pooling (max/mean..) over the 10 node's vectors to get the 1 vector represent the entire graph.}
+% FEATHER has an additional positive property that it describes isomorphic graphs with the same representation and exhibits robustness to data corruption. \Roni{reference?}
+
+
+
+
+%This obviates the need for complex classification models that are applied directly on the graph. \Roni{Not sure about this}
+%\Omri{This should be specified in the sentences above, where I wrote "However, training a model...". Add the citations there?}
+%\subsection{Using Feather model}\vspace{10px}
+%\label{scn:Feather}
+% \subsubsection{\textbf{FEATHER Algorithm}}\vspace{10px}
+% Feather~\cite{rozemberczki2020characteristic} is a recently proposed graph embedding algorithm
+% that is computed by performing a set of random walks over the graph vertices and collecting selected node characteristic functions. 
+% collects various 
+% Rozemberczki et al.~\shortcite{rozemberczki2020characteristic}, proposed FEATHER, a flexible notion of characteristic functions \Roni{What is this?} defined on graph vertices to describe the distribution of vertex features \Roni{Which vertex features are you referring to?} \Carmel{each node has its vector representation based on transition probabilities of random walk.} at multiple scales. 
+% %, Introduce FEATHER \Omri{Remove last two words and comma since we wrote FEATHER above}. 
+% FEATHER is a computationally
+% efficient algorithm to calculate a specific variant of these characteristic functions where the probability weights of the characteristic function are defined as the transition probabilities of random walks. Features extracted by this procedure are useful for
+% node-level machine learning tasks \Roni{What do you mean by node-level ML tasks? can you give an example?}. \Carmel{example - fake user(node) finding in network such as facebook or link(friendship) prediction } 
+% Also discuss the pooling of these node representations, resulting in compact descriptors of graphs that can serve as features for graph classification algorithms. 
+% \Roni{Not clear. What do you mean by ``pooling'' in this context?} \Carmel{Example you have 10 nodes in G1 and each node has its vector representation based on random walk - now for the sake of having 1 vector representation for the entire graph you need to do something so they do pooling (max/mean..) over the 10 node's vectors to get the 1 vector represent the entire graph.}
+% FEATHER has an additional positive property that it describes isomorphic graphs with the same representation and exhibits robustness to data corruption. \Roni{reference?}
+%\Omri{I think you should rephrase but I have no good suggestion. If you want we can do it together on a zoom call.}
+%we will use this method as part of our MAPFGAS model.
+
+% \Roni{I removed the figure from the crocodile. I don't see how it helps. Also, in general, if you take picture or text from a different paper, you MUST cite it and be very clear that this is taken from them.}
+% \begin{figure}[!h]
+%     \centering
+%     \includegraphics[scale=0.32]{Images/Feather_1.png}
+%     \caption{The real part of class dependent mean characteristic functions with standard deviations around the mean for the log transformed degree on the Wikipedia Crocodiles dataset.}
+%     % \cite{rozemberczki2020characteristic}
+%     \label{fig:Feather}
+% \end{figure}
+
+
+% \begin{itemize}
+%     \item \Roni{Graph Embedding}
+%     \item \Roni{Graph Embedding for MAPF AS (MAPFAST)}
+%     \item \Roni{Omri's approach}
+%     \item \Roni{Image-based encoding: sigordson and MAPFASTER}
+% \end{itemize}
+
+
+% \section{Encoding a MAPF Problem as a Graph}
+\section{Method}
+\label{scn:Methods}
+
+In this section, we describe our AS method for choosing optimal classical MAPF algorithms called MAPF Algorithm selection via Graph embedding (\mapfgas\ ). 
+%MAPFGAS. \Roni{Is this an acronym?} \Carmel{yes MAPF Graph Algo Selection, maybe need mention this earlier in Abstract}
+% MAPFGAS works as follows. \Omri{The acronym used in Abstract is MAG, right?}
+% \Roni{I changed the acronym to be MAPF Algorithm selection via Graph embedding (MAG).}
+\mapfgas\ works as follows. 
+First, it encodes the given MAPF problem as a graph. 
+Then, it creates an embedding of the resulting graph with FEATHER. 
+The resulting vector is added to a set of previously proposed MAPF-specific features extracted from the given MAPF problem, 
+and used to solve our AS problem using supervised machine learning. 
+Next, we describe each of these steps in more detail.
+
+
+\subsection{Encoding MAPF as a Graph}
+
+We consider two ways to encode a MAPF problem $\Pi=\tuple{k,G,s,t}$ as a graph. 
+The first encoding method, called G2V, was previously proposed by Ren et al.~\cite{ren2021mapfast}.
+G2V encode $\Pi$ a the subgraph of $G$ that includes the shortest paths for each agent and the nodes adjacent to them.
+In more details, G2V computes for each agent the shortest path from its source to its target while ignoring all other agents. 
+Then, it joins these paths to a single graph and adds links if any between adjacent path's nodes in original MAPF problem. 
+%\Carmel{<- I changed this} RONI: GOOD, TNX. %and adds to this graph all the nodes and edges that are adjacent to these shortest path nodes. % IS THIS CLEAR? NOT SURE
+Note that the resulting graph may be disconnected. 
+
+The benefit of G2V is that the resulting graphs are significantly smaller than $G$. 
+However, these graphs loose information: they do not consider regions on $G$ that are not on the agents shortest paths. 
+These regions may be important to consider when the corresponding MAPF problem is particularly difficult and agents must move away from their shortest paths. 
+To address this limitation of \gtv, we propose \emph{FullG2V} (\fgtv\ ), which uses the entire graph $G$ to encode the given MAPF problem. 
+To include details about the MAPF problem beyond $G$, the graph outputted by \fgtv includes an artificial edge for every agent between its source and target. 
+Formally, for a MAPF problem $\tuple{k,G=(V,E),s,t}$ \fgtv\ outputs the graph $G'=(V',E')$ where 
+$V'=V$ and $E'=E\cup \{(s(i),t(i))\}_{i=1}^k$. Figure~\ref{fig:graph-encodings} illustrates \gtv\ and \fgtv\ on a simple MAPF problem. 
+%will \Carmel{'will' is not resulting in result} output a FIXED
+%\Roni{Would be nice to show an example of \gtv and \fgtv side by side} \Carmel{it is shown in Method Flow figure}\Roni{I want a better version. Adding it now.}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\columnwidth]{Images/MAG-Diagram.pdf}
+    \caption{An example of the \gtv\ and \fgtv\ encoding methods. \Carmel{G2V picture is wrong, we dont add nodes outside the shortest paths only add links if any, see my original picture... + it
+joins these paths to a single graph and adds links if any between adja-
+cent path’s nodes in original MAPF problem}}
+    \label{fig:graph-encodings}
+\end{figure}
+
+
+% Spea MAPF problem by taking the entire graph $G$, and adding an artificial edge between every 
+% $(s_i, t_i)$ 
+
+% encodes the entire The second way to encode a MAPF problem as a graph t
+
+% In the first phase, we perform novel proposed structural abstraction for each MAPF problem \textbf{we cast a MAPF problem to its Graph representation and add artificial links between each agent's start and goal nodes we called FullG2V}. Another structural abstraction proposed by \cite{ren2021mapfast} called G2V was performed where casting a MAPF problem to its graph representation while using single-agent shortest paths.
+
+
+
+
+
+
+% already in that graph.  
+% Then, it joints 
+% Each of these
+% The results paths are augmented by 
+% In G2V, the shortest path to reach the goal is computed for each agent while ignoring all other agents. 
+% The result
+% G2V 
+
+% ....
+% In the first phase, we perform novel proposed structural abstraction for each MAPF problem \textbf{we cast a MAPF problem to its Graph representation and add artificial links between each agent's start and goal nodes we called FullG2V}. Another structural abstraction proposed by \cite{ren2021mapfast} called G2V was performed where casting a MAPF problem to its graph representation while using single-agent shortest paths.
+
+\subsection{Embedding the Graph}
+
+To embed the encoded graph into a vector space, we used the FEATHER algorithm~\cite{rozemberczki2020characteristic}. 
+FEATHER creates a graph embedding by firsts embedding each of the graph nodes and then pooling the resulting vectors to a single vector of size 500. 
+%\Roni{Carmel, can you say more here. How is this pooling done? For example, what is the size of the resulting vector? is it just a parameter? something else? how did you set it?} \Carmel{the resulting vector is 500 length and the polling meathod is hyper parameter of model init - the default is 'mean', we use 'max'}\Roni{But is the 500 a hyper parameter as well or a builtin number in the method?} \Carmel{500 is constant, we can not change it}
+Unlike other graph embedding techniques, it does not require a-priori training. 
+Consequently, the features extracted using FEATHER can be extracted and used in a meaningful way even for graphs created for MAPF problems that are not in the training set. 
+This is key to allowing graph embedding features to be used for optimal MAPF AS methods. 
+
+Note that the default pooling method in FEATHER ``mean''. 
+This means the graph embedding is created by taking the mean over its constituent node embeddings.
+%\Roni{@Carmel: please verify this} \Carmel{correct}
+We observed that using mean pooling did not perform well in our context, i.e., led to poor classification results when used as features. 
+The reason for this is that mean pooling diminishes the impact of the artificial edges added between the source and target of each agents. Thus, MAPF problems on the same graph yielded very similar embeddings. 
+To overcome this, we configured FEATHER to use ``max'' pooling, which emphasizes small differences between graphs created from MAPF problems on the same grid. This yielded significantly better results when  training the AS classification model. 
+
+
+%  the only deference related to FullG2V abstractions between graphs obtained from the same grid MAPF problems is the special artificial links between agents location. Basically there is very little difference between graphs from same grid, by max pooling we emphasize the differences between graphs embeddings which works better for training a classification model. \Roni{Excellent explanation}
+
+% is 'mean' resulting in much poor results, this is logical since node level features are pooled by the pooling method to create graph level statistics, and the only deference related to FullG2V abstractions between graphs obtained from the same grid MAPF problems is the special artificial links between agents location. Basically there is very little difference between graphs from same grid, by max pooling we emphasize the differences between graphs embeddings which works better for training a classification model. \Roni{Excellent explanation}
+
+
+% Using FEATHER allows us to 
+
+% The main advantage of FEATHER over prior work on gr 
+% Given the graph encoding of 
+
+% To embed the resulting graph into a vector space, we used the FEATHER algorithm~\cite{rozemberczki2020characteristic}. 
+% Different from the default implementation of FEATHER, we set the pooling here to ....\Roni{Carmel can you plug here your use of max pooling and th motivation}
+
+
+% For structural abstraction shown we have used \href{https://github.com/benedekrozemberczki/karateclub/tree/master/karateclub/graph_embedding/}{Feather Graph embedding model} provided by the  Benedek et al. \cite{rozemberczki2020characteristic}, with the following non default hyper parameters: pooling='max'. The default value of 'pooling' is 'mean' resulting in much poor results, this is logical since node level features are pooled by the pooling method to create graph level statistics, and the only deference related to FullG2V abstractions between graphs obtained from the same grid MAPF problems is the special artificial links between agents location. Basically there is very little difference between graphs from same grid, by max pooling we emphasize the differences between graphs embeddings which works better for training a classification model. \Roni{Excellent explanation}
+
+
+
+\subsection{Feature Extraction and Learning}
+% ...something about how we combinted the features and something about the  learning
+% In the first phase, we perform novel proposed structural abstraction for each MAPF problem \textbf{we cast a MAPF problem to its Graph representation and add artificial links between each agent's start and goal nodes we called FullG2V}. Another structural abstraction proposed by \cite{ren2021mapfast} called G2V was performed where casting a MAPF problem to its graph representation while using single-agent shortest paths.
+
+% In the second phase, independently for each graph abstraction explained above we use Feather algorithm from karateclub\footnote{ \url{https://github.com/benedekrozemberczki/karateclub/tree/master/karateclub/graph_embedding/}}
+% %\href{https://github.com/benedekrozemberczki/karateclub/tree/master/karateclub/graph_embedding/}{Feather implementation from karateclub}
+% provided by Benedek et al. \cite{rozemberczki2020characteristic} presented in section \ref{scn:Feather}, to train it with graphs  obtained from the train set. \Carmel{This is wrong its not unsupervised training, Roni can you fix please?} Training this model means preforming an unsupervised learning for the train MAPF problems graphs representations. The trained resulting models are used to get all graphs embeddings which is used later for training and testing a Machine Learning (ML) model. \Omri{Last sentence needs rephrasing - if not sure how to rephrase let us do this together}
+
+For a given MAPF problem $\Pi$, \mapfgas\ uses \gtv\ and \fgtv\ to create two graphs $G_\gtv\ $ and $G_\fgtv\ $ that encoding $\Pi$. 
+Then, it creates two graph embeddings $v_\gtv\ $ and $v_\fgtv\ $ by applying FEATHER on these graphs. 
+It also creates a vector $v_\kaduri\ $ by extracting all the MAPF-specific features proposed by Kaduri et al.~\cite{kaduri2020algorithm}. 
+Finally, \mapfgas\ concatenates 
+$v_\gtv\ $, $v_\fgtv\ $, and $v_\kaduri\ $. 
+The resulting vector is the features \mapfgas\ uses for training. 
+The training process itself is a straightforward multi-class supervised learning process, 
+where every instance is a MAPF problem and the label is the fastest algorithm for that problem within our portfolio of algorithms. 
+Figure~\ref{fig:mgs-features} illustrates the feature extraction and training process. 
+Note that more sophisticated approaches to AS exists in other domains~\cite{kerschke2019automated}, e.g., methods that involve runtime predictions. This is left for future work.  
+% More sophisticated AS approaches also exists in other domains.
+
+% \Roni{TODO: Add references to fancier AS approachs, e.g., thoses used by SAT AS}
+% Figure \ref{fig:MAPFASG flow} illustrates the entire \mapfgas\ algorithm.
+
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\columnwidth]{Images/MGS-Diagram-New.pdf}
+    \caption{Diagram of the \mapfgas\ feature extraction and training process.}
+    \label{fig:mgs-features}
+\end{figure}
+
+% classification task.  
+% These graph embeddings and a vector 
+
+% the graph embeddings created by FEATHER for the G2V and FullG2v we create a tensor concatenating both graph embedding and handcrafted embeddings proposed by \cite{kaduri2020algorithm} for training a variety of ML classification models to select the fastest MAPF algorithm. \Carmel{ THIS TO REMOVE: The dataset for classification the models will be constructed for each MAPF problem vector as a concatenation between Graph Embedding and its special handcrafted features presented by Kaduri \cite{kaduri2020algorithm}}. \Omri{Rephrase: Furthermore, we add handcrafted features as done in Kaduri et al. to our models.  }
+
+% The graph embedding
+% In the second phase for each MAPF problem, using the graph embeddings obtained both from G2V and FullG2v we create a tensor concatenating both graph embedding and handcrafted embeddings proposed by \cite{kaduri2020algorithm} for training a variety of ML classification models to select the fastest MAPF algorithm. \Carmel{ THIS TO REMOVE: The dataset for classification the models will be constructed for each MAPF problem vector as a concatenation between Graph Embedding and its special handcrafted features presented by Kaduri \cite{kaduri2020algorithm}}. \Omri{Rephrase: Furthermore, we add handcrafted features as done in Kaduri et al. to our models.  }
+
+
+% \begin{figure}[!h]
+%     \centering
+%     \includegraphics[scale=0.31]{Images/triple_FullG2V_flow.png}
+%     \caption{High level design of MAPFGAS}
+%     \label{fig:MAPFASG flow}
+% \end{figure}
+
+% \section{Problem Definition}
+% \label{scn:ProblemDef}
+% TBD
+% \Omri {I don't think this section is required}
+
+% \section{Research Questions}
+% \label{scn:Research}
+% \begin{enumerate}
+% \item Is it possible to achieve state of the art result for selecting best MAPF search algorithm in benchmark dataset {\cite{kaduri2020algorithm}} using multiple MAPF topological abstraction based approaches such as graph embeddings?
+% % \item Is it possible to achieve state of the art accuracy for selecting best MAPF search algorithm in benchmark dataset using Capsules Neural Network based approach {\cite{hinton2018matrix}}
+% \end{enumerate}
+
+\section{Experimental Results}
+\label{scn:EXPERIMENT}
+
+\begin{figure*}
+    \centering
+    \includegraphics[width=0.13\textwidth]{Images/empty-16-16.pdf}\enspace
+    \includegraphics[width=0.13\textwidth]{Images/random-64-64-10.pdf}\enspace
+    \includegraphics[width=0.13\textwidth]{Images/warehouse-10-20-10-2-2.pdf}\enspace
+    \includegraphics[width=0.13\textwidth]{Images/game-den312d.pdf}\enspace
+    \includegraphics[width=0.13\textwidth]{Images/city-Berlin_1_256.pdf}\enspace
+    \includegraphics[width=0.13\textwidth]{Images/maze-128-128-2.pdf}\enspace
+    \includegraphics[width=0.13\textwidth]{Images/room-64-64-8.pdf}    
+    \caption{An example grid from each of the grid types in our benchmark, From left to right: empty, random, warehouse, game, city, maze, and room.}
+    \label{fig:grid-types}
+\end{figure*}
+
+% \subsection{Dataset} \vspace{10px}
+In this section, we present an experimental evaluation of \mapfgas\ on a standard publicly available grid-based MAPF benchmark~\cite{stern2019multi}. 
+This benchmark contains 33 grids arranged into seven \emph{grid types}: video
+games (denoted as ``game'' grids), city maps (``city''), maze-like
+grids (``maze''), grids arranged as rooms with narrow doors
+between them (``room''), open grids (``empty''), open grids with
+randomly placed obstacles (``random''), and grids that are inspired by the structure of warehouses (warehouse).
+Figure~\ref{fig:grid-types} shows an example grid from each type.\footnote{The images were taken from the MovingAI repository~\cite{sturtevant2012benchmarks}, which hosts the grid MAPF benchmark we used~\cite{stern2019multi}.}
+%\Roni{Would be neat to show a figure with an example from each grid type, to make it more self-contained.}
+The benchmark includes \emph{scenario files} for each grid. 
+Each scenario file contains source and target locations for up to 1,000 agents where possible. 
+The scenario files of each grid are grouped into two sets. 
+In the first set of scenario files, denoted
+\emph{Random}, 
+the agents source and target locations are located
+purely randomly. 
+In the second set of scenario files, denoted
+\emph{Even}, the agents’ source and target locations are evenly distributed in buckets of 10 agents according to their distance. 
+Only the scenarios from the Even set were used, as they represent a more diverse set of MAPF problems. 
+% \Roni{Need to say here why} \Carmel{it was chosen and not both (even+random) to save time for xperiments :(}
+% \Roni{No worries, it's a reasonable choice}
+
+\subsection{Experimental Setup}
+%\subsection{Dataset and Baselines} \vspace{10px}
+%\label{scn:split setup}
+
+We performed three sets of experiments, 
+for each of the AS problem setups defined by Kaduri et al.~\cite{kaduri2021experimental}: in-grid, in-grid-type, and between-grid-type. 
+To train and evaluate \mapfgas\ in each setup, we used the publicly available dataset of Kaduri et al.~\shortcite{kaduri2021experimental}, 
+which includes results for running a set of optimal MAPF solvers of the entire MAPF benchmark mentioned above. 
+Specifically, results for the following optimal MAPF solvers are available in this dataset: ICTS~\cite{sharon2013increasing}, EPEA*~\cite{goldenberg2014enhanced}, SAT-MDD~\cite{surynek2016efficient}, CBSH~\cite{felner2018adding}, and Lazy CBS~\cite{gange2019lazy}. 
+%These solvers represents different approaches in solving MAPF optimally, from classical heuristic search, CBS, 
+
+\subsubsection{Baselines}
+We compared \mapfgas\ against two baselines: 
+\begin{itemize}
+    \item \textbf{\kaduri .} The AS method by Kaduri, Boyarski and Stern~\cite{kaduri2020algorithm}, which uses only their hand crafted features. 
+    \item \textbf{\gtv.} The AS method described by Ren et al.\cite{ren2021mapfast}, which uses only the \gtv encoding. To extract features from the \gtv graph, we used the FEATHER graph embedding.\footnote{This differs from Ren et al., who used Graph2Vec. As explained earlier, Graph2Vec is not a practical method for our problem, since it requires knowing a-priori the graphs to embed.}
+\end{itemize}
+In addition, we performed an ablation study for \mapfgas\ , and report on results for AS methods that use different subsets of features. Namely, \fgtv\ + \gtv\, 
+\kaduri\ + \fgtv\, 
+\kaduri\ + \gtv\, 
+and \fgtv\ .
+% $\kaduri$ + $\fgtv$, 
+% $\kaduri$ + $\gtv$, 
+% $\gtv$ + $\fgtv$, 
+% and 
+% $\fgtv$. 
+Note that \kaduri\ + \gtv\ + \fgtv\ is exactly \mapfgas\ .
+% Note that $\textit{KBS}+\textit{G2V}$
+% $\kaduri + \gtv + \fgtv $. % is exactly.%$\fgtv$ BLA.%is exactly $\mapfgas$. 
+For training, we used XGBoost~\cite{chen2016xgboost}, a well-known supervised learning algorithm. 
+Preliminary experiments with other learning algorithms, such as Logistic Regression and Random Forest, yielded weaker results. % and XGBoost which was the winner.
+The hyper parameters of XGBoost were tuned by performing a  4-fold cross validation over the training set, for each AS setup. 
+
+
+\subsubsection{Metrics}
+The main metrics used in prior work on AS for MAPF are:
+\begin{itemize}
+    \item \textbf{Accuracy (Acc).} Ratio of problems where the AS method returned the fastest MAPF algorithm. 
+    \item \textbf{Coverage (Cov).} Ratio of MAPF problems solved under a time limit of 5 minutes.\footnote{This time limit is common in the Optimal MAPF literature.}
+    \item \textbf{Runtime (RT).} Average run-time in minutes to solve a single MAPF problems with the selected MAPF solver.\footnote{We considered cases where the selected MAPF solver could not solve the problem within our 5 minutes time limit as having a runtime of 5 minutes. The same has been done in prior work on MAPF AS~\cite{kaduri2020algorithm,ren2021mapfast}.}
+\end{itemize}
+Note that since all solvers are optimal MAPF solvers, all solvers return solutions of exactly the same cost. Thus, comparing solution quality is redundant. 
+
+To provide context for our results, we also report on the results of an \emph{Oracle}, which always selects the fastest algorithm for every MAPF problem. No practical AS method can perform better than Oracle, which has an accuracy and coverage of 1.0, and the smallest possible runtime. 
+Based on the runtime of Oracle, we also report for every AS method on the average runtime it required over 
+A final metric, we report for every AS method the average percentage of Oracle runtime required for the selected MAPF solver beyond the runtime required by the algorithm selected by Oracle. We call this metric the \emph{average regret}, or briefly $\%Rg$. 
+The average regret of Oracle is by definition zero, and better AS methods will have lower average regret values. 
+
+
+
+
+% For each train-test split setup explained in section \ref{scn:split setup} we performed experiments within each setup's restrictions.
+% For every experiment 3 standalone methods for MAPF problems abstraction where evaluated and another 4 for all possible combinations to classifying the fastest solving algorithm:
+% % using XGBoost \cite{chen2016xgboost}(after trying other ML models like Random forest and Logistic Regression):
+% \begin{itemize}
+%     \item Kaduri's \cite{kaduri2020algorithm} handcrafted features representing MAPF problem's topology.
+%     \item G2V \cite{ren2021mapfast} with Graphs embeddings obtained with FEATHER algorithm by Benedek et al. \cite{rozemberczki2020characteristic}
+%     \Roni{Throughout the paper you write Benedek et al. but it seems to be Rozemberczki and Sarkar. Who is it? ~\shortcite{rozemberczki2020characteristic}} \Carmel{you right his full name is Benedek Rozemberczki}\Roni{Ok. We use only the last name}
+%     \item Our novel FullG2V with Graphs embeddings obtained using FEATHER algorithm by Benedek et al. \cite{rozemberczki2020characteristic}
+% \end{itemize}
+
+
+% \Carmel{TODO: fix this paragraph} In the experiments we run the 3 Machine Learning algorithms to see which one preform best in terms of Accuracy which is the metric used for this dataset in the literature. For each experiment 4-fold cross validation was used for training in order to find the best hyper-parameters for each algorithm. Grid search performed with the following hyper parameters was chosen in order to find the best configuration for each algorithm that maximizes classification Accuracy.
+
+
+% Following Kaduri et al.~\cite{kaduri2021experimental}, we evaluated MAPFGAS and the baselines on the following three AS problem setups. 
+% \begin{itemize}
+%     \item \textbf{In grid.} In this setup, all grids used for testing are also provided during training, yet with different scenario files. %agent configurations.\Roni{instead of ``agent configurations'' use ``scenario files''. Right?} \Carmel{ - correct}
+%     \item \textbf{In grid type.} In this setup, grids from all grid types used for testing are also provided during training, but the specific grids used for testing are different than those used in training. 
+%     \Omri{I think the Figure 3 is not needed, the idea of the split is clear from the text.} \Carmel{lets ask Roni, for me 'within' split is the least clear one..}\Roni{No, leave it. It is not easy for those not familiar with it. The figure can be improved, to also include the in grid setup. But let's work on this later.}
+%     \item \textbf{Between grid types.} In this setup, the grids used for testing are from a different grid types than those used for training. Specifically, we used grids from all grid types but one for training, and grids from the remaining grid type for testing. This was repeated for each grid type in a leave-one-out cross-validation (LOOCV) manner. 
+%     % where only one grid type is used for testing.
+%     % \Roni{We did this in a "leave one out cross-validation" manner, right? if so we should be clearer and say: ``In this setup, grids from one grid type are used for testing. This training and testing procedure is then repeated for each grid type in our benchmark.''}  \Carmel{correct, I changed a bit.}
+% \end{itemize}
+
+% These AS setups are designed to answer 
+% the question of whether a trained AS model can generalize effectively to MAPF problems on (1) the same grid, (2) the same type of grid, and (3) different types of grids.  
+% Figure~\ref{fig:as-setups} illustrates the difference between these AS setups. 
+
+% \Roni{Did we use the data set with the different distributions of agents that Omri created in~\cite{kaduri2021experimental} or the one we used in~\cite{kaduri2020algorithm}?} \Carmel{answer - we used the data from fir
+
+% the AS models we used
+% the publicly available grid-based MAPF benchmark~\cite{stern2019} and the solvers data published by Kaduri et al.~\shortcite{kaduri2021experimental}.
+% % \Roni{Did we use the data set with the different distributions of agents that Omri created in~\cite{kaduri2021experimental} or the one we used in~\cite{kaduri2020algorithm}?} \Carmel{answer - we used the data from first paper only the 'even' problems.}
+
+
+
+% \begin{itemize}
+%   \item It includes samples of 127 variables
+%   \item Samples - 957,371 (seconds)
+%   \item Includes 6 Attack sessions around 1000 seconds each.
+%   \item Total anomalous samples is around 5.77\%
+% \end{itemize}
+
+% \textbf{preprocessing performed -}
+%  Full set of 127 features reduced to 83, after removing empty and constant features, then removed data points (200) from the dataset that contained empty rows. Finally Performed feature-wise min-max Normalization.
+
+
+
+% \subsubsection{\textbf{Experiment Design}} \vspace{10px}
+% A train test split called \textbf{'In grid type setup'}, Where all grid types used for testing are also provided during training, yet the specific grids used for testing are different than those used in training. is illustrated in Figure \ref{fig:InGridType}. \Omri{I think the Figure 3 is not needed, the idea of the split is clear from the text.}
+
+% \begin{figure}[!h]
+%     \centering
+%     \includegraphics[scale=0.36]{Images/InGridTypeSetup.png}
+%     \caption{In grid type split example}
+%     \label{fig:InGridType}
+% \end{figure}
+
+% FEATHER algorithm requires all graphs cached for learning the their embeddings, thus due to this memory limitation for each experiment we used 5000 randomly selected samples from train set to train Graph embeddings  \Omri{What do you mean here?} \Carmel{I rephrased the sentence}
+% MAPF samples were selected randomly within the constraint of “in grid type” setup.
+% Only the “even” scenarios were used with all various sizes of number of agents.
+
+
+%\subsection{MAPFGAS Experiment description} \vspace{10px}
+
+% \subsubsection{\textbf{High Level Design}} \vspace{10px}
+% \label{scn:MAPFGAS design}
+% First Phase is to perform Structural abstraction for each MAPF problem. We cast a MAPF problem to its Graph representation and add special artificial links between each agent's start and goal nodes, then  using the FEATHER Algorithm presented in section \ref{scn:Feather}, we train it with all Graphs obtained from train set. By training this model we preform an unsupervised learning for the train MAPF problems Graph representations, The trained resulting model is used to get all graphs embeddings which is used later for training and testing a Machine Learning (ML) model.
+
+% In the second phase we use the graphs embedding calculated from previous phase for each MAPF problem to train a verity of ML classification models. The dataset for classification models will be constructed for each MAPF problem vector as a concatenation between Graph Embedding and its special handcrafted features presented by Kaduri {\cite{kaduri2020algorithm}}.
+
+% Figure \ref{fig:MAPFASG flow} illustrates how the structural abstractions combined to a sample used to train/test a classifier. 
+
+% \begin{figure}[!h]
+%     \centering
+%     \includegraphics[scale=0.30]{Images/MAPFASG_flow.png}
+%     \caption{High level design experiment of MAPFGAS}
+%     \label{fig:MAPFASG flow}
+% \end{figure}
+
+% \subsubsection{\textbf{Structural Abstraction}} \vspace{10px}
+% For structural abstraction shown we have used \href{https://github.com/benedekrozemberczki/karateclub/tree/master/karateclub/graph_embedding/}{Feather Graph embedding model} provided by the  Benedek et al. \cite{rozemberczki2020characteristic}, with the following non default hyper parameters: pooling='max'. The default value of 'pooling' is 'mean' resulting in much poor results, this is logical since node level features are pooled by the pooling method to create graph level statistics, and the only deference related to FullG2V abstractions between graphs obtained from the same grid MAPF problems is the special artificial links between agents location. Basically there is very little difference between graphs from same grid, by max pooling we emphasize the differences between graphs embeddings which works better for training a classification model. \Roni{Excellent explanation}
+
+% \subsubsection{\textbf{Training ML models}} \vspace{10px}
+% \label{scn:train_ml}
+% FEATHER algorithm requires all graphs cached for learning their embeddings 
+% \Roni{what about the graphs in the test set? do we need them to be known a-priori during training?} \Carmel{Answer - no need to know the test set, it will just take more time to infer one graph by another}, thus due to this memory limitation for each experiment we used 5000 randomly selected samples from train set to train Graph embeddings, note using 2500 randomly selected samples was resulting similar performance. for Kaduri's handcrafted feature abstraction method evaluation all train-set problems used. \Roni{We discovered this was not true, and the training is useless}
+
+%%%%%%%%%%%%
+
+% For each train-test split setup explained in section \ref{scn:split setup} we performed experiments within each setup's restrictions.
+% For every experiment 3 standalone methods for MAPF problems abstraction where evaluated and another 4 for all possible combinations to classifying the fastest solving algorithm:
+% % using XGBoost \cite{chen2016xgboost}(after trying other ML models like Random forest and Logistic Regression):
+% \begin{itemize}
+%     \item Kaduri's \cite{kaduri2020algorithm} handcrafted features representing MAPF problem's topology.
+%     \item G2V \cite{ren2021mapfast} with Graphs embeddings obtained with FEATHER algorithm by Benedek et al. \cite{rozemberczki2020characteristic}
+%     \Roni{Throughout the paper you write Benedek et al. but it seems to be Rozemberczki and Sarkar. Who is it? ~\shortcite{rozemberczki2020characteristic}} \Carmel{you right his full name is Benedek Rozemberczki}\Roni{Ok. We use only the last name}
+%     \item Our novel FullG2V with Graphs embeddings obtained using FEATHER algorithm by Benedek et al. \cite{rozemberczki2020characteristic}
+% \end{itemize}
+
+
+% % \Carmel{TODO: fix this paragraph} In the experiments we run the 3 Machine Learning algorithms to see which one preform best in terms of Accuracy which is the metric used for this dataset in the literature. For each experiment 4-fold cross validation was used for training in order to find the best hyper-parameters for each algorithm. Grid search performed with the following hyper parameters was chosen in order to find the best configuration for each algorithm that maximizes classification Accuracy.
+
+% XGBoost \cite{chen2016xgboost} ML model was used as the classifying Model after initial experiments preformed comparing between different ML classifiers such as: Logistic Regression classifier, Random Forest and XGBoost which was the winner.
+
+% The metrics used for this dataset in the literature for evaluating between the 3 methods are:
+% \begin{itemize}
+%     \item Accuracy : classifying the fastest solving Algorithm.
+%     \item Coverage :  portion of MAPF problems solved under a time limit of 5 minutes.
+%     \item Run-Time (RT) : total run-time took all predicted solvers for all MAPF problems.\footnote{We considered cases where the selected MAPF solver could not solve the problem within our 5 minutes time limit as having a run-time of 5 minutes. The same has been done in prior work on MAPF AS~\cite{kaduri2020algorithm,ren2021mapfast}.}
+% \end{itemize}
+%  For each experiment a 4-fold cross validation was performed during training in order to find XGBoost's best hyper parameters for each methods. Finally we run the classifiers against the test set.
+
+% % \begin{itemize}
+% %     \item Logistic Regression : penalty - [l1, l2] ; C - [5.99e-03, 4.64e-02, 3.59e-01, 2.78e+00, 2.15e+01, 1.66e+02, 1.29e+03] ; solver - [lbfgs, liblinear]
+% %     \item Random Forest : n\_estimators - [50, 60, 70, 80, 90, 100] ; max\_depth - [5, 6, 7, 8] ; criterion - [gini, entropy] ; max\_features -  [0.05, 0.1, 0.15, 0.2, 0.25]
+% %     \item XGBoost : min\_child\_weight - [2, 3, 4, 5, 6, 7, 9, 10] ; gamma - [1.1, 1.2, 1.3] ; subsample - [0.95, 0.975, 1.0] ; colsample\_bytree -  [0.45, 0.5, 0.55] ; max\_depth - [5, 6] ; learning\_rate: [5e-06, 1e-05, 5e-05]
+% % \end{itemize}
+
+
+% % For each algorithm we selected the hyper-parameters that achieved the best Accuracy. With those parameters we train each of the classifiers using the whole training set. Finally we run the classifiers against the test set.
+
+% % \textbf{Feature importance} analysis will be preformed using the best classifier achieved. 
+% % we will use a feature selection method based on importance weights. finally we could assess what variables had little influence on prediction.
+
+
+% \section{Results}
+% \label{scn:RESULTS}
+
+% Final resulting Table \ref{tab:prev_sota} represents the previous baseline results shown in paper \cite{ren2021mapfast} together with our best result achieved by MAPFGAS at "in grid split" setup. The table consists first from the result by Karuri's work \cite{kaduri2020algorithm} named 'XGBoost Cl', then new proposed method at the bottom of table called MAPFGAS.
+
+% More information will be provided on MAPFGAS model performance in next section \ref{scn:MAPFASG result}
+% \Roni{What's the ``Rerun'' column?} \Carmel{ its 'reproduced' by us}
+
+% \begin{table}[!h]
+%     \centering
+% \begin{tabular}{ |c||c|c|c|c| }
+% \hline
+% \textbf{Method} & Acc  & Cov & Rerun & RT$_{minutes}$ \\ 
+% %   min \# ending negatives &  \multicolumn{4}{|c|}{sliding window size} \\ 
+%  \hline
+  
+% %  CNN$_{Class}$  & 0.7118  \\   
+
+%   MAPFAST & 0.69 & 0.940 & F & \\ 
+%   MAPFASTer & 0.75 & 0.956 & F & \\
+%   % G2V & 0.71 & 0.95 & F & \\ 
+%   G2V$_{rerun}$ & 0.81 & 0.968 & T & 10513 \\ 
+%   XGBoost Cl &  0.83 & \textbf{0.979} & T & 9803 \\  
+
+% % MAPFAST & 0.7689  & &\\  
+%  FullG2v$_{alone}$ & 0.84 & \textbf{0.981} & NA & 9527\\
+%   \textbf{MAPFGAS} & \textbf{0.85} & \textbf{0.986} & NA & \textbf{9180}\\  
+%  \hline
+ 
+% \end{tabular}
+%     \caption{'In Grid Setup' baseline results with new methods  \Roni{How did we get the results for MAPFASTer? also, in ALL graphs please use 2 digits after the decimal points at most (for runtime no need for any digit beyond the decimal point.)} \Carmel{we got MAPFASTER result from paper you sent me}}
+%     \label{tab:prev_sota}
+% \end{table}
+
+% % \begin{center}
+% % \begin{tabular}{ |c|c|c|c| }
+% % \hline
+% % Method & Pre  & Rec   & f1  \\ 
+% % %   min \# ending negatives &  \multicolumn{4}{|c|}{sliding window size} \\ 
+% %  \hline
+% %     & 100  & 250   & 500  \\  
+% %  25  & x & x & x \\ 
+% %  50 & x & x & x \\ 
+% %  \hline
+ 
+% % \end{tabular}
+% % \label{tab:prev_sota}
+% % \end{center}
+
+
+% \subsection{MAPFGAS v.s. other method} \vspace{10px}
+% \label{scn:MAPFASG result}
+
+\subsection{In-Grid Results}
+% \label{scn:RESULTS}
+% \subsubsection{In Grid Split}\vspace{10px}
+% \label{result:between_perf}
+
+
+
+
+\begin{table}
+\begin{tabular}{@{}lrrr|rrrr@{}}
+\toprule
+         & \multicolumn{3}{c}{All}                                                    & \multicolumn{4}{c}{Avg}                                                                                \\ 
+Metric   & \multicolumn{1}{c}{Acc} & \multicolumn{1}{c}{Cov} & \multicolumn{1}{c|}{RT} & \multicolumn{1}{c}{Acc} & \multicolumn{1}{c}{Cov} & \multicolumn{1}{c}{RT} & \multicolumn{1}{c}{\%Rg} \\ \midrule
+KBS      & 0.83                    & 0.98                    & 0.549                  & 0.88                    & \textbf{0.99}           & 0.41                   & 12.4                      \\
+G2V      & 0.81                    & 0.97                    & 0.589                 & 0.87                    & 0.98                    & 0.45                   & 25.4                      \\
+\mapfgas\   & \textbf{0.85}           & \textbf{0.99}           & \textbf{0.514}         & \textbf{0.89}           & \textbf{0.99}           & \textbf{0.40}          & \textbf{9.0} \\ \midrule
+Oracle   & 1.00                    & 1.00                    & 0.436                  & 1.00                    & 1.00                    & 0.36                   & 0.0                       \\\midrule
+FG2V+G2V & 0.84                    & 0.98                    & 0.531                  & 0.89                    & 0.99                    & 0.41                   & 11.5                      \\
+KBS+G2V  & 0.84                    & 0.98                    & 0.532                  & 0.89                    & 0.99                    & 0.40                   & 9.5                       \\
+KBS+FG2V & 0.85                    & 0.99                    & 0.513                  & 0.89                    & 0.99                    & 0.39                   & 8.1                       \\
+FG2V     & 0.84                    & 0.98                    & 0.534                  & 0.88                    & 0.99                    & 0.41                   & 11.8                      \\ \bottomrule
+\end{tabular}
+\label{tab:in-grid-all}
+\caption{Results for the In-Grid AS setup, averaged over all test problems.} 
+%\Carmel{ need to mention that RT is in minutes per 1 problem}\Roni{Done}
+\end{table}
+
+
+
+Table~\ref{tab:in-grid-all} presents the results for the in-grid AS setup experiments. 
+The rows correspond to different AS methods, and the columns are the metrics defined earlier. 
+The column groups ``All'' and ``Avg'' provide a slightly different way to aggregate the results over all test problems. 
+The results under the ``All'' columns are averages over all test problems, regardless of their grids and grid types. 
+This is how most prior work on AS for MAPF aggregated their results. 
+The limitation of this aggregation is that some grids in the benchmark are smaller than others, and has fewer MAPF problems defined for them. 
+The results under the ``Avg'' columns are averages of averages, where the results of each grid type are averaged separately and only the resulting averages are averaged. This mitigates unwanted to bias stemming from the number of problems in each grid type. 
+
+% \Roni{The runtime under ``All'' is in thousands, while under ``Avg'' it is smaller than one. 
+% Why? I think it is because in ``All'' it is the time to solve all problems, while in ``Avg'' it is divided by the number of problems. 
+% If that's the case, then would be *much* better to show in ``All'' the results like in ``Avg'' for runtime, that is, the average runtime over all instances, not their sum.} \Carmel{I think this issue is resolved}
+% \Roni{No, it's still in thousadns in Table 1}
+
+Consider first the results for \mapfgas\ and our two main baselines, \kaduri\ and \gtv .
+For each metric, we highlighted the best results among these AS methods in bold. 
+As the results clearly show, \mapfgas\ is either on par or better than these baselines on all metrics. 
+For example, the accuracy of \mapfgas\ is 0.85 in ``All'' while it is 0.83 and 0.81 for \kaduri and \gtv, respectively. 
+The advantage of \mapfgas\ over \gtv\ is more significant, and more modest compared to \kaduri. 
+Still advantage is significant, especially in terms of the average regret, which is approximately 25\% smaller than \kaduri\ (9.0 vs. 12.4). 
+
+
+When analyzing the ablation study baselines (last 4 rows in Table~\ref{tab:in-grid-all}, we see very similar results to \mapfgas, where there is a slight advantage for using the \kaduri\ hand-crafted MAPF-specific features together with graph embedding features (either \kaduri\ + \gtv\ or \kaduri\ + \fgtv\ ). 
+This is expected, as more diverse set of features is expected to be more beneficial. 
+
+
+% % Please add the following required packages to your document preamble:
+% % \usepackage{booktabs}
+% % \usepackage{multirow}
+% \begin{table}
+% \centering
+% \begin{tabular}{@{}ll|rrr|r@{}}
+% \toprule
+% Grid-type & Metric & \multicolumn{1}{c}{KBS} & \multicolumn{1}{c}{G2V} & \multicolumn{1}{c}{MAFGAS} & \multicolumn{1}{c}{Oracle} \\ \midrule
+% \multirow{3}{*}{City}         & Acc                        & 0.90                    & 0.89                    & 0.92                       & 1.00                       \\
+%                               & Cov                        & 0.99                    & 0.99                    & 0.99                       & 1.00                       \\
+%                               & RT                         & 1,226                   & 1,252                   & 1,193                      & 1,114                      \\ \midrule
+% \multirow{3}{*}{Empty}        & Acc                        & 0.88                    & 0.89                    & 0.90                       & 1.00                       \\
+%                               & Cov                        & 1.00                    & 1.00                    & 1.00                       & 1.00                       \\
+%                               & RT                         & 662                     & 657                     & 662                        & 656                        \\\midrule
+% \multirow{3}{*}{Game}         & Acc                        & 0.91                    & 0.91                    & 0.92                       & 1.00                       \\
+%                               & Cov                        & 0.98                    & 0.98                    & 0.99                       & 1.00                       \\
+%                               & RT                         & 1,718                   & 1,743                   & 1,700                      & 1,441                      \\\midrule
+% \multirow{3}{*}{Random}       & Acc                        & 0.91                    & 0.90                    & 0.91                       & 1.00                       \\
+%                               & Cov                        & 1.00                    & 1.00                    & 1.00                       & 1.00                       \\
+%                               & RT                         & 327                     & 330                     & 325                        & 317                        \\\midrule
+% \multirow{3}{*}{Room}         & Acc                        & 0.93                    & 0.90                    & 0.92                       & 1.00                       \\
+%                               & Cov                        & 1.00                    & 1.00                    & 1.00                       & 1.00                       \\
+%                               & RT                         & 129                     & 131                     & 129                        & 129                        \\\midrule
+% \multirow{3}{*}{Maze}         & Acc                        & 0.85                    & 0.79                    & 0.86                       & 1.00                       \\
+%                               & Cov                        & 0.98                    & 0.93                    & 0.99                       & 1.00                       \\
+%                               & RT                         & 205                     & 341                     & 188                        & 156                        \\\midrule
+% \multirow{3}{*}{Warehouse}    & Acc                        & 0.84                    & 0.84                    & 0.86                       & 1.00                       \\
+%                               & Cov                        & 0.99                    & 0.99                    & 1.00                       & 1.00                       \\
+%                               & RT                         & 4,077                   & 4,131                   & 3,955                      & 3,777                      \\ \bottomrule
+% \end{tabular}
+% \label{tab:in-grid-by-type}
+% \caption{Results for the In-Grid AS setup, grouped by grid types.}
+% \end{table}
+
+
+
+
+
+
+\subsection{In-Grid-Type and Between-Grid-Type Results}
+
+% % Please add the following required packages to your document preamble:
+% % \usepackage{booktabs}
+% \begin{table}
+% \centering
+% \begin{tabular}{@{}lrrrr@{}}
+% \toprule
+% Metric   & \multicolumn{1}{c}{Acc} & \multicolumn{1}{c}{Cov} & \multicolumn{1}{c}{RT} & \multicolumn{1}{c}{\% Rg} \\ \midrule
+% KGS      & 0.69                    & 0.93                    & 0.86                   & 78.60                     \\
+% G2V      & 0.67                    & 0.92                    & 0.91                   & 91.80                     \\
+% MAPFGAS  & \textbf{0.71}                    & \textbf{0.94}                    & \textbf{0.80}                   & \textbf{67.90}                     \\ \midrule
+% Oracle   & 1.00                    & 1.00                    & 0.48                   & 0.00                      \\ \midrule
+% FG2V+G2V & 0.69                    & 0.93                    & 0.84                   & 75.80                     \\
+% KGS+FG2V & 0.70                    & 0.94                    & 0.81                   & 70.50                     \\
+% KGS+G2V  & 0.70                    & 0.94                    & 0.82                   & 71.60                     \\
+% FG2V     & 0.66                    & 0.91                    & 0.90                   & 87.90                     \\ \bottomrule
+% \end{tabular}
+% \label{tab:in-grid-type}
+% \caption{Results for the In-Grid-Type AS setup.}
+% \end{table}
+
+
+% Please add the following required packages to your document preamble:
+% \usepackage{booktabs}
+\begin{table}
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{@{}l|rrrr|rrrr@{}}
+\toprule
+     & \multicolumn{4}{c|}{In-Grid-Type} & \multicolumn{4}{c}{Between-Grid}       \\ 
+Metric   & Acc    & Cov    & RT    & \% Rg  & Acc    & Cov    & RT    & \% Rg  \\\midrule
+KGS      & 0.69   & 0.93   & 0.86  & 78.6  & \textbf{0.63}     & 0.87     & 0.99     & 223.1 \\
+G2V      & 0.67   & 0.92   & 0.91  & 91.8  & 0.61     & 0.86     & 1.04     & 220.7 \\
+ \mapfgas\  & \textbf{0.71}   & \textbf{0.94}   & \textbf{0.80}  & \textbf{67.9}  & \textbf{0.63}     & \textbf{0.89}     & \textbf{0.93}     & \textbf{180.0} \\ \midrule
+Oracle   & 1.00   & 1.00   & 0.48  & 0.00   & 1.00     & 1.00     & 0.36     & 0.00   \\ \midrule
+FG2V+G2V & 0.69   & 0.93   & 0.84  & 75.8  & 0.62     & 0.88     & 0.97     & 195.8 \\
+KGS+FG2V & 0.70   & 0.94   & 0.81  & 70.5  & 0.64     & 0.89     & 0.93     & 192.5 \\
+KGS+G2V  & 0.70   & 0.94   & 0.82  & 71.6  & 0.65     & 0.88     & 0.94     & 181.8 \\
+FG2V     & 0.66   & 0.91   & 0.90  & 87.9  & 0.62     & 0.88     & 0.95     & 176.0 \\ \bottomrule
+\end{tabular}
+}
+\label{tab:in-and-between-grid-type}
+\caption{In-grid-type (left) and Between-grid-type (right) results.}
+\end{table}
+\begin{figure}[tbh]
+    \centering
+    % \includegraphics{Images/feature-importance.pdf}
+    \includegraphics[width=0.8\columnwidth]{Images/in-grid-fi.pdf}\\
+    \includegraphics[width=0.8\columnwidth]{Images/in-grid-type-fi.pdf}\\
+    \includegraphics[width=0.8\columnwidth]{Images/between-grid-fi2.pdf}
+    \caption{Feature importance for the XGBoost model created for \mapfgas\, in the in-grid (top), in-grid-type (middle), and between-grid (bottom) setups.} 
+    \label{fig:model_coefs}
+\end{figure}
+The first 5 columns (left-to-right) in Table~\ref{tab:in-and-between-grid-type} presents the results for the in-grid-type AS setup experiments. 
+Similar to Table~\ref{tab:in-grid-all}, the rows are different AS methods and the columns are different metrics, corresponding to the ``Avg'' column family. 
+We highlighted in bold the AS method, among \mapfgas\ and our two baselines,  that yielded the best results in each metric. 
+As in the in-grid experiments, the advantage of \mapfgas\ over the baselines is clear in all metrics. For example, its average regret is 67.9 while it is 78.60 and 91.80 for \kaduri\ and \gtv, respectively. 
+
+
+The ablation study results show that here too, combining the hand-crafted features of \kaduri with either type of graph embedding provides the biggest performance improvement. For example, \kaduri\ with either \gtv\ or \fgtv yields 0.70 accuracy and runtime of 0.82 or less while \fgtv alone or even with \gtv yielded lower accuracy and a higher runtime. It is worth comparing the average regret results here and in the in-grid experiments. While the regret of \mapfgas\ here is 67.90 it is only 9.0 in the in-grid results. This highlights that in-grid-type AS is a significantly harder task the in-grid AS, since it requires generalizing from different grids (although from the same type). 
+
+
+The rightmost 4 columns in Table~\ref{tab:in-and-between-grid-type} presents the results for the between-grid-type AS setup experiments. 
+The first trend we observe is that the overall results for all algorithms is significantly worse compared to all other AS setups (in-grid and in-grid-type). 
+For example, the average regret of \mapfgas\ in the in-grid-type results is 67.9\% but it is 180.0\% in between-grid results. Similarly, \mapfgas\ accuracy dropped from 0.71 to 0.63. Recall that the regret and accuracy of \mapfgas\ in the in-grid
+was 9.0\% and 0.89, respectively. These differences are expected, since in the between-grid experiments, the training set did not include any grid of the tested type, which makes the classification problem significantly harder. 
+
+
+In terms of the comparison with our baselines, the general trend we observed so far continues in the between-grid setup: \mapfgas\ is either on par or better than the baselines in all metrics. 
+For example, its average runtime and regret are 0.93 and 180 while it is 0.99 and 220.7 for the next best baseline, respectively. 
+The ablation study results are less conclusive in this setup. 
+In terms of accuracy, we still see the benefit in combining \kaduri features with graph embedding features over only using graph embedding features. However, the lowest average regret is achieved when only using \mapfgas\ . In fact, some subsets of \mapfgas\ features actually outperform \mapfgas\ on some metrics. For example, using only \fgtv\ yields lower accuracy than the full \mapfgas\ but a slightly lower average regret (176 vs. 180). However, these differences are relatively small. 
+
+% \begin{table*}[tbh!]
+% \resizebox{\textwidth}{!}{
+% \begin{tabular}{@{}ll|rrr|rrr|rrr|rrr|rrr|rrr|rrr@{}}
+% \toprule
+%                               & Grid-type & \multicolumn{3}{c}{Empty}                    & \multicolumn{3}{c}{Random}                   & \multicolumn{3}{c}{Warehouse}                 & \multicolumn{3}{c}{Game}                       & \multicolumn{3}{c}{City}                       & \multicolumn{3}{c}{Maze}                       & \multicolumn{3}{c}{Room}                       \\ 
+% AS Setup                      & Metric    & Acc           & Cov           & \%Rg         & Acc           & Cov           & \%Rg         & Acc           & Cov           & \%Rg          & Acc           & Cov           & \%Rg           & Acc           & Cov           & \%Rg           & Acc           & Cov           & \%Rg           & Acc           & Cov           & \%Rg           \\
+% \midrule
+% \multirow{3}{*}{In-Grid}      & KBS       & 0.88          & \textbf{1.00} & 0.9          & \textbf{0.91} & \textbf{1.00} & 3.1          & 0.84          & 0.99          & 7.9           & 0.91          & 0.98          & 19.2           & 0.90          & \textbf{0.99} & 10.1           & 0.85          & 0.98          & 31.9           & \textbf{0.93} & \textbf{1.00} & 0.2            \\
+%                               & G2V       & 0.89          & \textbf{1.00} & 0.1          & 0.90          & \textbf{1.00} & 4.1          & 0.84          & 0.99          & 9.4           & 0.91          & 0.98          & 21.0           & 0.89          & \textbf{0.99} & 12.4           & 0.79          & 0.93          & 119.3          & 0.90          & \textbf{1.00} & 2.1            \\
+%                               & MAG       & \textbf{0.90} & \textbf{1.00} & \textbf{0.8} & \textbf{0.91} & \textbf{1.00} & \textbf{2.4} & \textbf{0.86} & \textbf{1.00} & \textbf{4.7}  & \textbf{0.92} & \textbf{0.99} & \textbf{18.0}  & \textbf{0.92} & \textbf{0.99} & \textbf{7.1}   & \textbf{0.86} & \textbf{0.99} & \textbf{20.6}  & 0.92          & \textbf{1.00} & \textbf{0.1}   \\
+% \midrule
+% \multirow{3}{*}{In-Grid-Type} & KBS       & 0.67          & 0.97          & 3.5          & \textbf{0.84} & \textbf{1.00} & 1.4          & 0.64          & 0.94          & 1.4           & 0.77          & \textbf{0.92} & \textbf{1.4}   & 0.58          & 0.81          & 3.1            & 0.40          & \textbf{0.66} & \textbf{8.2}   & 0.63          & 0.91          & 2.9            \\
+%                               & G2V       & 0.68          & \textbf{1.00} & \textbf{1.0} & 0.79          & 0.99          & 2.3          & 0.64          & 0.94          & 1.6           & 0.72          & 0.86          & 2.3            & 0.57          & \textbf{0.83} & 3.0            & 0.44          & 0.62          & 9.6            & 0.50          & 0.83          & 5.0            \\
+%                               & MAG       & \textbf{0.71} & 0.99          & 1.8          & 0.82          & \textbf{1.00} & \textbf{1.1} & \textbf{0.67} & \textbf{0.96} & \textbf{1.3}  & \textbf{0.78} & \textbf{0.92} & 1.7            & \textbf{0.61} & \textbf{0.83} & \textbf{2.9}   & \textbf{0.50} & \textbf{0.66} & 8.4            & \textbf{0.66} & \textbf{0.94} & \textbf{2.2}   \\
+% \midrule
+% \multirow{3}{*}{Between-Grid} & KBS       & 0.81          & \textbf{1.00} & 9.5          & \textbf{0.78} & \textbf{1.00} & 7.2          & 0.67          & 0.96          & 32.9          & \textbf{0.74} & 0.88          & 122.0          & 0.53          & \textbf{0.90} & \textbf{136.2} & \textbf{0.56} & \textbf{0.71} & \textbf{398.8} & 0.32          & 0.65          & 855.6          \\
+%                               & G2V       & 0.78          & 0.99          & 17.7         & 0.71          & 0.99          & 54.8         & 0.62          & 0.88          & 78.1          & 0.72          & \textbf{0.89} & \textbf{113.1} & 0.53          & 0.86          & 155.6          & 0.45          & 0.64          & 511.4          & 0.43          & 0.75          & 614.5          \\
+%                               & MAG       & \textbf{0.82} & \textbf{1.00} & \textbf{2.5} & 0.73          & \textbf{1.00} & \textbf{4.0} & \textbf{0.68} & \textbf{0.98} & \textbf{27.3} & 0.65          & \textbf{0.89} & 122.0          & \textbf{0.58} & 0.88          & 146.3          & 0.47          & 0.66          & 483.6          & \textbf{0.49} & \textbf{0.81} & \textbf{475.0} \\ \bottomrule 
+% \end{tabular}
+% }
+% \label{tab:by-grid-type}
+% \caption{Results for all AS setups, grouped by test grid type.}
+% \end{table*}
+
+
+
+% Please add the following required packages to your document preamble:
+% \usepackage{booktabs}
+% \usepackage{multirow}
+\begin{table*}[bth!]
+\centering
+\begin{tabular}{@{}ll|rrr|rrr|rrr@{}}
+\toprule
+                           & AS Setup & \multicolumn{3}{c}{In-Grid}                                                 & \multicolumn{3}{c}{In-Grid-Type}                                            & \multicolumn{3}{c}{Between-Grid}                                            \\ 
+Grid-type                  & Metric   & \multicolumn{1}{c}{KBS} & \multicolumn{1}{c}{G2V} & \multicolumn{1}{c}{MAG} & \multicolumn{1}{c}{KBS} & \multicolumn{1}{c}{G2V} & \multicolumn{1}{c}{MAG} & \multicolumn{1}{c}{KBS} & \multicolumn{1}{c}{G2V} & \multicolumn{1}{c}{MAG} \\ \midrule
+\multirow{3}{*}{Empty}     & Acc      & 0.88                    & 0.89                    & \textbf{0.90}           & 0.67                    & 0.68                    & \textbf{0.71}           & 0.81                    & 0.78                    & \textbf{0.82}           \\
+                           & Cov      & \textbf{1.00}           & \textbf{1.00}           & \textbf{1.00}           & 0.97                    & \textbf{1.00}           & 0.99                    & \textbf{1.00}           & 0.99                    & \textbf{1.00}           \\
+                           & \%Rg     & 0.9                     & \textbf{0.1}            & 0.8                     & 3.5                     & \textbf{1.0}            & 1.8                     & 9.5                     & 17.7                    & \textbf{2.5}            \\
+\midrule
+\multirow{3}{*}{Random}    & Acc      & \textbf{0.91}           & 0.90                    & \textbf{0.91}           & \textbf{0.84}           & 0.79                    & 0.82                    & \textbf{0.78}           & 0.71                    & 0.73                    \\
+                           & Cov      & \textbf{1.00}           & \textbf{1.00}           & \textbf{1.00}           & \textbf{1.00}           & 0.99                    & \textbf{1.00}           & \textbf{1.00}           & 0.99                    & \textbf{1.00}           \\
+                           & \%Rg     & 3.1                     & 4.1                     & \textbf{2.4}            & 1.4                     & 2.3                     & \textbf{1.1}            & 7.2                     & 54.8                    & \textbf{4.0}            \\
+\midrule
+\multirow{3}{*}{Warehouse} & Acc      & 0.84                    & 0.84                    & \textbf{0.86}           & 0.64                    & 0.64                    & \textbf{0.67}           & 0.67                    & 0.62                    & \textbf{0.68}           \\
+                           & Cov      & 0.99                    & 0.99                    & \textbf{1.00}           & 0.94                    & 0.94                    & \textbf{0.96}           & 0.96                    & 0.88                    & \textbf{0.98}           \\
+                           & \%Rg     & 7.9                     & 9.4                     & \textbf{4.7}            & 1.4                     & 1.6                     & \textbf{1.3}            & 32.9                    & 78.1                    & \textbf{27.3}           \\
+\midrule
+\multirow{3}{*}{Game}      & Acc      & 0.91                    & 0.91                    & \textbf{0.92}           & 0.77                    & 0.72                    & \textbf{0.78}           & \textbf{0.74}           & 0.72                    & 0.65                    \\
+                           & Cov      & 0.98                    & 0.98                    & \textbf{0.99}           & \textbf{0.92}           & 0.86                    & \textbf{0.92}           & 0.88                    & \textbf{0.89}           & \textbf{0.89}           \\
+                           & \%Rg     & 19.2                    & 21.0                    & \textbf{18.0}           & \textbf{1.4}            & 2.3                     & 1.7                     & 122.0                   & 113.1                   & \textbf{122.0}          \\
+\midrule
+\multirow{3}{*}{City}      & Acc      & 0.90                    & 0.89                    & \textbf{0.92}           & 0.58                    & 0.57                    & \textbf{0.61}           & 0.53                    & 0.53                    & \textbf{0.58}           \\
+                           & Cov      & \textbf{0.99}           & \textbf{0.99}           & \textbf{0.99}           & 0.81                    & \textbf{0.83}           & \textbf{0.83}           & \textbf{0.90}           & 0.86                    & 0.88                    \\
+                           & \%Rg     & 10.1                    & 12.4                    & \textbf{7.1}            & 3.1                     & 3.0                     & \textbf{2.9}            & \textbf{136.2}          & 155.6                   & 146.3                   \\
+\midrule
+\multirow{3}{*}{Maze}      & Acc      & 0.85                    & 0.79                    & \textbf{0.86}           & 0.40                    & 0.44                    & \textbf{0.50}           & \textbf{0.56}           & 0.45                    & 0.47                    \\
+                           & Cov      & 0.98                    & 0.93                    & \textbf{0.99}           & \textbf{0.66}           & 0.62                    & \textbf{0.66}           & \textbf{0.71}           & 0.64                    & 0.66                    \\
+                           & \%Rg     & 31.9                    & 119.3                   & \textbf{20.6}           & \textbf{8.2}            & 9.6                     & 8.4                     & \textbf{398.8}          & 511.4                   & 483.6                   \\
+\midrule
+\multirow{3}{*}{Room}      & Acc      & \textbf{0.93}           & 0.90                    & 0.92                    & 0.63                    & 0.50                    & \textbf{0.66}           & 0.32                    & 0.43                    & \textbf{0.49}           \\
+                           & Cov      & \textbf{1.00}           & \textbf{1.00}           & \textbf{1.00}           & 0.91                    & 0.83                    & \textbf{0.94}           & 0.65                    & 0.75                    & \textbf{0.81}           \\
+                           & \%Rg     & 0.2                     & 2.1                     & \textbf{0.1}            & 2.9                     & 5.0                     & \textbf{2.2}            & 855.6                   & 614.5                   & \textbf{475.0}          \\ \bottomrule 
+\end{tabular}
+\label{tab:by-grid-type}
+\caption{Results for all AS setups, grouped by test grid type.}
+\end{table*}
+
+
+% Please add the following required packages to your document preamble:
+% \usepackage{booktabs}
+% \usepackage{multirow}
+% \begin{table}
+% \begin{tabular}{@{}llrrrrrrrrr@{}}
+%                            & AS Setup & \multicolumn{3}{c}{In-Grid}                                                 & \multicolumn{3}{c}{In-Grid-Type}                                            & \multicolumn{3}{c}{Between-Grid}                                            \\
+% Grid-type                  & Metric   & \multicolumn{1}{c}{KBS} & \multicolumn{1}{c}{G2V} & \multicolumn{1}{c}{MAG} & \multicolumn{1}{c}{KBS} & \multicolumn{1}{c}{G2V} & \multicolumn{1}{c}{MAG} & \multicolumn{1}{c}{KBS} & \multicolumn{1}{c}{G2V} & \multicolumn{1}{c}{MAG} \\
+% \multirow{3}{*}{Empty}     & Acc      & 0.88                    & 0.89                    & 0.90                    & 0.67                    & 0.68                    & 0.71                    & 0.81                    & 0.78                    & 0.82                    \\
+%                            & Cov      & 1.00                    & 1.00                    & 1.00                    & 0.97                    & 1.00                    & 0.99                    & 1.00                    & 0.99                    & 1.00                    \\
+%                            & \%Rg     & 0.9                     & 0.1                     & 0.8                     & 3.5                     & 1.0                     & 1.8                     & 9.5                     & 17.7                    & 2.5                     \\
+% \multirow{3}{*}{Random}    & Acc      & 0.91                    & 0.90                    & 0.91                    & 0.84                    & 0.79                    & 0.82                    & 0.78                    & 0.71                    & 0.73                    \\
+%                            & Cov      & 1.00                    & 1.00                    & 1.00                    & 1.00                    & 0.99                    & 1.00                    & 1.00                    & 0.99                    & 1.00                    \\
+%                            & \%Rg     & 3.1                     & 4.1                     & 2.4                     & 1.4                     & 2.3                     & 1.1                     & 7.2                     & 54.8                    & 4.0                     \\
+% \multirow{3}{*}{Warehouse} & Acc      & 0.84                    & 0.84                    & 0.86                    & 0.64                    & 0.64                    & 0.67                    & 0.67                    & 0.62                    & 0.68                    \\
+%                            & Cov      & 0.99                    & 0.99                    & 1.00                    & 0.94                    & 0.94                    & 0.96                    & 0.96                    & 0.88                    & 0.98                    \\
+%                            & \%Rg     & 7.9                     & 9.4                     & 4.7                     & 1.4                     & 1.6                     & 1.3                     & 32.9                    & 78.1                    & 27.3                    \\
+% \multirow{3}{*}{Game}      & Acc      & 0.91                    & 0.91                    & 0.92                    & 0.77                    & 0.72                    & 0.78                    & 0.74                    & 0.72                    & 0.65                    \\
+%                            & Cov      & 0.98                    & 0.98                    & 0.99                    & 0.92                    & 0.86                    & 0.92                    & 0.88                    & 0.89                    & 0.89                    \\
+%                            & \%Rg     & 19.2                    & 21.0                    & 18.0                    & 1.4                     & 2.3                     & 1.7                     & 122.0                   & 113.1                   & 122.0                   \\
+% \multirow{3}{*}{City}      & Acc      & 0.90                    & 0.89                    & 0.92                    & 0.58                    & 0.57                    & 0.61                    & 0.53                    & 0.53                    & 0.58                    \\
+%                            & Cov      & 0.99                    & 0.99                    & 0.99                    & 0.81                    & 0.83                    & 0.83                    & 0.90                    & 0.86                    & 0.88                    \\
+%                            & \%Rg     & 10.1                    & 12.4                    & 7.1                     & 3.1                     & 3.0                     & 2.9                     & 136.2                   & 155.6                   & 146.3                   \\
+% \multirow{3}{*}{Maze}      & Acc      & 0.85                    & 0.79                    & 0.86                    & 0.40                    & 0.44                    & 0.50                    & 0.56                    & 0.45                    & 0.47                    \\
+%                            & Cov      & 0.98                    & 0.93                    & 0.99                    & 0.66                    & 0.62                    & 0.66                    & 0.71                    & 0.64                    & 0.66                    \\
+%                            & \%Rg     & 31.9                    & 119.3                   & 20.6                    & 8.2                     & 9.6                     & 8.4                     & 398.8                   & 511.4                   & 483.6                   \\
+% \multirow{3}{*}{Room}      & Acc      & 0.93                    & 0.90                    & 0.92                    & 0.63                    & 0.50                    & 0.66                    & 0.32                    & 0.43                    & 0.49                    \\
+%                            & Cov      & 1.00                    & 1.00                    & 1.00                    & 0.91                    & 0.83                    & 0.94                    & 0.65                    & 0.75                    & 0.81                    \\
+%                            & \%Rg     & 0.2                     & 2.1                     & 0.1                     & 2.9                     & 5.0                     & 2.2                     & 855.6                   & 614.5                   & 475.0                  
+% \end{tabular}
+% \end{table}
+
+
+\subsection{Grid Types Analysis}
+
+
+% % Please add the following required packages to your document preamble:
+% % \usepackage{booktabs}
+% % \usepackage{multirow}
+% \begin{table}
+% \begin{tabular}{@{}ll|rrr|rrr@{}}
+% \toprule
+%                            &        & \multicolumn{3}{c}{In-Grid} & \multicolumn{3}{c}{Between-Grid} \\ 
+% Grid-type                  & Metric & KBS    & G2V     & MAG   & KBS       & G2V      & MAG    \\ \midrule
+% \multirow{3}{*}{Empty}     & Acc    & 0.88   & 0.89    & \textbf{0.90}     & 0.81      & 0.78     & \textbf{0.82}      \\
+%                            & Cov    & \textbf{1.00}   & \textbf{1.00}    & \textbf{1.00}     & \textbf{1.00}      & 0.99     & \textbf{1.00}      \\
+%                            & \%Rg   & 0.9    & \textbf{0.1}     & 0.8      & 9.5       & 17.7     & \textbf{2.5}       \\\midrule
+% \multirow{3}{*}{Random}    & Acc    & \textbf{0.91}   & 0.90    & \textbf{0.91}     & \textbf{0.78}      & 0.71     & 0.73      \\
+%                            & Cov    & \textbf{1.00}   & \textbf{1.00}    & \textbf{1.00}     & \textbf{1.00}      & 0.99     & \textbf{1.00}      \\
+%                            & \%Rg   & 3.1    & 4.1     & \textbf{2.4}      & 7.2       & 54.8     & \textbf{4.0}       \\\midrule
+% \multirow{3}{*}{Warehouse} & Acc    & 0.84   & 0.84    & \textbf{0.86}     & 0.67      & 0.62     & \textbf{0.68}      \\
+%                            & Cov    & 0.99   & 0.99    & \textbf{1.00}     & 0.96      & 0.88     & \textbf{0.98}      \\
+%                            & \%Rg   & 7.9    & 9.4     & \textbf{4.7}      & 32.9      & 78.1     & \textbf{27.3}      \\ \midrule 
+% \multirow{3}{*}{Game}      & Acc    & 0.91   & 0.91    & \textbf{0.92}     & \textbf{0.74}      & 0.72     & 0.65      \\
+%                            & Cov    & 0.98   & 0.98    & \textbf{0.99}     & 0.88      & \textbf{0.89}     & \textbf{0.89}      \\
+%                            & \%Rg   & 19.2   & 21.0    & \textbf{18.0}     & 122.0     & \textbf{113.1}    & 122.0     \\\midrule
+% \multirow{3}{*}{City}      & Acc    & 0.90   & 0.89    & \textbf{0.92}     & 0.53      & 0.53     & \textbf{0.58}      \\
+%                            & Cov    & \textbf{0.99}   & \textbf{0.99}    & \textbf{0.99}     & \textbf{0.90}      & 0.86     & 0.88      \\
+%                            & \%Rg   & 10.1   & 12.4    & \textbf{7.1}      & \textbf{136.2}     & 155.6    & 146.3     \\\midrule
+% \multirow{3}{*}{Maze}      & Acc    & 0.85   & 0.79    & \textbf{0.86}     & \textbf{0.56}      & 0.45     & 0.47      \\
+%                            & Cov    & 0.98   & 0.93    & \textbf{0.99}     & \textbf{0.71}      & 0.64     & 0.66      \\
+%                            & \%Rg   & 31.9   & 119.3   & \textbf{20.6}     & \textbf{398.8}     & 511.4    & 483.6     \\\midrule
+% \multirow{3}{*}{Room}      & Acc    & \textbf{0.93}   & 0.90    & 0.92     & 0.32      & 0.43     & \textbf{0.49}      \\
+%                            & Cov    & \textbf{1.00}   & \textbf{1.00}    & \textbf{1.00}     & 0.65      & 0.75     & \textbf{0.81}      \\
+%                            & \%Rg   & 0.2    & 2.1     & \textbf{0.1}      & 855.6     & 614.5    & \textbf{475.0}     \\\bottomrule
+% \end{tabular}
+% \label{tab:by-grid-type}
+% \caption{In-grid and between-grid-type results, grouped by test grid type.}
+% \end{table}
+
+
+
+
+% Please add the following required packages to your document preamble:
+% \usepackage{booktabs}
+% \usepackage{multirow}
+
+
+
+
+
+Table~\ref{tab:by-grid-type} provides a deeper insight into the results of our in-grid, in-grid-type, and between-grid experiments. 
+Here, the results --- accuracy, coverage, and regret --- are grouped by grid types. 
+For example, the results in the row ``City'' show the average results over test problems that are on grids of type ``City''. 
+The rows correspond to the test grid type, and the columns correspond to the AS setup and evaluated algorithm. 
+
+
+While \mapfgas\ is still, in general, the best-performing algorithm, in some grid types and metrics it is not, especially in the between grid setup. 
+This is most evident in the results for Maze grids, were the accuracy, coverage, and regret of \kaduri\ --- 0.56, 0.71, and 398.8\%, respectively --- are better than the corresponding results of \mapfgas\, which were 0.47, 0.66, and 483.6\%. 
+A possible explanation for these results is that the Maze grid are significantly difference from the other grid types in their topology, where wrong path finding choices can have a large impact on performance and are harder to ``recover'' from, as they require backtracking to other choices in the maze. 
+
+Interestingly, \mapfgas\ performs well on City grids in the in-grid AS setup. This suggests it is able to learn how to act in such grids, if they are given to it for training. 
+The in-grid results for Maze grids provide another interesting insight when comparing the results of \mapfgas\ and \gtv\ .  As can be seen, the difference in this grid type between \mapfgas\ and \gtv\ is most pronounced: the accuracy, coverage, and regret of \gtv\ are 0.79, 0.93, and 119.3, respectively, while they are 0.86, 0.99, and 20.6 for \mapfgas\ .  
+The poor performance of \gtv is Maze grids is understandable: in such grids agents often follow paths that are significantly different from their shortest paths to avoid collisions. Such paths are not encoded by \gtv. In contrast, the \fgtv\ works quite well on these grids, almost as well as \mapfgas\ . 
+% This suggests the importance of encoding the entire graph and not only the shortest paths. 
+
+
+
+
+\subsection{Feature Importance}
+
+
+
+Figure \ref{fig:model_coefs} plots a feature importance analysis performed on the prediction models created by \mapfgas\ for each of the AS setup. The features are listed on the x-axis, where the first 20 features are the \kaduri\ features, the next 500 features are the \gtv\ features, and the last 500 features are the \fgtv\ features. Within each feature family (\kaduri\ ,\gtv\ , and \fgtv\ ), the features are sorted by their importance. 
+% Figure \ref{fig:model_coefs}.
+%XGBoost model for the 'in grid split' setup where the scope is "all" maps, is shown in Figure \ref{fig:model_coefs}. \Roni{Can you do the same for all the settings, that is, also for ``in grid-type'' and ``between grid type''? 
+%~\Roni{Which analysis was done? please explain and add a reference} \Carmel{no real analysis done just plotting the feature's coefs :)} on the best XGBoost model for the 'in grid split' setup where the scope is "all" maps, is shown in Figure \ref{fig:model_coefs}. \Roni{Can you do the same for all the settings, that is, also for ``in grid-type'' and ``between grid type''? 
+%Also, can you send me these results in a CSV or Excel or something like that?
+%I'd like to look at them myself to look for insights} \Carmel{I sent all the 20 csv, once you see all the 20 cases you can choose which ones you want me to plot in same manner}
+% The first 500 features are the \fgtv\ features, 
+% the next 500 features are the \gtv\ features, 
+% and the remaining 20 are the \kaduri features.  %handcrafted features obtained Kaduri's method \cite{kaduri2020algorithm}. 
+
+
+Our main observation is that each feature family has some features that are important, and some features whose importance. This suggests there is useful information in all types of features, which corresponds to the successful results of \mapfgas\ . 
+Another observation is that each feature family includes features whose importance is close to zero. This suggests that applying feature selection method based on weights may be effective. 
+When comparing the different AS setups, it seems that as the AS setup becomes more challenging, the set of features that are important is reduced, and the importance of more features is close to zero. This may suggest that additional types of features  may be needed to get better results for the harder AS setups. 
+
+% Our first observation from these results is 
+
+
+% that some \kaduri\ features are indeed important. 
+% However, they are not sufficient, and feature from each family are important and needed. 
+
+% Another observation is that from each feature family there are substantial number of features whose importance is close to zero. 
+% This suggests that applying feature selection method based on weights may in our case be effective. 
+% \Roni{Ideally, add here results for the feature importance analysis of the other AS setups} \Carmel{do you want similar plots for other setups?}
+% even more (the initial Graphs representing each MAPF problem is much bigger) \Roni{Not clear. What do you mean by the MAPF graphs being much bigger - much larger than what?} \Carmel{the Feather graph embedding dim is 500 assume in XGB 50\% of coefs are zero => 250 dimensions from 500 are not important at all for classification so we can cut them...}
+% \Roni{Can you extract which of the hand-crafted features were not useful (their actual values)?} \Carmel{yes it in the csv files I sent}
+% \Roni{Cosmetics: might be nicer to sort by importance in each feature family. Not important} \Carmel{If we want to compare feature importance between experiments we should not sort, every feature index is it's uniqueness}
+
+
+% from \fgtv. established by the FullG2V abstraction the next 500 established by the G2V (using Feather model \cite{rozemberczki2020characteristic}), the remaining 20 are the handcrafted features obtained Kaduri's method \cite{kaduri2020algorithm}. we can see an interesting observation, that the handcrafted features are relatively high, also we can see that there are substantial number of features coefficients that are zero or close, thus a feature selection method based on weights can be used to reduce substantially the embeddings dimension even more (the initial Graphs representing each MAPF problem is much bigger) \Roni{Not clear. What do you mean by the MAPF graphs being much bigger - much larger than what?} \Carmel{the Feather graph embedding dim is 500 assume in XGB 50\% of coefs are zero => 250 dimensions from 500 are not important at all for classification so we can cut them...}
+% \Roni{Can you extract which of the hand-crafted features were not useful (their actual values)?} \Carmel{yes it in the csv files I sent}
+% \Roni{Cosmetics: might be nicer to sort by importance in each feature family. Not important} \Carmel{If we want to compare feature importance between experiments we should not sort, every feature index is it's uniqueness}
+
+
+% \begin{figure}
+%     \centering
+%     \includegraphics[scale=0.23]{Images/feature_importance_xgb.png}
+%     \caption{Features importance for the MAPFGAS abstraction method in the XGBoost classifier.}
+%     \label{fig:model_coefs}
+% \end{figure}
+
+
+
+% Please add the following required packages to your document preamble:
+% \usepackage{booktabs}
+% \begin{table}
+% \begin{tabular}{@{}ll|rrr|r@{}}
+% \toprule
+% Grid-type & Metric & KBS   & G2V   & MAFGAS \\ \midrule
+% City      & Acc    & 0.53  & 0.53  & 0.58   \\
+% City      & Cov    & 0.896 & 0.863 & 0.877  \\
+% City      & \%Rg   & 136.2 & 155.6 & 146.3  \\
+% Empty     & Acc    & 0.81  & 0.78  & 0.82   \\
+% Empty     & Cov    & 0.996 & 0.993 & 0.9991 \\
+% Empty     & \%Rg   & 9.5   & 17.7  & 2.5    \\
+% Game      & Acc    & 0.74  & 0.72  & 0.65   \\
+% Game      & Cov    & 0.875 & 0.891 & 0.894  \\
+% Game      & \%Rg   & 122.0 & 113.1 & 122.0  \\
+% Random    & Acc    & 0.78  & 0.71  & 0.73   \\
+% Random    & Cov    & 0.999 & 0.989 & 1      \\
+% Random    & \%Rg   & 7.2   & 54.8  & 4.0    \\
+% Room      & Acc    & 0.32  & 0.43  & 0.49   \\
+% Room      & Cov    & 0.652 & 0.752 & 0.807  \\
+% Room      & \%Rg   & 855.6 & 614.5 & 475.0  \\
+% Maze      & Acc    & 0.56  & 0.45  & 0.47   \\
+% Maze      & Cov    & 0.706 & 0.635 & 0.655  \\
+% Maze      & \%Rg   & 398.8 & 511.4 & 483.6  \\
+% Warehouse & Acc    & 0.67  & 0.62  & 0.68   \\
+% Warehouse & Cov    & 0.964 & 0.882 & 0.975  \\
+% Warehouse & \%Rg   & 32.9  & 78.1  & 27.3   \\ \bottomrule
+% \end{tabular}
+% \end{table}
+
+
+% % Please add the following required packages to your document preamble:
+% % \usepackage{booktabs}
+% % \usepackage{multirow}
+% \begin{table}
+% \begin{tabular}{@{}ll|rrr|r@{}}
+% \toprule
+% Grid-type                  & Metric & KBS   & G2V   & MAFGAS \\ \midrule
+% \multirow{3}{*}{City}      & Acc    & 0.53  & 0.53  & 0.58   \\
+%                            & Cov    & 0.896 & 0.863 & 0.877  \\
+%                            & \%Rg   & 136.2 & 155.6 & 146.3  \\ \midrule
+% \multirow{3}{*}{Empty}     & Acc    & 0.81  & 0.78  & 0.82   \\
+%                            & Cov    & 0.996 & 0.993 & 0.9991 \\
+%                            & \%Rg   & 9.5   & 17.7  & 2.5    \\\midrule
+% \multirow{3}{*}{Game}      & Acc    & 0.74  & 0.72  & 0.65   \\
+%                            & Cov    & 0.875 & 0.891 & 0.894  \\
+%                            & \%Rg   & 122.0 & 113.1 & 122.0  \\\midrule
+% \multirow{3}{*}{Random}    & Acc    & 0.78  & 0.71  & 0.73   \\
+%                            & Cov    & 0.999 & 0.989 & 1      \\
+%                            & \%Rg   & 7.2   & 54.8  & 4.0    \\\midrule
+% \multirow{3}{*}{Room}      & Acc    & 0.32  & 0.43  & 0.49   \\
+%                            & Cov    & 0.652 & 0.752 & 0.807  \\
+%                            & \%Rg   & 855.6 & 614.5 & 475.0  \\\midrule
+% \multirow{3}{*}{Maze}      & Acc    & 0.56  & 0.45  & 0.47   \\
+%                            & Cov    & 0.706 & 0.635 & 0.655  \\
+%                            & \%Rg   & 398.8 & 511.4 & 483.6  \\\midrule
+% \multirow{3}{*}{Warehouse} & Acc    & 0.67  & 0.62  & 0.68   \\
+%                            & Cov    & 0.964 & 0.882 & 0.975  \\
+%                            & \%Rg   & 32.9  & 78.1  & 27.3   \\ \bottomrule 
+% \end{tabular}
+% \end{table}
+
+
+% Please add the following required packages to your document preamble:
+% \usepackage{booktabs}
+% \usepackage{multirow}
+% \begin{table}
+% \centering
+% \begin{tabular}{@{}ll|rrr|r@{}}
+% \toprule
+% Grid-type                  & Metric & KBS    & G2V    & MAFGAS & Oracle \\ \midrule
+% \multirow{3}{*}{City}      & Acc    & 0.53   & 0.53   & 0.58   & 1.00   \\
+%                            & Cov    & 0.90   & 0.86   & 0.88   & 1.00   \\
+%                            & RT     & 13,218 & 14,308 & 13,784 & 5,597  \\ \midrule
+% \multirow{3}{*}{Empty}     & Acc    & 0.81   & 0.78   & 0.82   & 1.00   \\
+%                            & Cov    & 1.00   & 0.99   & 1.00   & 1.00   \\
+%                            & RT     & 3,372  & 3,626  & 3,157  & 3,080  \\\midrule
+% \multirow{3}{*}{Game}      & Acc    & 0.74   & 0.72   & 0.65   & 1.00   \\
+%                            & Cov    & 0.88   & 0.89   & 0.89   & 1.00   \\
+%                            & RT     & 16,187 & 15,537 & 16,187 & 7,292  \\\midrule
+% \multirow{3}{*}{Random}    & Acc    & 0.78   & 0.71   & 0.73   & 1.00   \\
+%                            & Cov    & 1.00   & 0.99   & 1.00   & 1.00   \\
+%                            & RT     & 1,717  & 2,478  & 1,665  & 1,601  \\\midrule
+% \multirow{3}{*}{Room}      & Acc    & 0.32   & 0.43   & 0.49   & 1.00   \\
+%                            & Cov    & 0.65   & 0.75   & 0.81   & 1.00   \\
+%                            & RT     & 6,172  & 4,615  & 3,714  & 646    \\\midrule
+% \multirow{3}{*}{Maze}      & Acc    & 0.56   & 0.45   & 0.47   & 1.00   \\
+%                            & Cov    & 0.71   & 0.64   & 0.66   & 1.00   \\
+%                            & RT     & 4,300  & 5,270  & 5,031  & 862    \\\midrule
+% \multirow{3}{*}{Warehouse} & Acc    & 0.67   & 0.62   & 0.68   & 1.00   \\
+%                            & Cov    & 0.96   & 0.88   & 0.98   & 1.00   \\
+%                            & RT     & 25,813 & 34,584 & 24,718 & 19,416 \\ \bottomrule 
+% \end{tabular}
+% \end{table}
+
+% Please add the following required packages to your document preamble:
+% \usepackage{booktabs}
+% \begin{table}[]
+% \begin{tabular}{@{}lcccccccc@{}}
+% Metric & KGS              & G2V              & MAPFGAS          & Oracle         & FG2V+G2V         & KGS+FG2V         & KGS+G2V          & FG2V             \\
+% Acc    & (0.64,0.69,0.75) & (0.61,0.67,0.73) & (0.64,0.71,0.77) & (1,1,1)        & (0.63,0.69,0.74) & (0.65,0.7,0.75)  & (0.65,0.7,0.76)  & (0.58,0.66,0.72) \\
+% Cov    & (0.9,0.93,0.95)  & (0.9,0.92,0.94)  & (0.91,0.94,0.95) & (1,1,1)        & (0.9,0.93,0.94)  & (0.91,0.94,0.95) & (0.92,0.94,0.95) & (0.88,0.91,0.95) \\
+% RT     & (13029,1,24759)  & (16070,1,24681)  & (12188,1,23769)  & (6878,0,14081) & (13159,1,24922)  & (13027,1,23550)  & (12628,1,23317)  & (13861,1,26696)  \\
+% \% Rg  & 78.60            & 91.80            & 67.90            & 0.00           & 75.80            & 70.50            & 71.60            & 87.90           
+% \end{tabular}
+% \end{table}
+
+% results show similar to those in Table performance in most cases
+
+
+
+
+% describes experiments done "in grid split" setups. In the first experiment a random split was performed on all MAPF problems, while on every other experiment a random split was performed on all MAPF problems that belongs to specific grid type - for example the second row where scope is 'city', the dataset is combined only from all MAPF problems that have a city map.
+
+% we can observe that combining both Graph abstractions G2V and FullG2v with handcrafted features achieved overall similar to the best results in all metrics.
+
+% \begin{table*}[!h]
+% % \begin{table}[!h]
+%     \centering
+% \begin{tabular}{ |c|c||c|c|c||c|c|c|c||c| }
+% \hline
+%     & &  \multicolumn{8}{|c|}{Topological 'MAPF Problem' Abstraction Method} \\ 
+%  \hline
+%     scope & metric & hand & G-short & G-full &  hand-full & hand-short & full-short & triple & oracle\\ 
+%  \hline
+%  & Accuracy  & 0.83 & 0.81 & 0.84 & \textbf{0.85} & 0.84 & 0.84 & \textbf{0.85} & 1.0\\ 
+%  all$_{random}$ & Coverage & 0.979 & 0.968 & 0.981 & \textbf{0.986} & 0.982 & 0.981 & \textbf{0.986} & 1.0\\ 
+%  & Run-time & 9803 & 10513 & 9527 & \textbf{9150} & 9497 & 9480 & 9180 & 7785\\
+%  \hline
+%   & Accuracy  & 0.90 & 0.89 & 0.89 & \textbf{0.92} & \textbf{0.92} & 0.91 & \textbf{0.92} & 1.0\\ 
+% city & Coverage & 0.992 & 0.986 & 0.989 & \textbf{0.994} & 0.993 & 0.991 & 0.993 & 1.0\\ 
+% & Run-time & 1226 & 1252 & 1237 & \textbf{1189} & 1190 & 1216 & 1193 & 1113.7\\ 
+%  \hline 
+%  & Accuracy  & 0.88 & 0.89 & 0.88 & 0.89 & 0.89 & 0.89 & \textbf{0.90} & 1.0\\ 
+%  empty & Coverage & 1.0 & 1.0 & 1.0 & 1.0 & 1.0 & 1.0 & 1.0 & 1.0\\ 
+%  & Run-time & 662.1 & \textbf{657} & 665.1 & 661.8 & \textbf{657} & 661.5 & 661.6 & 656.18\\ 
+%  \hline
+%  & Accuracy  & 0.91 & 0.91 & \textbf{0.92} & \textbf{0.92} & 0.91 & \textbf{0.92} & \textbf{0.92} & 1.0\\ 
+% game & Coverage & 0.984 & 0.981 & 0.989 & \textbf{0.990} & 0.984 & 0.988 & 0.985 & 1.0\\ 
+% & Run-time & 1718 & 1743 & \textbf{1647} & \textbf{1647} & 1715 & 1675 & 1700 & 1440.7\\ 
+%  \hline 
+%  & Accuracy  & 0.91 & 0.90 & 0.91 & 0.91 & 0.91 & 0.91 & 0.91 & 1.0\\ 
+%  random & Coverage & 0.999 & 0.999 & 1.0 & 1.0 & 1.0 & 0.999 & 1.0 & 1.0\\ 
+%  & Run-time & 327.3 & 330.4 & 319.2 & \textbf{318.3} & 318.7 & 330.3 & 325.2 & 317.47\\ 
+%  \hline 
+%  & Accuracy  & \textbf{0.93} & 0.90 & 0.92 & 0.92 & 0.92 & 0.91 & 0.92 & 1.0\\ 
+%  room & Coverage & 1.0 & 1.0 & 1.0 & 1.0 & 1.0 & 1.0 & 1.0 & 1.0\\ 
+%  & Run-time & 128.79 & 131.17 & 131.27 & \textbf{128.6} & \textbf{128.6} & 129.37 & \textbf{128.6} & 128.51\\ 
+%  \hline 
+%  & Accuracy  & 0.85 & 0.79 & 0.84 & \textbf{0.87} & \textbf{0.87} & 0.86 & 0.86 & 1.0\\ 
+%  maze & Coverage & 0.983 & 0.925 & 0.979 & 0.988 & 0.986 & 0.979 & \textbf{0.988} & 1.0\\ 
+%  & Run-time & 205.36 & 341.37 & 209.1 & \textbf{185.66} & 188.6 & 208.2 & 187.78 & 155.65\\ 
+%  \hline
+% & Accuracy  & 0.84 & 0.84 & 0.84 &  \textbf{0.86} & 0.85 &  \textbf{0.86} & \textbf{0.86} & 1.0\\ 
+% warehouse & Coverage & 0.991 & 0.989 & 0.990 & \textbf{0.995} & 0.993 & 0.994 & \textbf{0.995} & 1.0\\ 
+% & Run-time & 4077 & 4131 & 4077 & 3983 & 4027 & 3993 & \textbf{3955} & 3777\\ 
+%  \hline 
+% \hline
+% & Accuracy  & 0.881 & 0.866 & 0.88 & \textbf{\textcolor{red}{0.893}} &  0.889 & 0.888 & \textbf{\textcolor{red}{0.893}} & 1.0\\ 
+% \textbf{AVG$_{single}$} & Coverage & 0.991 & 0.981 & 0.991  & \textbf{\textcolor{red}{0.994}} & 0.992 & 0.991 & 0.993 & 1.0\\ 
+% % & Run-time & 2268 & 2387 & 2227 & \textbf{\textcolor{red}{2157}} & 2215 & 2212 & 2166 & 1922 \\ 
+% & Run-time & 0.4115 & 0.4534 & 0.4086 & \textbf{\textcolor{red}{0.3948}} & 0.4015 & 0.4060 & 0.3974 & 0.3611 \\ 
+%  \hline
+%  \%$_{avg}$ $>$ oracle & Run-time & 12.4 & 25.4 & 11.8 & \textbf{\textcolor{red}{8.1}} & 9.5 & 11.5 & 9.0 & 0 \\ 
+%  \hline
+% \end{tabular}
+%     \caption{In grid splits results. (Runtime in minutes)\Roni{Please have the results with the same number of decimal points. No need to have more than 2 digits after the decimal point. Additional digits are only confusing and do not really mean anything in our context} \Carmel{In Coverage they actually use 4 digits after dot for example MAPFASTER COV = 96.84\% = 0.9684}\Roni{But such differences in results are really meaningless in our context. Please remove these digits.} \Carmel{reduced to 3 digits in the COV as agreed } }
+%     \label{tab:in_grid_test}
+% \end{table*}
+
+
+% % \begin{table}[!h]
+% %     \centering
+% % \begin{tabular}{ |c|c||c|c|c|c| }
+% % \hline
+% %      & &  \multicolumn{4}{|c|}{Method} \\ 
+% %  \hline
+% %   scope & metric & Kaduri  & Graphs & mixed & oracle     \\ 
+% % \hline
+% %  & acc  &  0.83 & 0.83 & \textbf{0.85} & 1.0 \\ 
+% %  all & cov & 0.976 & 0.977 & \textbf{0.984} & 1.0\\ 
+% %  & RT & 9913 & 9756 & \textbf{9295} & 7785 \\ 
+% %  \hline
+% %  \hline
+% %  & acc  & 0.89 & 0.88 & \textbf{0.90} & 1.0\\ 
+% %  city & cov & 0.985 & 0.986 & \textbf{0.989} & 1.0\\ 
+% %  & RT & 1294 & 1272 & \textbf{1241}  & 1114\\ 
+% %  \hline
+% %  \hline
+% %        & acc  & 0.88 & 0.88 & \textbf{0.89} & 1.0\\ 
+% %  empty & cov & \textbf{0.9996} & \textbf{0.9996} & \textbf{0.9996} & 1.0\\ 
+% %        & RT & 662 & 665.1 & \textbf{661.8} & 656\\ 
+% %  \hline
+% %   \hline
+% %  & acc  &  0.91 & \textbf{0.92} & \textbf{0.92} & 1.0\\ 
+% %  game & cov & 0.984 & 0.989 & \textbf{0.990} & 1.0\\ 
+% %  & RT & 1718 & \textbf{1645} & \textbf{1647} & 1440\\ 
+% %  \hline
+% %   \hline
+% %  & acc  & \textbf{0.91} & \textbf{0.91} & \textbf{0.91} & 1.0\\ 
+% %  random & cov & 0.999 & 0.999 & \textbf{1.0} & 1.0 \\ 
+% %  & RT & 325.1 & 322.7 & \textbf{321.2} & 317.4\\ 
+% %  \hline
+% %   \hline
+% %  & acc  &  \textbf{0.92} & 0.91 & \textbf{0.92} & 1.0\\ 
+% %  room & cov & \textbf{1.0} & 0.999 & \textbf{1.0} & 1.0\\ 
+% %  & RT & 128.75 & 133.6 & \textbf{128.59} & 128.5\\ 
+% %  \hline
+% %   \hline
+% %  & acc  & 0.85 & 0.85 & \textbf{0.86} & 1.0\\ 
+% %  maze & cov & 0.980 & 0.975 & \textbf{0.983} & 1.0\\ 
+% %  & RT & 201.2 & 213.3 & \textbf{195.6} & 155.6\\ 
+% %  \hline
+% %   \hline
+% %  & acc  &  0.86 & 0.85 & \textbf{0.87} & 1.0\\ 
+% %  warehouse & cov & 0.993 & 0.992 & \textbf{0.996} & 1.0\\ 
+% %  & RT & 3993 & 4011 & \textbf{3930} & 3777\\ 
+% %  \hline
+% % \end{tabular}
+% %     \caption{In grid splits results}
+% %     \label{tab:in_grid_test}
+% % \end{table}
+
+% \subsubsection{In Grid Type Split}\vspace{10px}
+% \label{result:clf_perf}
+% % The test set was sub-sampled by using a constant step size of 10 (and not 1), due to long time to transform into shapelets based features (anomaly ratio is same as in original WADI test-set).
+% % Figure \ref{fig:clf_scores} represents the F1 score achieved by classifiers within all experimental configurations.
+% Table \ref{tab:within_grid_type} describes accuracies, coverage, RT achieved by different MAPF problem abstraction methods at their best hyper parameters configurations.
+% 5 different Train test splits where performed, each has different combination of train-test map split.
+% % results with the following maps in test-set: 'empty-32-32', 'random-32-32-20', 'Berlin\_1\_256', 'warehouse-20-40-10-2-1', 'lt\_gallowstemplar\_n', 'maze-128-128-10', 'ht\_mansion\_n', 'room-32-32-4'.
+% Overall the best results achieved by the combined abstraction method which uses both Graph abstractions G2V and FullG2v along with handcrafted features proposed by Kaduri \cite{kaduri2020algorithm}. A very interesting trend can be observed between the difficulty of tested MAPF problems which represented by the oracle run-time (we can assume more complex MAPF problems takes longer time for algorithms to solve) to the coverage and RT improvement achieved by the mixed MAPFGAS over Kaduri's method.
+
+
+
+
+
+% \begin{table*}[!h]
+% % \begin{table}[!h]
+%     \centering
+% \begin{tabular}{ |c|c||c|c|c||c|c|c|c||c| }
+% \hline
+%     & &  \multicolumn{8}{|c|}{Topological 'MAPF Problem' Abstraction Method} \\ 
+%  \hline
+%     test & metric & hand & G-short & G-full &  hand-full & hand-short & full-short & triple & oracle\\ 
+%  \hline
+%  & Accuracy  & 0.67 & 0.63 & 0.66 & \textbf{0.68} & \textbf{0.68} & 0.66 & 0\textbf{.68} & 1.0\\ 
+%  1 & Coverage & 0.944 & 0.895 & 0.931 & 0.945 & 0.949 & 0.942 & \textbf{0.954} & 1.0\\ 
+%  & Run-time & 13029 & 17037 & 13861 & 13027 & 12628 & 13159 & \textbf{12188} & 6878\\ 
+%  \hline % {19072}
+%  & Accuracy  & 0.75 & 0.73 & 0.72 & 0.75 & 0.76 & 0.74 & \textbf{0.77} & 1.0\\ 
+%  2 & Coverage & 0.949 & 0.931 & 0.948 & \textbf{0.953} & 0.952 & 0.937 & 0.952 & 1.0\\ 
+%  & Run-time & 14186 & 16070 & 14458 & \textbf{13735} & 13984 & 15348 & 13931 & 9771\\ 
+%  \hline % {21493}
+%  & Accuracy  & 0.64 & 0.61 & 0.58 & \textbf{0.65} & \textbf{0.65} & 0.63 & 0.64 & 1.0\\ 
+%  3 & Coverage & 0.900 & 0.900 & 0.879 & 0.911 & \textbf{0.916} & 0.899 & 0.913 & 1.0\\ 
+%  & Run-time & 24759 & 24681 & 26696 & 23550 & \textbf{23317} & 24922 & 23769 & 12663\\ 
+%  \hline % {22042}
+%  & Accuracy  & 0.67 & 0.66 & 0.63 & \textbf{0.69} & \textbf{0.69} & \textbf{0.69} & \textbf{0.69} & 1.0\\ 
+%  4 & Coverage & 0.901 & 0.915 & 0.887 & 0.937 & 0.924 & 0.934 & \textbf{0.942} & 1.0\\ 
+%  & Run-time & 24494 & 23804 & 25752 & 21130 & 22635 & 22005 & \textbf{21127} & 14081\\ 
+%  \hline % {22856}
+% & Accuracy  & 0.74 & 0.71 & 0.72 & 0.74 & 0.74 & 0.74 & \textbf{0.75} & 1.0\\ 
+% 5 & Coverage & 0.932 & 0.939 & 0.924 & 0.935 & 0.934 & \textbf{0.942} & 0.939 & 1.0\\ 
+% & Run-time & 18587 & 17991 & 19282 & 18358 & 18349 & \textbf{17480} & 17909 & 9831\\ 
+%  \hline % {24823}
+% \hline
+% & Accuracy  & 0.694 & 0.668 & 0.662 & 0.702 &  0.704 & 0.692 & \textbf{\textcolor{red}{0.706}} & 1.0\\ 
+% \textbf{AVG$_{single}$} & Coverage & 0.925 & 0.916 & 0.9138  & 0.936 & 0.935 & 0.931 & \textbf{\textcolor{red}{0.94}} & 1.0\\ 
+% % & Run-time & 19011 & 19916  & 20009 & 17960 & 18182 & 18583 & \textbf{\textcolor{red}{17785}} & 10633 \\ 
+% & Run-time & 0.8574 & 0.9054 & 0.9028 & 0.8109 & 0.8200 & 0.8403 & \textbf{\textcolor{red}{0.8023}} & 0.4804 \\ 
+%  \hline
+%  \%$_{avg}$ $>$ oracle & Run-time & 78.6 & 91.8 & 87.9 & 70.5 & 71.6 & 75.8 & \textbf{\textcolor{red}{67.9}} & 0 \\ 
+%  \hline
+% \end{tabular}
+%     \caption{In Grid type split results.}
+%     \label{tab:within_grid_type}
+% \end{table*}
+
+
+% % \begin{table}[!h]
+% %     \centering
+% % \begin{tabular}{ |c|c||c|c|c|c| }
+% % \hline
+% %     & &  \multicolumn{4}{|c|}{Method} \\ 
+% %  \hline
+% %     test & metric & Kaduri  & Graphs & combined & oracle    \\ 
+% %  \hline
+% %  & Accuracy  & 0.68 & 0.66 & \textbf{0.69} & 1.0\\ 
+% %  1 & Coverage & \textbf{0.950} & 0.927 & 0.944 & 1.0\\ 
+% %  & Run-time & \textbf{12422} & 14189 & 13063 & 6878\\ 
+% %  \hline
+% %  \hline
+% %  & Accuracy  & 0.75 & 0.72 & \textbf{0.76} & 1.0\\ 
+% %  2 & Coverage & 0.950 & 0.946 & \textbf{0.954} & 1.0\\ 
+% %  & Run-time & 14016 & 14529 & \textbf{13624} & 9771\\ 
+% %  \hline
+% %   \hline
+% %  & Accuracy  & \textbf{0.63} & 0.58 & \textbf{0.63} & 1.0\\ 
+% %  3 & Coverage & 0.905 & 0.866 & \textbf{0.918} & 1.0\\ 
+% %  & Run-time & 24486 & 27692 & \textbf{23281} & 12663\\ 
+% %  \hline
+% %    \hline
+% %  & Accuracy  & \textbf{0.67} & 0.65 & \textbf{0.67} & 1.0\\ 
+% %  4 & Coverage & 0.889 & 0.900 & \textbf{0.926} & 1.0\\ 
+% %  & Run-time & 25698 & 24393 & \textbf{22338} & 14081\\ 
+% %  \hline
+% % \end{tabular}
+% %     \caption{In Grid type split results}\roni{Hard to get an overview from the 4 rows. Perhaps we want an average.}
+% %     \label{tab:within_grid_type}
+% % \end{table}
+
+% \Carmel{I think its better to remove the confusion matrix, nobody show this and its not that interesting??}\Roni{Removed}
+% Table \ref{tab:best_xgb_report} describe results achieved by the combined abstraction method for test number '4', \Roni{What is test '4'?} \Carmel{its just one of the 5 splits, i think we should remove this table and description also, the reason I put it initially is to show the spread of the correct classifications between all solver..} we can see classification scores along all the labels which are the different search algorithms:
+
+% \begin{table}[!h]
+%     \centering
+% \begin{tabular}{ |c c c c c| }
+% \hline
+%  & precision & recall  & f1 score  & support \\ 
+%  \hline
+%  icts & 0.25    &  0.01  & 0.02    &   1557 \\    
+%  epea &  0.22   &   0.10 &     0.14 &      2771 \\  
+%   sat & 0.00    &  0.00 &     0.00   &     45 \\    
+%  cbsh-c & 0.71      & 0.81   &   0.75  &    8662 \\ 
+%   lazycbs & 0.69    &  0.81 &   0.75 &      9821 \\    
+%  \hline
+% \end{tabular}
+%     \caption{classification report of best 'combined' model}
+%     \label{tab:best_xgb_report}
+% \end{table}
+
+% Next is the corresponding confusion matrix:
+
+% $
+% \begin{bmatrix} 
+% 19  & 233  &  0 &  555  &  750  \\
+% 27 & 277 &   0 & 1052 &  1415  \\
+% 0 &  1 &   0 &  1  &  43  \\
+% 27 & 241 &   16 & 6995 & 1383  \\
+% 3 &  504  &  3 & 1314 & 7997 \\
+% \end{bmatrix}
+% $
+
+
+
+
+
+
+
+
+% % XGBoost's hyper parameters are: min\_child\_weight = 2 ; gamma = 1.2 ; subsample = 1.0 ; colsample\_bytree = 0.5 ; max\_depth = 6 ; earning\_rate = 5e-05 ;  n\_estimators = 600
+
+% \subsubsection{Between Grid Type Split}\vspace{10px}
+% \label{result:between_perf}
+% Table \ref{tab:between_grid_test} describes experiments performed at "between grid type split" setups. Each row represents an experiment that shows the tested grid type was used, implicitly all other grid types where in train-set.
+
+% We focus on the coverage and run-time metrics, as the accuracy metric is naturally much lower in such difficult split setups and less important than the other time based metrics.
+% combining both Graph abstractions G2V and FullG2v with handcrafted features achieved overall best results. \Carmel{remove next probably}
+% We can observe that all "between grid type" split setups except one (when 'maze' in test set) have resulted in higher score either by graph standalone abstraction or by the combined abstraction methods.
+
+% \begin{table*}[!h]
+% % \begin{table}[!h]
+%     \centering
+% \begin{tabular}{ |c|c||c|c|c||c|c|c|c||c| }
+% \hline
+%     & &  \multicolumn{8}{|c|}{Topological 'MAPF Problem' Abstraction Method} \\ 
+%  \hline
+%     tested & metric & hand & G-short & G-full &  hand-full & hand-short & full-short & triple & oracle\\ 
+%  \hline
+%  & Accuracy  & 0.53 & 0.53 & \textbf{0.60} & 0.59 & 0.58 & 0.58 & 0.58 & 1.0\\ 
+%  city & Coverage & 0.896 & 0.863 & 0.846 & \textbf{0.896} & 0.869 & 0.855 & 0.877 & 1.0\\ 
+%  & Run-time & 13218 & 14308 & 14645 & \textbf{12861} & 14121 & 14317 & 13784 & 5597\\ 
+%  \hline 
+%  & Accuracy  & 0.81 & 0.78 & 0.80 & \textbf{0.83} & 0.81 & 0.77 & 0.82 & 1.0\\ 
+%  empty & Coverage & 0.996 & 0.993 & \textbf{1.0} & 0.997 & 0.999 & \textbf{1.0} & 0.9991 & 1.0\\ 
+%  & Run-time & 3372 & 3626 & 3100 & 3337 & 3183 & \textbf{3084} & 3157 & 3080\\  
+%  \hline 
+%   & Accuracy  & 0.74 & 0.72 & 0.73 & 0.71 & 0.73 & \textbf{0.77} & 0.65 & 1.0\\ 
+%  game & Coverage & 0.875 & 0.891 & 0.909 & 0.917 & 0.876 & \textbf{0.919} & 0.894 & 1.0\\ 
+%  & Run-time & 16187 & 15537 & 14301 & 13837 & 16337 & \textbf{13417} & 16187 & 7292\\  
+%  \hline 
+%   & Accuracy  & \textbf{0.78} & 0.71 & 0.64 & 0.75 & 0.76 & 0.68 & 0.73 & 1.0\\ 
+%  random & Coverage & 0.999 & 0.989 & 1.0 & 1.0 & 1.0 & 1.0 & 1.0 & 1.0\\ 
+%  & Run-time & 1717 & 2478 & 1666 & 1666 & 1703 & 1665.4 & \textbf{1664.7} & 1601\\  
+%  \hline 
+%   & Accuracy  & 0.32 & 0.43 & \textbf{0.56} & 0.45 & 0.49 & 0.45 & 0.49 & 1.0\\ 
+%  room & Coverage & 0.652 & 0.752 & \textbf{0.855} & 0.761 & 0.796 & 0.780 & 0.807 & 1.0\\ 
+%  & Run-time & 6172 & 4615 & \textbf{2968} & 4444 & 3921 & 4168 & 3714 & 645.9\\  
+%  \hline 
+%   & Accuracy  & \textbf{0.56} & 0.45 & 0.42 & 0.45 & 0.53 & 0.42 & 0.47 & 1.0\\ 
+%  maze & Coverage & \textbf{0.706} & 0.635 & 0.610 & 0.639 & 0.689 & 0.611 & 0.655 & 1.0\\ 
+%  & Run-time & \textbf{4300} & 5270 & 5576 & 5228 & 4604 & 5560 & 5031 & 862\\  
+%  \hline 
+%    & Accuracy  & 0.67 & 0.62 & 0.62 & 0.67 & \textbf{0.68} & 0.66 & \textbf{0.68} & 1.0\\ 
+%  warehouse & Coverage & 0.964 & 0.882 & 0.905 & \textbf{0.985} & 0.943 & 0.960 & 0.975 & 1.0\\ 
+%  & Run-time & 25813 & 34584 & 31702  & \textbf{23520} & 28240 & 26489 & 24718 & 19416\\  
+%  \hline 
+% \hline
+% & Accuracy  & 0.630 & 0.606 & 0.6243 & 0.6357 &   \textbf{\textcolor{red}{0.654}} & 0.619 & 0.632 & 1.0\\ 
+% \textbf{AVG$_{single}$} & Coverage & 0.870 & 0.8579 & 0.875  & 0.885 & 0.8816 & 0.875 & \textbf{\textcolor{red}{0.887}} & 1.0\\ 
+% % & Run-time & 10111 & 11488 & 10565 & \textbf{\textcolor{red}{9270}} & 10301 & 9814 & 9750 & 5499 \\ 
+% & Run-time & 0.9909 & 1.0438 & 0.9549 & 0.9307 & 0.9354 & 0.9650 & \textbf{\textcolor{red}{0.9251}} & 0.3574 \\ 
+%  \hline
+%  \%$_{avg}$ $>$ oracle & Run-time & 223.1 & 220.7 & \textbf{\textcolor{red}{176}} & 192.5 & 181.8 & 195.8 & 180 & 0 \\ 
+%  \hline
+% \end{tabular}
+%     \caption{Between grid type splits results.}
+%     \label{tab:between_grid_test}
+% \end{table*}
+
+% \begin{table}[!h]
+%     \centering
+% \begin{tabular}{ |c|c||c|c|c|c| }
+% \hline
+%      & &  \multicolumn{4}{|c|}{Method} \\ 
+%  \hline
+%   tested & metric & Kaduri  & Graphs & mixed & oracle     \\ 
+%  \hline
+%  & acc  & 0.52 & \textbf{0.60} & \textbf{0.60} & 1.0\\ 
+%  city & cov & \textbf{0.895} & 0.855 & \textbf{0.895} & 1.0\\ 
+%  & RT & 13195 & 14159 & \textbf{12861}  & 5597\\ 
+%  \hline
+%  \hline
+%        & acc  & \textbf{0.82} & 0.80 & 0.78 & 1.0\\ 
+%  empty & cov & 0.996 & \textbf{0.999} & \textbf{0.999} & 1.0\\ 
+%        & RT & 3366 & \textbf{3100} & 3129 & 3080\\ 
+%  \hline
+%   \hline
+%  & acc  & 0.41 & 0.73 & \textbf{0.75} & 1.0\\ 
+%  game  & cov & 0.896 & \textbf{0.910} & 0.904 & 1.0\\ 
+%  & RT & 16121 & \textbf{14301} & 14497 & 7292\\ 
+%  \hline
+%   \hline
+%  & acc  & \textbf{0.80} & 0.73 & 0.75 & 1.0\\ 
+%  random & cov & 0.9985 & 0.961 & \textbf{0.9999} & 1.0\\ 
+%  & RT & 1784 & 4246 & \textbf{1671} & 1601\\ 
+%  \hline
+%   \hline
+%  & acc  &  0.65 & 0.60 & \textbf{0.77} & 1.0\\ 
+%  room & cov & 0.906 & 0.923 & \textbf{0.990} & 1.0\\ 
+%  & RT & 2160 & 1848 & \textbf{805} & 645.9\\ 
+%  \hline
+%   \hline
+%  & acc  & \textbf{0.56} & 0.42 & 0.47 & 1.0\\ 
+%  maze & cov & \textbf{0.718} & 0.607 & 0.650 & 1.0\\ 
+%  & RT & \textbf{4322} & 5610 & 5076 & 862\\ 
+%  \hline
+%   \hline
+%  & acc  &  0.67 & 0.62 & \textbf{0.67} & 1.0\\ 
+%  warehouse & cov & 0.970 & 0.905 & \textbf{0.985} & 1.0\\ 
+%  & RT & 25105 & 31702 & \textbf{23519} & 19416\\ 
+%  \hline
+% \end{tabular}
+%     \caption{Between grid type splits results.}
+%     \label{tab:between_grid_test}
+% \end{table}
+
+
+
+% \subsubsection{Between Grid Type results}\vspace{10px}
+
+% We preformed preliminary experiments when the train-test split setup is 'between grid type', where grid types in train set are different from grid types in test set. We trained an XGBoost with Feather algorithm for the graph abstraction. Table \ref{tab:between_grid_test_maze} shows classification results for test set contain 'maze' grid problems only, the accuracy is 0.58.
+
+% \begin{table}[!h]
+%     \centering
+% \begin{tabular}{ |c c c c c c| }
+% \hline
+% tested & Algo & precision & recall  & f1 score  & support \\ 
+%  \hline
+%  & icts &  0.00    &   0.00     &  0.00    &     73 \\    
+%  & epea &   0.00     &  0.00   &    0.00    &    151 \\  
+% maze &  sat & 0.00 &      0.00     &  0.00     &   234 \\    
+%  & cbsh-c & 0.51 &      0.97    &   0.67    &   1067 \\ 
+%  f1 avg=0.25&  lazycbs & 0.88      & 0.43 &      0.58   &    1022 \\    
+%  \hline
+%  &  icts &  0.00    &   0.00     &  0.00    &     23 \\    
+%  & epea &   0.00     &  0.00   &    0.00    &    74 \\  
+% room &  sat & 0.00 &      0.00     &  0.00     &   8 \\    
+%  & cbsh-c & 0.67 &      0.98    &   0.79    &   988 \\ 
+% f1 avg=0.30 &  lazycbs & 0.95      & 0.56 &      0.71   &    862 \\     
+%  \hline
+%  &  icts &  0.00    &   0.00     &  0.00    &     23 \\    
+%  & epea &   0.00     &  0.00   &    0.00    &    74 \\  
+% warehouse &  sat & 0.00 &      0.00     &  0.00     &   8 \\    
+%  & cbsh-c & 0.67 &      0.98    &   0.79    &   988 \\ 
+%  f1 avg=0.34&  lazycbs & 0.95      & 0.56 &      0.71   &    862 \\     
+%  \hline
+%  &  icts &  0.00    &   0.00     &  0.00    &     23 \\    
+%  & epea &   0.00     &  0.00   &    0.00    &    74 \\  
+% random &  sat & 0.00 &      0.00     &  0.00     &   8 \\    
+%  & cbsh-c & 0.67 &      0.98    &   0.79    &   988 \\ 
+% f1 avg=0.29 &  lazycbs & 0.95      & 0.56 &      0.71   &    862 \\     
+%  \hline
+%  &  icts &  0.00    &   0.00     &  0.00    &     23 \\    
+%  & epea &   0.00     &  0.00   &    0.00    &    74 \\  
+% game &  sat & 0.00 &      0.00     &  0.00     &   8 \\    
+%  & cbsh-c & 0.67 &      0.98    &   0.79    &   988 \\ 
+%  f1 avg=0.33&  lazycbs & 0.95      & 0.56 &      0.71   &    862 \\     
+%  \hline
+%  &  icts &  0.00    &   0.00     &  0.00    &     23 \\    
+%  & epea &   0.00     &  0.00   &    0.00    &    74 \\  
+% empty &  sat & 0.00 &      0.00     &  0.00     &   8 \\    
+%  & cbsh-c & 0.67 &      0.98    &   0.79    &   988 \\ 
+%  f1 avg=0.42&  lazycbs & 0.95      & 0.56 &      0.71   &    862 \\     
+%  \hline
+%  &  icts &  0.00    &   0.00     &  0.00    &     23 \\    
+%  & epea &   0.00     &  0.00   &    0.00    &    74 \\  
+% city &  sat & 0.00 &      0.00     &  0.00     &   8 \\    
+%  & cbsh-c & 0.67 &      0.98    &   0.79    &   988 \\ 
+%  f1 avg=0.34&  lazycbs & 0.95      & 0.56 &      0.71   &    862 \\     
+%  \hline
+% \end{tabular}
+%     \caption{Between grid type split : test-set = 'maze', accuracy = \textbf{0.58}}
+%     \label{tab:between_grid_test_maze}
+% \end{table}
+
+
+% Table \ref{tab:between_grid_test_maze} shows classification results for test set contain 'room' grid problems only, the accuracy is 0.74.
+ 
+% \begin{table}[!h]
+%     \centering
+% \begin{tabular}{ |c c c c c| }
+% \hline
+%  & precision & recall  & f1 score  & support \\ 
+%  \hline
+%  icts &  0.00    &   0.00     &  0.00    &     23 \\    
+%  epea &   0.00     &  0.00   &    0.00    &    74 \\  
+%   sat & 0.00 &      0.00     &  0.00     &   8 \\    
+%  cbsh-c & 0.67 &      0.98    &   0.79    &   988 \\ 
+%   lazycbs & 0.95      & 0.56 &      0.71   &    862 \\     
+%  \hline
+% \end{tabular}
+%     \caption{Between grid type split : test-set = 'room', accuracy = \textbf{0.74}}
+%     \label{tab:between_grid_test_room}
+% \end{table}
+
+
+% \subsection{Kaduri Results} \vspace{10px}
+
+% TODO
+
+% \subsection{MAPFAST reference} \vspace{10px}
+% \Carmel{Roni please use my referring to the paper which is problematic }
+
+% They had issues
+% \begin{itemize}
+%     \item they try to use Roni's Benchmark, but their maps where transposed for start
+%     \item they have generated 25 K problems of their own (with 4 different algo which one of them "SAT" has only 0.01\% winners)
+%     \item sometimes locations of agents falling into obstacle 
+%     \item they have created 4218 problems for warehouses without any map share ( created 4218 different maps as apposed to Roni's 4 maps, this fact means they experiment is of type "within grid" experiment (not within grid type) )
+% \end{itemize}
+% \Carmel{Benifits over using MAPFAST/ER }
+% \begin{itemize}
+%     \item in their approach the input is restricted to 320x320 size image, as in our method there is no restriction we can test using graph representations/topology.
+%     \item only we evaluated all 3 split setups. they did only "Random all" = "in grid"
+
+% \end{itemize}
+
+
+\section{Conclusion and Future Work}
+We proposed \mapfgas\ , the first practical approach to optimal MAPF algorithm selection based on graph embedding. 
+\mapfgas\ uses two encodings of the MAPF problem as a graph, one that encodes the entire graph and one that encodes only the shortest paths and their immediate vicinity. 
+To work efficiently on new MAPF problems, \mapfgas\ utilizes a modern graph embedding algorithm that does not need a-priori training. 
+\mapfgas\ also uses hand-crafted MAPF-specific features, as suggested by prior work. 
+The combination of graph-embedding features and hand-crafted features leads to strong state of the art AS for optimal MAPF. 
+In an extensive set of experiments on a standard benchmark, we showed that \mapfgas\ significantly outperforms existing baselines almost always. 
+Our results also highlight that the between-grid AS setup is particularly challenging, and can be the focus of future work. 
+Another important future work is to combine our graph-embedding based AS model with image-based AS models, such as MAPFASTER~\cite{alkazzi2022mapfaster}. 
+
+
+
+%a challenging and important endevour. 
+
+% \subsection{Future work}\vspace{10px}
+% % Try other graph classification (or embedding) based methods as "Feather" Algorithms that except node attributes as an input, to improve performance.
+
+% Enhancing graph based approach for MAPF Algorithm selection by using graph based methods that do use nodes' ‘colors’ (attributes). Current proposed method \textbf{MAPFGAS} doesn't use node description such as agent 'start' or 'goal' lables, it only artificially connects between those locations with a link in the representing graph, inevitably some information such as agent's direction (from 'start' to 'goal') is not modeled.
+
+
+
+% \section{Related Work}
+% \label{scn:RELATEDWORK}
+% MAPFAST ...
+% has two elements. 
+% Modeling the MAPF problem as an image ...
+% Using a G2V graph embedding over the graphs that are created by looking only on nodes on the shortest paths and its neighbors ....
+
+
+
+% "MAPFASTER: A Faster and Simpler take on Multi-Agent Path Finding Algorithm Selection"
+
+
+
+
+% \section{Conclusions and Future Work}
+% TBD 
+
+
+%\ack We would like to thank the referees for their comments, which helped improve this paper considerably
+
+\bibliography{ecai}
+\end{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

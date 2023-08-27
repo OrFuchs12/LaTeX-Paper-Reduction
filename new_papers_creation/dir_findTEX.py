@@ -1,31 +1,32 @@
 import os
 
 def find_tex_file(directory_path):
-    tex_file_path = None
+    tex_files = [file for file in os.listdir(directory_path) if file.endswith('.tex')]
+
+    if len(tex_files) == 1:
+        return os.path.join(directory_path, tex_files[0])
+
+    main_tex_candidates = []
+    for tex_file in tex_files:
+        with open(os.path.join(directory_path, tex_file), 'r') as f:
+            content = f.read()
+            # file dont end with _changed.tex
+            if '\\begin{document}' in content and not tex_file.endswith('_changed.tex') :
+                main_tex_candidates.append(tex_file)
+
+    if len(main_tex_candidates) == 1:
+        return os.path.join(directory_path, main_tex_candidates[0])
+    # if main in the name of the file
+    elif len(main_tex_candidates) > 1:
+        for tex_file in main_tex_candidates:
+            if 'main' in tex_file:
+                return os.path.join(directory_path, tex_file)
+    elif 'main.tex' in tex_files:
+        return os.path.join(directory_path, 'main.tex')
     
-    for root, dirs, files in os.walk(directory_path):
-        tex_files = [file for file in os.listdir(directory_path) if file.endswith(".tex")]
-        if len(tex_files) > 1:
-            for file in tex_files:
-                # if file has the name main.tex, then return it
-                if file == "main.tex":
-                    tex_file_path = os.path.join(root, file)
-                    break
-                # else, open the file and search for the string "\begin{document}"
-                else:
-                    with open(os.path.join(root, file), 'r') as f:
-                        file_content = f.read()
-                    if "\\begin{document}" in file_content:
-                        tex_file_path = os.path.join(root, file)
-                        break
-                
-            if tex_file_path:
-                break  # No need to continue searching if the .tex file is found
-        # if there is only one .tex file, return it
-        else:
-            tex_file_path = os.path.join(root, tex_files[0])
-            break
+    else:
+        return None
     
-    return tex_file_path
+
 
 

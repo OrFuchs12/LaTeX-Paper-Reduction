@@ -52,9 +52,34 @@ def find_vspace_range(line):
         return None
     
 def find_aaai_format(line):
-    pattern = r'\\usepackage\{aaai\d*}'
+    pattern = r'\\usepackage.*\{aaai\d*\}'
     match = re.search(pattern, line)
     return True if match else False
+
+
+def remove_pdfinfo_commands(tex_file_path):
+    with open(tex_file_path, 'r') as file:
+        lines = file.readlines()
+
+    new_lines = []
+    skip_next_brace = False
+
+    for line in lines:
+        if '\\pdfinfo{' in line:
+            skip_next_brace = True
+            continue
+
+        if skip_next_brace:
+            if '}' in line:
+                skip_next_brace = False
+            continue
+
+        new_lines.append(line)
+
+    with open(tex_file_path, 'w') as file:
+        file.writelines(new_lines)
+
+
 
 
 

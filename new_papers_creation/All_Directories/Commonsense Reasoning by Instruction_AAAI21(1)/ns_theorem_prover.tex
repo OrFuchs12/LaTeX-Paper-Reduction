@@ -1,0 +1,41 @@
+\begin{algorithm}[t]
+\caption{Neuro-Symbolic Theorem Prover}
+\label{alg:inference}
+\begin{algorithmic}
+    \Input \textGoal $\goal$, $\bf{M}^{rule}$, $\bf{M}^{var}$, Model parameters, threshold $T_1$, $T_2$, $k$
+    \Output Proof P
+    \State $\mathbf{r}_0 \leftarrow \mathbf{0} $ \Comment{$\mathbf{0}$ is a vector of 0s}
+    \State P = \Call {Prove}{$\goal$, $\mathbf{r}_0$, []}
+    \Function {Prove}{Q, $\mathbf{r_t}$, stack}
+        \State embed $Q$ using the character RNN to obtain $\mathbf{q}_t$
+        \State input $\mathbf{q}_t$ and $\mathbf{r}_t$ to the model and compute $\mathbf{r}_{t+1}$ (Equation~\eqref{eq:ct})
+        \State compute $c_t$ (Equation~\eqref{eq:ct})
+        \State $\{ R^{1} \dots R^{k} \} \leftarrow $ From $M^{rule}$ retrieve $k$ entries corresponding to the top $k$ entries of $\mathbf{r}_{t+1}$ 
+        \For{$i \in [0,k]$} 
+            \State $SU \leftarrow$ \Call {Soft\_Unify} {$Q$, head($R^i$)}
+            \If {$SU == False$}
+                \State continue to $i+1$
+            \Else
+                \If {$c_t > T_2$}
+                	\State \Return stack
+                \EndIf
+                \State add $R^{i}$ to stack
+                \State \Call {Prove}{Body($R^i$), $\mathbf{r}_{t+1}$, stack} \Comment{Prove the body of $R^i$}
+            \EndIf
+        \EndFor
+        \Return stack
+    \EndFunction
+    \Function {Soft\_Unify} {$G$, $H$}
+        \If {arity($G$) $\neq$ arity($H$)}
+            \State \Return False
+        \EndIf
+        \State Use $\mathbf{M}^{var}$ to compute cosine similarity $S_i$ for all corresponding variable pairs in $G$ and $H$
+        %\State Use character RNN to embed the predicate name and compute similarity $S_2$
+        \If {$S_i > T_1 \quad \forall \quad i \in [0,\text{arity}(G)]$}
+            \State \Return True
+        \Else
+            \State \Return False
+        \EndIf
+    \EndFunction
+\end{algorithmic}
+\end{algorithm}

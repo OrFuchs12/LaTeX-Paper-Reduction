@@ -34,9 +34,8 @@ def check_content_on_second_column(pdf_path, page_number=0):
         # Check if any text or images fall within the second column
         text_on_second_column = any(block for block in text_blocks if second_column_left <= block['x0'] <= second_column_right)
         images_on_second_column = any(image for image in images if second_column_left <= image['x0'] <= second_column_right)
-        tables_on_second_column = any(table for table in tables if second_column_left <= table[0][0] <= second_column_right)
-        
-        return text_on_second_column or images_on_second_column or tables_on_second_column
+                
+        return text_on_second_column or images_on_second_column 
 
 def add_to_latex(tex_file_path, lines):
         with open(tex_file_path, "r") as input_file:
@@ -157,7 +156,6 @@ def add_clearpage_before_bibliography(tex_file_path):
          
         match = re.search(pattern, file_content)
         if match:
-            print("found bibliography format on line", match)
             modified_content = re.sub(
             pattern,
             r"\\clearpage\n\\bibliography{\1}",
@@ -209,7 +207,6 @@ def create_3Lines_page(new_file_path):
     next = False
     while (lines != 3):
         text_to_add = "We consider a multi-level jury problem in which experts\n" 
-        print("lines in page", lines)
         if lines == 3:
             print("paper is allready with 3 lines on the last page")
             return
@@ -249,13 +246,3 @@ def create_3Lines_page(new_file_path):
 # pdf_file = "new_papers_creation\\AAAI13-QDEC\\QDEC-POMDP.8.pdf"
 # pdf_file = "new_papers_creation\\AAAI-12\\aaai12-29 copy.pdf"
 
-latex = "new_papers_creation\Who Reviews The Reviewers_ A Multi-Level Jury Problem\AAAI2024\example2lines.tex"
-# pdf_file = "new_papers_creation\Who Reviews The Reviewers_ A Multi-Level Jury Problem\AAAI2024\example2lines.pdf"
-# page = find_page_number_before_bibliography(pdf_file, "References")
-# print(check_content_on_second_column(pdf_file, page))
-
-# latex = "new_papers_creation\\AAAI-12\\aaai12-29_changed.tex"
-# pdf = "new_papers_creation\\AAAI-12\\aaai12-29_changed.pdf"
-# page = find_page_number_before_bibliography(pdf, "References")
-# print(check_content_on_second_column(pdf, page))
-create_3Lines_page(latex)
