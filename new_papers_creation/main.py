@@ -33,6 +33,7 @@ def create_new_pdf(directory_path):
             new_file_name = os.path.splitext(os.path.basename(tex_file_path))[0] + "_changed.tex"
             new_file_path = os.path.join(directory_path, new_file_name)
             with open(tex_file_path, 'r') as original_file:
+       
                 content = original_file.read()
             with open(new_file_path, 'w') as new_file:
                 new_file.write(content)        
@@ -58,5 +59,5 @@ def move_changed_pdfs(directory_path, destination_path):
     # move directory to destination path
     shutil.move(directory_path, destination_path)
 
-loop_through_directories("new_papers_creation/All_Directories")
+loop_through_directories("new_papers_creation\\failed_directories_to_check")
 

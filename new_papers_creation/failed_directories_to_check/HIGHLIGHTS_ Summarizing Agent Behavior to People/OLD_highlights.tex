@@ -1,0 +1,71 @@
+\section{The ``Highlights'' Algorithm}
+\label{sec:alg}
+We developed HIGHLIGHTS, an algorithm that generates a summary of an agent's behavior from simulations of the agent in an online manner. At a high-level, HIGHLIGHTS extracts trajectories that it considers most ``important'' to include in the summary. We use the notion of \emph{importance} as defined by Torrey \& Taylor~\shortcite{torrey2013teaching}.  Intuitively, a state is considered important if taking a wrong action in that state can lead to a significant decrease in future rewards, as determined by the agent's Q-values. Formally, the importance of a state, denoted $I(s)$, is defined as: 
+\begin{equation}
+\label{eq:importance}
+I(s)=\max\limits_{a}Q^{\pi}_{(s,a)}-\min\limits_{a}Q^{\pi}_{(s,a)}
+\vspace{-0.1cm}
+\end{equation}
+ This measure has been shown to be useful for choosing teaching opportunities in the context of student-teacher reinforcement learning~\cite{torrey2013teaching,amirIjcaiRL}.
+
+
+%The algorithm runs simulations of the agent and extracts states that it considers important, using the basic q-value-based importance defined in Equation~\ref{eq:importance}. It maintains a priority queue of size $k$ and populates it online while running the agent simulation. Specifically, when a new state $s$ is encountered and the queue is not yet full, the state is added to the queue. Alternatively, if the queue is full, the importance value of the state ($I(s)$) is compared with the lowest importance value currently in the queue. If $I(s)$ is greater than $I(s_{min})$, state $s$ will be added to the queue in place of $s_{min}$. To provide context in the summary, for each state we also show a trajectory of $\frac{l}{2}$ states which preceded $s$ in the execution and the $\frac{l}{2}$ states encountered following $s$. To ensure that trajectories do not overlap, after adding a trajectory to the summary we assess the state immediately following the last state in the trajectory.
+
+A pseudo-code of the HIGHLIGHTS algorithm is  shown in Algorithm~\ref{alg:highlights}. HIGHLIGHTS takes as input the policy of the agent ($\pi$), the budget for the number of trajectories to include in the summary ($k$), the limit for the length of each trajectory ($l$) and the number of simulations that can be run ($n$). It outputs a summary of the agent's behavior, which is a set of trajectories ($T$). 
+The algorithm maintains two main data structures: $T$ is a priority queue (line 3), which will eventually hold the trajectories chosen for the summary; $t$ is a list of states (line 4), which holds the current trajectory. HIGHLIGHTS runs a simulation of the agent, adding each state $s$ it encounters to the current trajectory. If the trajectory is at the maximal length, the new state replaces the oldest state in $t$ (lines 6--9). 
+
+If the summary size has not yet reached the budget, the current trajectory $t$ will be added to the summary (lines 11 --13). Otherwise, the trajectory will be added only if the importance of the last state encountered ($I(s)$) is greater than the minimal importance value currently in the summary (lines 13--15). We note that in our implementation of HIGHLIGHTS, to provide more context surrounding the important state, we added to the trajectory the 10 states that followed $s$ (removing the first 10 states in the trajectory to maintain a trajectory length $l$). We did not include this in the pseudo-code for clarity of presentation. 
+%HIGHLIGHTS add the current trajectory $t$ to the summary if one of two conditions hold: either the  trajectories to include in the state as follows: if the current size of the summary ($|T|$) is smaller than the budget, it will add the current trajectory to the summary if the importance of the current state it encountered is greater than the minimal importance value currently in the summary (lines 13--15). 
+
+
+\begin{algorithm}
+%\vspace{-0.2cm}
+\SetAlFnt{\small\sf} 
+\DontPrintSemicolon % Some LaTeX compilers require you to use \dontprintsemicolon instead
+\KwIn{$\pi, k, l, n$}
+\KwOut{$T$}
+$runs = 0$ \\
+$sim = InitializeSimulation()$ \\
+$T \leftarrow PriorityQueue(k, importanceComparator)$ \\
+$t \leftarrow empty \quad list$ \\
+%$c = 0$ \\
+\While {$runs < n$} {
+$s \leftarrow sim.advanceState()$ \\
+\If{$|t| == l$} {
+$t.remove()$ 
+}
+$t.add(s)$ \\
+%$c = c+1$
+%\If{$c == statesAfter$} {
+%lastSummaryTrajectory.setTrajectory(t) \\
+%}
+$I_{s} \leftarrow computeImportance(\pi,s)$ \\
+\uIf{$|T|<k$} {
+$T.add(t)$ 
+}
+\ElseIf{$I_{s} > minImportance(T)$} {
+T.pop() \\
+$T.add(t)$ 
+}
+%\If{$(|T|<k) \quad or \quad (I_{s} > minImportance(T))$ } {
+%\If{|T|==k} {
+%T.pop()
+%}
+%$summaryTrajectory.setState(s)$ \\
+%$T.add(t)$ \\
+%$lastSummaryTrajectory \leftarrow summaryTrajectory$ \\
+%$c = 0$
+runs = runs+1
+}
+\caption{The HIGHLIGHTS algorithm. }
+\label{alg:highlights}
+\end{algorithm}
+
+\subsection{Considering State Diversity}
+Because HIGHLIGHTS only considers the importance of a state, it is possible that similar trajectories will be included in the summary, which will not add new information to the user. To mitigate this problem, we developed a simple extension to the HIGHLIGHTS algorithm, HIGHLIGHTS-DIV, which also attempts to ensure that the states included in the summary are diverse. 
+
+HIGHLIGHTS-DIV works chooses important states to include in the summary in a similar way to HIGHLIGHTS. However, it accounts for diversity in the following way: when considering a state $s$, HIGHLIGHTS-DIV first identifies the state most similar to $s$ that is currently included in the summary, denoted $s'$. Then, instead of comparing the importance of a state to the minimal importance value that is currently included in the summary, HIGHLIGHTS-DIV compares $I_{s}$ to $I_{s'}$ similar to $s$ currently represented in the summary. If $I_{s}$ is greater than $I_{s'}$, the trajectory which includes $s'$ in the summary will be replaced with the current trajectory (which includes $s$). T
+
+HIGHLIGHTS-DIV assumes that we can define a distance metric to compare states. This can be done in many domains,  e.g., by computing Euclidean distance if states are represented by feature vectors.
+
+
