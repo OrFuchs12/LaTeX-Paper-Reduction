@@ -3,7 +3,7 @@ import pdfplumber
 import subprocess
 import os
 import fitz
-ESTIMATED_LINES_PER_PAGE = 100
+ESTIMATED_LINES_PER_PAGE = 10
 # def get_number_of_footnotes(latex_file_path):
 #     with open(latex_file_path, 'r', encoding='utf-8') as latex_file:
 #         latex_content = latex_file.read()
@@ -15,6 +15,28 @@ ESTIMATED_LINES_PER_PAGE = 100
 #         total_lines += len(lines)
 #     return total_lines
     
+    
+    
+def check_content_on_second_column(pdf_path, page_number=0):
+    with pdfplumber.open(pdf_path) as pdf:
+        page = pdf.pages[page_number]
+        
+        # Extract text and images from the page
+        text_blocks = page.extract_words()
+        images = page.images
+        tables = page.extract_tables()
+        
+        # Calculate the x-coordinate range for the second column
+        page_width = page.width
+        second_column_left = page_width * (1 / 2)  # Adjust as needed
+        second_column_right = page_width  # Adjust as needed
+        
+        # Check if any text or images fall within the second column
+        text_on_second_column = any(block for block in text_blocks if second_column_left <= block['x0'] <= second_column_right)
+        images_on_second_column = any(image for image in images if second_column_left <= image['x0'] <= second_column_right)
+                
+        return text_on_second_column or images_on_second_column 
+
 def add_to_latex(tex_file_path, lines):
         with open(tex_file_path, "r") as input_file:
             file_content = input_file.read()
@@ -43,10 +65,10 @@ def remove_from_latex(tex_file_path, chars):
         with open(tex_file_path, "w") as output_file:
             output_file.write(modified)
 
-def find_bibliography_format(line):
-    pattern = r'\\bibliography\{(.*?)\}'
-    match = re.search(pattern, line)
-    return True if match else False
+# def find_bibliography_format(line):
+#     pattern = r'\\bibliography\{(.*?)\}'
+#     match = re.search(pattern, line)
+#     return True if match else False
 
 def count_lines_in_page(pdf_path, page_number):
     with pdfplumber.open(pdf_path) as pdf:
@@ -60,9 +82,11 @@ def count_lines_in_page(pdf_path, page_number):
         line_count = len(lines)
     return line_count
 
-def getLines(pdf_path, page_number):
+def getLines(pdf_path, page_number, next=False):
      with pdfplumber.open(pdf_path) as pdf:
         try:
+            if next ==True:
+                page_number = page_number-1
             page = pdf.pages[page_number]  
             text = page.extract_text()
             lines = text.strip().split('\n')
@@ -77,7 +101,11 @@ def find_last_line_text(lines, last_index=-1):
 def search_last_line(tex_file_path, last_line_to_remove):
     with open(tex_file_path, "r") as input_file:
         file_content = input_file.read()
+    # last_line_to_remove = re.escape(last_line_to_remove)
+    if last_line_to_remove[-1] == "-":
+        last_line_to_remove = last_line_to_remove[:-1]
     pattern = r"{}".format(last_line_to_remove)
+    # pattern = rf"{last_line_to_remove}"
     try:
         match = re.search(pattern, file_content)    
         if match:
@@ -128,7 +156,6 @@ def add_clearpage_before_bibliography(tex_file_path):
          
         match = re.search(pattern, file_content)
         if match:
-            print("found bibliography format on line", match)
             modified_content = re.sub(
             pattern,
             r"\\clearpage\n\\bibliography{\1}",
@@ -169,27 +196,25 @@ text_to_add = r"\\noindent We consider a multi-level jury problem in which exper
 
         
 def create_3Lines_page(new_file_path):
-    # tex_file_path = "new_papers_creation\Who Reviews The Reviewers_ A Multi-Level Jury Problem\AAAI2024\example2lines.tex"
     add_clearpage_before_bibliography(new_file_path)
     pdf_file_path = compile_latex_to_pdf(new_file_path)
     keyword = "References"
-    line_threshold = 66
     lines = 0
     added_rows =False
     page_number = find_page_number_before_bibliography(pdf_file_path, keyword)
     print("page number before bibliography is", page_number)
     lines = count_lines_in_page(pdf_file_path, page_number)
+    next = False
     while (lines != 3):
-        text_to_add = "We consider a multi-level jury problem in which experts are\n" 
-        print("lines in page", lines)
+        text_to_add = "We consider a multi-level jury problem in which experts\n" 
         if lines == 3:
             print("paper is allready with 3 lines on the last page")
             return
         if lines < 3: 
             add_to_latex(new_file_path, (3-lines)*text_to_add)
-        elif lines > line_threshold:
+        elif check_content_on_second_column(pdf_file_path, page_number):
             added_rows = True
-            add_to_latex(new_file_path, text_to_add*(ESTIMATED_LINES_PER_PAGE-lines))
+            add_to_latex(new_file_path, text_to_add*(ESTIMATED_LINES_PER_PAGE))
 
         else:
             if added_rows:
@@ -201,15 +226,14 @@ def create_3Lines_page(new_file_path):
                     lines = count_lines_in_page(pdf_file_path, page_number)
                     
                 added_rows = False
-            else: #3<lines<threshold
-                # add_to_latex(new_file_path, text_to_add*(ESTIMATED_LINES_PER_PAGE-lines)) 
-                # added_rows = True
-                lines_on_last_page = getLines(pdf_file_path, page_number)
+            else: #more than 3 lines and no content on second col
+                lines_on_last_page = getLines(pdf_file_path, page_number, next)
                 last_line_to_remove = find_last_line_text(lines_on_last_page, -1)
                 while not search_last_line(new_file_path, last_line_to_remove):
                     lines_on_last_page.remove(lines_on_last_page[-1])
                     if len(lines_on_last_page) == 0:
                         lines_on_last_page = getLines(pdf_file_path, page_number-1)
+                        next = True
                     last_line_to_remove = find_last_line_text(lines_on_last_page, -1)
                 
 
@@ -222,6 +246,3 @@ def create_3Lines_page(new_file_path):
 # pdf_file = "new_papers_creation\\AAAI13-QDEC\\QDEC-POMDP.8.pdf"
 # pdf_file = "new_papers_creation\\AAAI-12\\aaai12-29 copy.pdf"
 
-
-latex = "new_papers_creation\\AAAI-12\\aaai12-29_changed.tex"
-create_3Lines_page(latex)
