@@ -1,0 +1,288 @@
+\section{Disagreement-Based Summaries}
+We propose a new summary method which supports the comparison of alternative
+agents by explicitly highlighting the \emph{disagreements} between them. Thus,
+constructing \emph{contrastive} summaries that convey policy divergence between
+agents exposed to the same world states. This approach is in line with the
+literature on explanations from the social sciences, which shows that people
+prefer contrastive explanations \cite{miller2018explanation}. We note that while
+typically contrastive explanations refer to ``why not?'' questions and consider
+counterfactuals, in our case the contrast is between the decisions made by two
+different policies.
+
+We next describe our proposed disagreement-based summary method. Specifically,
+we formalize the notion of agent disagreement,
+describe the ``\disalg~'' algorithm for generating a joint summary of the
+behavior of two agents, and describe how to measure the importance of a disagreement state and a disagreement trajectory.
+
+
+\paragraph{Agent Disagreement}
+%%%%%%% define a disagreement %%%%%%%
+The two main dimensions on which agents can differ are their valuations of
+states and their policies, i.e. their choice of action. These dimensions are of
+course related, as different state valuations will naturally lead to different
+policies. Our definition of a disagreement focuses on the policy. We then utilize the value function for ranking purposes.
+
+In other words, any state $s$ for which different agents choose different
+actions is considered a disagreement state. We use these states to
+analyze and portray how the agents differ from one another in their behavior.
+Formally:
+\begin{definition}[Disagreement State]
+    Given two agents ${Ag}_{1}$ and ${Ag}_{2}$ with policies  $\pi_1, \pi_2$,
+    respectively. Define a state $s$ as a disagreement state $s_D$ iff:
+    \begin{align}
+        \pi_1(s) \neq \pi_2(s)
+    \end{align}
+    The set of all disagreement states $\mathbb{D}$ would then be:
+    \begin{align}
+        \forall s \in S \; | \; \pi_1(s) \neq \pi_2(s) : s \in \mathbb{D}
+    \end{align}
+
+\end{definition} 
+
+
+%%%%%%% continuous or vast domains %%%%%%%
+For a compact MDP where every state may be computed, this definition would
+suffice. Alas, for more complex settings containing a continuous or vast state
+space, it is not feasible to compare all states. The proposed method must be
+able to overcome this difficulty.
+
+%%%%%%% How to compare agents? %%%%%%%
+\paragraph{Identifying Agent Disagreements Through Parallel Online Execution}
+Given two alternative agents to compare, we initiate an online execution\footnote{We assume access to a simulator.} of both
+agents simultaneously such that we follow the first (denoted as the
+\emph{Leader} or $L$ for short, with policy $\pi_{L}$), while querying the
+second (denoted as the \emph{Disagreer} or $D$ for short, with policy $\pi_{D}$)
+for the action \emph{it} would have chosen in each state. Both agents are
+constrained to act greedily and deterministically with respect to their
+$Q$-values. Upon reaching a disagreement state, we allow the \emph{Disagreer} to
+``split-off'' from following the \emph{Leader} and continue independently for a
+limited number of steps while recording the states it reaches for later
+analysis. Once the limit is reached, we store the \emph{disagreement
+trajectory}, and revert the \emph{Disagreer} back to the disagreement state,
+from which it continues to follow the \emph{Leader} until the next disagreement
+state is reached and the process is repeated.
+
+\paragraph{The \disalg~ Algorithm}
+The algorithm pseudo-code is shown in Algorithm \ref{alg:disagreements}. Its parameters are summarized in Table \ref{tb:parameters}. 
+
+\begin{table}[t]
+    \centering
+    \small
+    \resizebox{0.85\columnwidth}{!}{%
+    \begin{tabular}{|p{1.6cm}|p{4cm}|p{0.5cm}|p{0.5cm}|}
+    \hline
+    \textbf{Parameter} & \textbf{Description} & \textbf{F} & \textbf{H}
+    \\
+    \hline
+    $k$ & Summary budget, i.e. number of trajectories & 5 & 5 \\
+    \hline
+    $l$ & Length of each trajectory & 10 & 20 \\
+    \hline
+    $h$  & Number of states following $s$ to include in the trajectory &5& 10  \\
+    \hline
+    $numSim$ & The number of simulations (episodes) run by the \disalg~ algorithm &10&10  \\
+    \hline
+    $overlapLim$ & Maximal number of shared states allowed between two trajectories in the summary & 3& 5 \\
+    \hline
+    $impMeth$  & Importance method used for evaluating disagreements & \emph{Last State} & \emph{Last State}\\
+    \hline
+    \end{tabular}}
+    \caption{Parameters  for Frogger \& Highway domains.}
+    \label{tb:parameters}
+\end{table}
+
+%%% explaining the algorithm
+\emph{The Algorithm.} First, three lists are initialized for the Leader traces,
+disagreement states and Disagreer trajectories (lines 4--6). Then, simulation of the agents are run (lines 7--27). Each simulation collects all
+states seen by the Leader during the execution (line 24), disagreement states
+(line 13), and the Disagreer trajectories (lines 14--19). In each step of the
+simulation, both agents are queried for their choice of action (lines
+10--11). If they disagree on the action --- a disagreement state is added
+(line 13) and a disagreement trajectory is created (lines 14--19), after which
+the simulation is reverted to the last disagreement state (line 21). Upon simulations completion, all disagreement trajectories (coupled pairs of
+Leader and Disagreer trajectories) are obtained (line 28) and the most important ones are passed as output (line 29).   
+
+
+
+\begin{algorithm}[tb]
+    \caption{The \disalg~ algorithm. }
+    \label{alg:disagreements}
+\begin{algorithmic}[1]
+    %\vspace{-0.2cm} \SetAlFnt{\small\sf} \DontPrintSemicolon % Some LaTeX
+    % compilers require you to use \dontprintsemicolon instead
+    \STATE {\bfseries Input:} $\pi_L,\pi_D, k, l, h,$ \STATE $overlapLim,
+    numSim, impMeth$ \STATE {\bfseries Output:} $\mathbb{S}$ \STATE $L_{Tr}
+    \leftarrow$ empty list \textit{\;\;\;\#Leader traces} \STATE $\mathbb{D}
+    \leftarrow$ empty list \textit{\;\;\;\#Disagreement states} \STATE $D_T
+    \leftarrow$ empty list \textit{\;\;\;\#Disagreer trajectories}  \FOR
+    {$i=1$ {\bfseries to} $numSim$} \STATE $sim, s = InitializeSimulation()$
+    \WHILE {$(!sim^{\pi_L}.ended())$} \STATE $a^{\pi_L} \leftarrow
+    sim.getAction(\pi_L(s))$ \STATE $a^{\pi_D} \leftarrow
+    sim.getAction(\pi_D(s))$ \IF{$a^{\pi_L} != a^{\pi_D}$} \STATE
+    $\mathbb{D}.add(s)$ \STATE $d_t \leftarrow$ empty list
+    \textit{\;\;\;\#Disagreer trajectory} \FOR{$i=1$ {\bfseries to} $h$}
+    \STATE $s^{\pi_D} \leftarrow sim.advanceState(\pi_D)$ \STATE $a^{\pi_D}
+    \leftarrow sim.getAction(\pi_D(s^{\pi_D}))$ \STATE $d_t.add(s^{\pi_D})$ \ENDFOR \STATE
+    $D_T.add(d_t)$ \STATE $sim, s = reloadSimulation(D_s[-1])$ \ENDIF \STATE $s
+    \leftarrow sim.advanceState(\pi_L)$ \STATE $L_{traces}.add(s)$ \ENDWHILE
+    \STATE $runs = runs+1$ \ENDFOR \STATE $DA_T \leftarrow
+    disagreementTrajPairs(\mathbb{D},L_{Tr}, D_T, l, h)$ \STATE $\mathbb{S}
+    \leftarrow topImpTraj(DA_T, k, overlapLim, impMeth)$
+    \end{algorithmic}
+\end{algorithm}
+
+
+Since the \emph{Leader} agent controls which areas of the domain state-space are reached, we repeat the process again, reversing the agent's roles. This is important because the Leader determines which regions of the state-space are reached and as such also conveys information about the agent's preferences. This process results in two sets of disagreements states (one for each agent as the \emph{Leader}). Typically, these sets can be very large, and it is infeasible for a user to explore all of them. 
+% Upon termination, an output summary is required. To exempt our user from examining all (potentially numerous) disagreements, we limit the summary to display a fixed number of disagreement states. 
+Therefore, a ranking procedure is
+necessary for the disagreements found in order to generate a compact summary. We next describe approaches for
+quantifying the importance of a disagreement.
+
+
+% \subsection{The ``\disalg~'' Algorithm}
+% The algorithm initializes a Leader and Disagreer agent to run simultaneously in
+% an identical environment.The Leader decides which action is best to initiate and
+% both agents execute it, such that their progression and relative environments
+% remain identical. At each time-step, the Disagreer proposes the action it would
+% have taken given the choice. A state where the agents disagree on the best
+% action is defined as a disagreement state. Upon reaching a disagreement, the
+% disagreer branches off to progress on its own for a limited number of time-steps
+% while recording the trajectory, after which it reverts back to the disagreement
+% state and continues to follow the Leader. Upon termination of the Leader's
+% execution, all disagreement states and branching trajectories are ranked and
+% used to generate a summary.
+
+
+%%%% Disagreements algorithm pseudo code
+
+
+\paragraph{Disagreement Importance} 
+Various methods can be used for determining disagreement importance. We first define the notion of a state's value based on multiple
+agents.
+
+\textbf{State Value}
+% Each agent possesses an internal valuation function, assigning values to states
+% or state-action pairs.
+We assume the agents are $Q$-based, possessing a $Q$ function ($Q(s,a)
+\rightarrow \mathbb{R}$) which quantifies
+their valuation of state-action pairs, denoted as $Q$-values. $Q$-values are calculated and adjusted during the
+training phase of the agent and depend on the algorithm used as well as on the
+specification of the reward function. Therefore, $Q$-values of different agents
+may vary greatly, and moreover, that the value assigned to a state-action pair by an agent is only its personal assessment rather than representing some ground truth.
+The values themselves may not even be on the same scale. To allow for comparison
+between values, we normalize each agent's $Q$-values. While there are various techniques for doing so, we chose interpolation between the agent's maximum and minimum $Q$-values, thus rendering the values an indication of how good a state-action pair is compared to the best one observed by the agent. Formally:
+\begin{align}
+    Q' = \frac{Q-\min_{s,a} \big(Q(s,a) \big)}
+    {\max_{s,a} \big (Q(s,a) \big )- \min_{s,a} \big(Q(s,a) \big)}  
+\end{align}
+
+Since our agents' action selection is greedy and deterministic with respect to
+their $Q$-values, we denote the value of state $s$ as the highest
+$Q$-value associated with it.
+ \begin{definition}[Agent State Value]
+    Given an agent $Ag$, its $Q$ function $Q^{Ag}$ and a state $s$, we define
+    the value of $s$ as:
+    \begin{align}
+       V^{Ag}(s) = \max_a {Q'}^{Ag}(s,a)
+    \end{align}
+ \end{definition} 
+
+
+% % We now discuss the different methods available for measuring disagreement
+% % importance.
+% \paragraph{Disagreement Extent}
+% Any state where the next action of the compared agents differs is a disagreement
+% state, but not all disagreements are of the same magnitude. For instance,
+% consider a scenario where both agents wish to arrive at a location that is
+% diagonally above them and to the right. One agent chooses to first go \emph{up}
+% while the other chooses to go \emph{right}. It is reasonable then to assume that
+% each agent's assessment for the other's action was not far from that of the
+% action it chose to take. We would like to define disagreement extent as a metric
+% for predicting the impact of a specific disagreement. We define the notion of an
+% agent's confidence in an action $c^{{Ag}}(s,a)$ as the probability that this
+% action is the optimal one to take in the current state, proportional to all
+% other action possibilities. Formally:
+% \begin{align}
+%     C^{{Ag}}(s,a) = \frac{Q'^{{Ag}}(s,a)}{\sum_{i=1}^{|A|} Q'^{{Ag}}(s,a_i)} 
+% \end{align}
+
+% Using this notion, we propose a measure for disagreement extent based on the
+% confidence of each agent in their choice of action compared to the action
+% selected by the other agent.  
+
+% \textbf{BeTY - Better Than You}: Given the Leader and Disagreer agents $L$,
+% $D$, a disagreement state $s \in \mathbb{D}$, and the actions chosen by each of
+% the agents denoted $a_{L} = \pi_{L}(s)$ and $a_{D} = \pi_{D}(s)$, we propose
+% measuring the significance of the disagreement by querying each agent not solely
+% about its confidence in its choice but, in addition, how confident it is that
+% the rival's choice of action is poor. 
+
+% The BeTY importance is then Formally: 
+% \begin{align}
+%     Im(s)_{BeTY} = |C^{L}(s,a_{L}) -  C^{L}(s,a_{D})| \nonumber  \\
+% + |C^{D}(s,a_{D}) - C^{D}(s,a_{L})|
+% \end{align}
+
+% Now we are able to quantify the extent of the disagreement as dependent on both
+% agents' evaluations.
+
+% Alas, measuring only the importance of the disagreement state has its
+% limitations. Without ground truth regarding the quality of the disagreeing
+% actions we are left only with the agents' estimations which may be flawed.
+% Suppose our agents reach a disagreement state where the disagreement extent is
+% high, i.e. in the case of \emph{BeTY}, where both agents think the other is
+% making a lousy choice. They each go their separate ways but reunite at a shared
+% state after taking several actions with minimal to no impact on the succeeding
+% execution. This realization led us to formulate another approach for determining
+% the importance of a disagreement state. 
+
+Alas, measuring only the importance of a single state has its limitations.
+Without ground truth, we are left only with the agents' estimations which may be
+flawed. Suppose our agents reach a disagreement state where both are convinced
+the other's action is a poor choice. They each go their separate ways only to
+reunite at a shared state after several steps with minimal to no impact on the
+succeeding execution, e.g. overtaking a vehicle from the left or from the
+right. This realization led us to formulate a trajectory-based approach for
+determining the importance of a disagreement state. 
+
+\paragraph{Disagreement Trajectory Importance}
+To determine the importance of a disagreement state, we compare the trajectories
+that branch out of it by following each agent. We formulate trajectory value
+metrics to evaluate these, while constraining ourselves to observing only
+trajectories of similar length.
+
+A trajectory ${t}_{h}^{\pi}(s) = \langle s_{+1}, ..., s_{+h} \rangle$ denotes
+the sequence of states encountered when following state $s$ for $h$ steps
+according to a policy $\pi$. Since each agent evaluates states differently, we
+consider the value of a state as the sum of both agents' valuations, i.e. $V(s)
+= V^{L}(s) + V^{D}(s)$. There are numerous ways to quantify the importance of a
+trajectory. A description of several methods tested in our work is provided in
+the Appendix. The summaries generated for the user studies made
+use of the \emph{last-state} importance method. 
+
+
+\textbf{Last State Importance:}
+We define the importance of a disagreement
+trajectory as the difference between the values of the last states reached by
+each of the agents. This reflects how ``far off'' from each other the
+disagreement has led the agents. Formally:
+\begin{align}
+    Im({t}_{h}^{\pi_{L}}(s),{t}_{h}^{\pi_{D}}(s)) = 
+    |V(s^{\pi_L}_{+h}) - V(s^{\pi_D}_{+h})|
+\end{align}
+This metric achieves a high importance score when one agent arrives at a state
+which both agents agree is valuable, while the other agent arrives at a state whose value both agents agree is poor.
+
+
+\paragraph{Trajectory Diversity}
+Using these methods we are able to acquire the set of disagreement states
+$\mathbb{D}$ ordered by importance, and for each, their corresponding
+trajectories. These shall be woven together to create a visual summary for
+displaying to the user. To increase the coverage of the summary and avoid
+showing redundant trajectories (in both methods), we restrict the summary generated to not contain
+\emph{i)} multiple trajectories that end or begin at the same state, \emph{ii)}
+trajectories where the Leader and Disagreer share the same state before-last
+and \emph{iii)} overlapping trajectories which share more than a predefined
+number of states. 
+
+

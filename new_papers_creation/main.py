@@ -15,8 +15,14 @@ def loop_through_directories(directory_path):
         for directory in dirs:
             subdirectory_path = os.path.join(root, directory)   
             print("now in directory: --------------------------------: " ,subdirectory_path)
-            create_new_pdf(subdirectory_path)
-            move_changed_pdfs(subdirectory_path, "new_papers_creation/results")
+            try:
+                create_new_pdf(subdirectory_path)
+                move_changed_pdfs(subdirectory_path, "new_papers_creation/results")
+            except Exception as e:
+                print(f"An error occurred: {e}, the directory : {subdirectory_path} was not created")
+                # move the directory to failed directory
+                shutil.move(subdirectory_path, "new_papers_creation/failed_directories")
+            
 
 
 def create_new_pdf(directory_path):
@@ -42,18 +48,15 @@ def create_new_pdf(directory_path):
 
         else:
             print("No aaai format found in the .tex file")
+            # raise Exception("No aaai format found in the .tex file")
+            raise Exception("No aaai format found in the .tex file")
     else:
         print("No .tex file found")
+        raise Exception("No .tex file found")
 
 def move_changed_pdfs(directory_path, destination_path):
-    for root, dirs, files in os.walk(directory_path):
-        for file in files:
-            if file.endswith('_changed.pdf'):
-                source_file_path = os.path.join(root, file)
-                destination_subdirectory = os.path.join(destination_path, os.path.basename(root))
-                os.makedirs(destination_subdirectory, exist_ok=True)
-                destination_file_path = os.path.join(destination_subdirectory, file)
-                shutil.move(source_file_path, destination_file_path)
+    # move directory to destination path
+    shutil.move(directory_path, destination_path)
 
 loop_through_directories("new_papers_creation/All_Directories")
 

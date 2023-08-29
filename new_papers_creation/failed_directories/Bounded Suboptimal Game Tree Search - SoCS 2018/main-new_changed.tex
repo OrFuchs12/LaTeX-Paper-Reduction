@@ -1,0 +1,254 @@
+%
+\def\year{2018}\relax
+\documentclass[letterpaper]{article} %DO NOT CHANGE THIS
+\newcounter{bab}
+\renewcommand{\thebab}{The Bounded Alpha-Beta Algorithm}
+
+\usepackage{aaai18}  %Required
+\usepackage{times}  %Required
+\usepackage{helvet}  %Required
+\usepackage{courier}  %Required
+\usepackage{url}  %Required
+\usepackage{graphicx}  %Required
+\usepackage{subfig}
+\usepackage{soul}
+
+
+\usepackage{tikz}
+\usetikzlibrary{arrows,shapes,positioning,mindmap,calc}
+\tikzset{style={>=stealth'}}
+\tikzset{minnode/.style={align=left,font=\footnotesize,circle,    fill=white,draw=black, minimum size=7mm,inner sep=1mm}}
+\tikzset{maxnode/.style={align=left,font=\footnotesize,rectangle,fill=white,draw=black,  minimum size=6mm,inner sep=1mm}}
+%\tikzset{targetk/.style={star,     fill=white,draw=red,  text=red,  minimum size=8mm,inner sep=0mm}}
+\tikzset{infobox/.style={align=left,font=\footnotesize,minimum size=6mm}}
+
+\frenchspacing  %Required
+\setlength{\pdfpagewidth}{8.5in}  %Required
+\setlength{\pdfpageheight}{11in}  %Required
+
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{url}
+\usepackage{multirow}
+
+%PDF Info Is Required:
+\setcounter{secnumdepth}{0}
+
+
+\newtheorem{definition}{Definition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newcommand{\ignore}[1]{}
+%\newcommand{\pess}{\mathit{pess}}
+%\newcommand{\opti}{\mathit{opti}}
+\newcommand{\MM}{\mathit{V}}
+\newcommand{\pess}{\mathit{L}}
+\newcommand{\opti}{\mathit{U}}
+\newcommand{\besto}{\mathit{best}_{\opti}}
+\newcommand{\bestp}{\mathit{best}_{\pess}}
+\newcommand{\eval}{\mathit{eval}}
+\newcommand{\bab}{\mathit{BAB}}
+\newcommand{\vmax}{v_{\text{max}}}
+\newcommand{\vmin}{v_{\text{min}}}
+\newcommand{\rootnode}{\mathit{n_1}}
+\newcommand{\amb}{\textit{AMB}}
+\newcommand{\er}{\textit{ER}}
+\newcommand{\tuple}[1]{\langle #1 \rangle}
+% correct bad hyphenation here
+
+
+\begin{document}
+\title{Bounded Suboptimal Game Tree Search}
+\author{Dor Atzmon \and Roni Stern\\
+Ben Gurion University of the Negev\\
+Be'er Sheva, Israel
+\And
+Abdallah Saffidine \\
+Australian National University\\
+Canberra, Australia}
+
+\maketitle
+
+% As a general rule, do not put math, special symbols or citations
+% in the abstract
+\begin{abstract}
+.......
+\end{abstract}
+
+%-----------------------------------------------------------------------------------------------------------
+
+
+\section{Bounded Alpha-Beta with multiplicative bound (BAB/m)}
+
+A bounded-suboptimal game tree search algorithm with multiplicative bound is defined as a game tree search algorithm that accepts $\gamma \geq 0$ as input and outputs a solution with suboptimality at most $\gamma \cdot \MM$ from the true minimax value $\MM$, where $\gamma$ is a user-provided parameter. In our case, to adjust BAB to this type of bound, both $\pess$ and $\opti$ must be inside these bounds as they are part of the solution, thus: $\MM - \gamma \cdot \MM \leq \pess \leq \opti \leq \MM + \gamma \cdot \MM$, or $1 - \gamma \leq \frac{\pess}{\MM} \leq \frac{\opti}{\MM} \leq 1 + \gamma$.
+Algorithm \ref{alg:weightedAlphaBeta} presents the changes needed to be done in BAB in order to return a bounded solution.
+
+
+%Describing the pseudo code + improvement
+ \refstepcounter{wab}
+ \label{sec:bab}
+
+\begin{algorithm}[t]
+\DontPrintSemicolon
+%\KwIn{$(n, p)$ - a game tree node and its parent}
+\KwIn{$n$ - a game tree node}
+%\KwIn{$(\alpha_p, \beta_p)$ - the $\alpha$ and $\beta$ values of the parent node}
+\KwIn{$\epsilon$ - an error margin}
+
+\If{$n$ is a terminal node}{
+  \nllabel{line:term-start}
+  %$\alpha = \max(\alpha_p, \eval(n))$; $\beta = \min(\beta_p, \eval(n))$\;
+  \Return $( \MM(n), \MM(n) )$\;
+  \nllabel{line:term-end}
+}
+
+$\pess(n)\gets \vmin$;
+$\opti(n)\gets \vmax$\; \nllabel{line:init-start}
+  \lIf{$n$ is a MAX node}{
+  	$\besto \gets \vmin$
+  }\lElseIf{$n$ is a MIN node}{
+    $\bestp\gets \vmax$
+  }
+
+  \lIf{$n$ is $\rootnode$ \nllabel{line:alpha-update-start}}{
+     $\alpha(n)=\vmin$; $\beta(n)=\vmax$
+  }
+  \lElseIf{$p(n)$ is a MAX node or a MIN node \nllabel{line:alpha-update-start}}{
+     $\alpha(n)=\alpha(p(n))$; $\beta(n)=\beta(p(n))$
+  }
+  \Else{
+    $\alpha(n)\gets \max(\vmin, \frac{\alpha(p(n))-\opti(p(n))}{\pi(n)} + \opti(n))$\;
+    $\beta(n)\gets \min(\vmax, \frac{\beta(p(n))-\pess(p(n))}{\pi(n)} + \pess(n))$\;
+    \nllabel{line:init-end}
+  }
+
+\ForEach{child $c$ of $n$}{
+  \nllabel{line:loop-start}
+  %$\zeta\gets$ ComputeChildBound($\epsilon$, $\opti(n)$,$\pess(n)$,$\pi(c)$)\;
+  $\big(\pess(c),\opti(c)\big)\gets$ WeightedAB($c$, $\epsilon$) \nllabel{line:recursive}\;
+
+  \If{$n$ is a MAX node}{
+    \nllabel{line:lu-update-start}
+    $\besto\gets \max(\besto,\opti(c))$\;
+    $\pess(n)\gets \max(\pess(n),\pess(c))$\;
+%    $\opti(n)\gets \max(\opti(n),\opti(c))$\; Always vmax
+  }
+  \ElseIf{$n$ is a MIN node}{
+    $\bestp\gets \min(\bestp,\pess(c))$\;
+%    $\pess(n)\gets \min(\pess(n),\pess(c))$\;  Always vmin
+	$\opti(n)\gets \min(\opti(n),\opti(c))$\;
+    \nllabel{line:lu-update-end-det}
+    }\Else{
+    $\pess(n)\gets \pess(n)+\pi(c)(\pess(c)-\vmin)$\; \nllabel{line:lu-update-chance-start}
+%    $\opti(n)\gets \opti(n)+\pi(\opti(c)-\vmax)$\;
+	$\opti(n)\gets \opti(n)-\pi(c)(\vmax-\opti(c))$
+    \nllabel{line:lu-update-end}
+    \;
+  }
+
+  $\alpha(n)\gets \max(\pess(n), \alpha(n))$\;
+  $\beta(n)\gets \min(\opti(n), \beta(n))$\;
+
+    \textcolor{red}{
+    $\epsilon\gets w\cdot \min(|\alpha(n)|,|\beta(n)|)$\;
+}
+
+  \lIf{$\beta(n)\leq \alpha(n)+\epsilon$ and $c$ is not the last child of $n$}{
+    \Return $(\pess(n),\opti(n))$
+    \nllabel{line:break-loop}
+  }
+}
+\lIf{$n$ is a MAX node}{
+  \nllabel{line:update-best-start}
+  $\opti(n)\gets \besto$
+}\lElseIf{$n$ is a MIN node}{
+  $\pess(n)\gets \bestp$
+  \nllabel{line:update-best-end}
+}
+
+\Return $(\pess(n),\opti(n))$\;
+
+\caption{WeightedAB}
+\label{alg:weightedAlphaBeta}
+\end{algorithm}....
+
+
+%-----------------------------------------------------------------------------------------------------------
+
+\section{Worst / best case of BAB}
+
+
+
+%-----------------------------------------------------------------------------------------------------------
+
+\section{Game plying with BAB}
+
+
+
+%-----------------------------------------------------------------------------------------------------------
+
+\section{Improvements and comparison (null window search, history heuristic, and more)}
+
+
+
+%-----------------------------------------------------------------------------------------------------------
+
+% old text ------------------------
+\ssection{Choosing a Bounded-Suboptimal Action}
+\label{sec:action}
+BAB (Algorithm~\ref{alg:weightedAlphaBeta}) returns a range $[\pess(\rootnode), \opti(\rootnode)]$ for a given game tree and $\epsilon$. As proven in Theorem~\ref{the:basic}, the minimax value is in that range, and the size of the range is at most $\epsilon$. Thus, any value chosen in that range can serve as a bounded-suboptimal solution for the given $\epsilon$.
+
+To obtain a concrete policy from the output of BAB the MAX player needs to choose the action that leads to the highest $\pess$ values. This policy is guaranteed (on expectation) to provide at least a bounded-suboptimal minimax value, for any action the MIN player may choose. By contrast, choosing the action that leads to the highest $\opti$ values may end up with a strategy whose expected value is smaller than the minimax value by more than $\epsilon$. %Similarly, the MIN player can choose the action that leads to the lowest $\opti$ values in order to guarantee a bounded-suboptimal minimax value. [[Roni: I don't see the value in this, and it is confusing - the reader may be tempetd to thing we assume that the MIN player MUST do this. ]]
+
+\section{$\epsilon$-equilibrium}
+The optimal policy for MAX and MIN players that use classical Alpha-Beta pruning is known to be a Nash equilibruim, that is, no player can gain by unilaterally deviating from its action. Obviously, a the policy proposed in~"\ref{sec:bab}" section obtained by BAB in not necessarily a Nash equilibruim. An  $\epsilon$-equilibrium~\cite{nisan2007algorithmic} is a joint policy in which no player can gain more than $\epsilon$ by unilaterally deviating from his strategy. Proving this conjucture is a topic for future research.
+
+\begin{theorem}
+For a game tree $G$ and an $\epsilon$ bounded solution, playing the policy proposed in~"\ref{sec:bab}" results in $\epsilon$-equilibrium
+\end{theorem}
+\begin{proof}
+%Assume there is a node $n$ that by the policy in~"\ref{sec:bab}" child $c^*$ is selected and that exist other child $c'$ such that the player can gain more than $\epsilon$ by deviating from choosing $c^*$.
+
+Assume by the policy in~"\ref{sec:bab}" child $c'$ is selected.
+
+%$\MM(c')-\MM(c) \geq \epsilon$.
+\paragraph{Case \#1: $n$ is a MAX node.}
+By theorem \ref{theorem_error_bound}, for each child of $n$
+\begin{align}
+    \opti(c) - \pess(c) \leq \epsilon
+\end{align}
+And
+\begin{align}
+   \MM(c) \leq \opti(c)
+\end{align}
+By the policy in~"\ref{sec:bab}"
+\begin{align}
+    \max\limits_{c\in C(n)} \pess(c) =  L(c') \leq \MM(c')
+\end{align}
+Using (2) and (3) in (1) we get that for each child $c$ of $n$
+\begin{align}
+    \MM(c) - \MM(c') \leq \epsilon
+\end{align}
+
+And thus playing the policy proposed in~"\ref{sec:bab}" results in $\epsilon$-equilibrium
+\end{proof}
+
+
+%-----------------------------------------------------------------------------------------------------------
+
+
+\section{Related Work}
+....
+
+
+
+
+\section{Acknowledgements}
+This research was supported by the Israel Ministry of Science, the Czech Ministry of Education, and by ISF grant \#210/17 to Roni Stern.
+
+\clearpage
+\bibliography{games}
+\bibliographystyle{aaai}
+\end{document}
+

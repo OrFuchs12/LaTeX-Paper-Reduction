@@ -1,0 +1,163 @@
+\def\year{2016}
+%File: formatting-instruction.tex
+\documentclass[letterpaper]{article}
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+\usepackage{aaai}
+\usepackage{times}
+\usepackage{helvet}
+\usepackage{color}
+\usepackage{graphicx}
+\usepackage{courier}
+\usepackage{amsthm}
+\usepackage{amsmath}
+\usepackage{url}
+
+\newcommand\note[1]{\textcolor{red}{#1}}
+
+\frenchspacing
+\setlength{\pdfpagewidth}{8.5in}
+\setlength{\pdfpageheight}{11in}
+
+
+
+\pdfinfo{
+/Title (Stronger Privacy Preserving Projections for Multi-Agent Planning - Supplementary)
+/Author (Submission \#761)}
+\setcounter{secnumdepth}{0}  
+
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newcommand\roni[1]{\textcolor{blue}{roni: #1}}
+\newcommand\guy[1]{\textcolor{red}{guy: #1}}
+
+\theoremstyle{definition}
+\newtheorem{example}{Example}[section]
+
+\setcounter{secnumdepth}{2}
+
+ \begin{document}
+% The file aaai.sty is the style file for AAAI Press 
+% proceedings, working notes, and technical reports.
+%
+\title{Stronger Privacy Preserving Projections for Multi-Agent Planning - Supplementary Material}
+\author{Submission \#761}
+%\author{Shlomi Maliah \and Guy Shani \and Roni Stern \\
+%Association for the Advancement of Artificial Intelligence\\
+%2275 East Bayshore Road, Suite 160\\
+%Palo Alto, California 94303\\
+%}
+\maketitle
+\begin{abstract}
+\begin{quote}
+This document provides supplementary material to the AAAI 2016 submission \#761 titled ``Stronger Privacy Preserving Projections for Multi-Agent Planning''. 
+\end{quote}
+\end{abstract}
+
+
+\section{Building the Regression Tree}
+\subsection{Regression}
+
+% Intuition of what is a regression
+Regression is a fundamental tool in automated planning, in which we ask what are the conditions needed to reach a state, or achieve a fact, or perform an action. More generally, if a formula $\phi$ describes a constraint on state variables and $a$ is an action then the regression of $\phi$ through $a$, denoted $rg_a(\phi)$, is a formula that describes the minimal constraints on state variables such that if we apply $a$ to a state that satisfies $rg_a(\phi)$ we will reach a state  that satisfies $\phi$. 
+\roni{I am not sure that a regression is necessarily minimal. }
+
+% Formal
+In the context of classical planning, Rintanen \cite{Rintanen} describes how to compute the regression of a formula $\phi$ through an action $a$. We now review these definitions. 
+
+For simplicity, we assume here that both the effect and the precondition of an action are conjunctions of literals. That is, we do not allow conditional effects or disjunction of preconditions. We assume that the initial state is induced by an $init$ action, which has no preconditions, and provides a special fact that is a precondition to all other actions. The effect of the $init$ action is the assignment to all predicates at the initial state of the problem. We also assume that both the preconditions and effects of all actions are consistent, that is, for a given literal $l$, no effect or precondition contains both $l$ and $\neg l$ \footnote{Some benchmarks do contain both $l$ and $\neg l$ for heuristic computation purposes. Clearly, in this case, one can remove $\neg l$ without changing the semantics of the action. \roni{I don't understand how an effect can be both $l$ and $\neg l$. I do understand $l$ or $\neg l$, but didn't we say we assume all of them are conjunctions?}\guy{The semantics is that you first delete and then add - so this is well defined, and people do this for some weird reason.}}. We use this restricted representation for ease of exposition only. We could also use Rintanen's full regression definition at the cost of a more complicated explanation of our methods.
+
+In this restricted representation, Rintanen's regression of a formula $\phi$ through an action $a$, defined only over a single literal or a conjunction of literals, is simplified as follows: %\roni{Why ``simplified''?} \guy{Because the original Rintanen definition with conditional effects is much more complex}:
+\begin{align}
+&rg_a(l)=  pre(a)  :  l \in eff(a)&\\
+&rg_a(l)= false   :  \exists l' \in eff(a) \mbox{ s.t. } l,l' \mbox{ are mutex}&\\
+&rg_a(l)= l  :  l,\neg l \not\in eff(a)&\\
+&rg_a(\phi)=  \bigwedge_{l \in \phi} rg_a(l)  :  \phi = l_1 \wedge l_2 \wedge ... \wedge l_k &
+\end{align}
+The second equation states that the regression of a literal through an action that has conflicting effects with that literal is forbidden. A special case of this is when $a$ has $\neg l$ as an effect. Rintanen shows that if $s \models rg_a(\phi)$ then $a(s)$ satisfies $\phi$. 
+
+In some cases the regression formula can become inconsistent. For example, a conjunction containing both $l$ and $\neg l$. Furthermore, given a mutex detection mechanism, we can identify a conjunction containing both $l_1$ and $l_2$ when $l_1$ and $l_2$ are known to be mutex. In such cases, we say that the formula is simplified to $false$. 
+
+% A regression tree
+We further define the regression tree of a conjunction formula $\phi$, denoted $T_{rg}(\phi)$. The nodes of the tree are labeled by formulas (given our restricted action definition, only conjunctions of literals), and the edges are labeled by actions. We denote the formula associated with node $n$ by $n.\phi$. The set of outgoing edges of a node $n$ are labeled by all actions $a \in A$, s.t. $\exists l \in n.\phi : l \in eff(a)$. That is, all actions that provide at least one literal in $n.\phi$. \roni{I suggest to explain it from the ingoing edges prespective, because  the top down process explained below needs the discover ingoing eges and not outgoing.}\guy{I don't understand this comment.}
+
+The tree is constructed top down, starting from the root. All leaves are labeled by either $true$ or $false$. Every sequence of edges in every path from a $true$ leaf to the root in the regression tree corresponds to a plan that achieves $\phi$ --- the formula at the root of the tree. During the construction of the tree, we may reach a node $n'$ labeled by a formula $\phi'$ such that there exists an ancestor node $n$ of $n'$, labeled by a formula $\psi$, such that $\phi' \models \psi$. This means that a cycle has been identified in the regression tree, and we need not further develop $n'$. To remove the cycle, we replace $\phi'$ with the $false$ formula. 
+
+
+\subsection{Creating the Regression Tree}
+
+
+
+\begin{algorithm}[b!]
+	\SetKwBlock{BuildRegTree}{BuildRegTree($a$)}{end}
+\BuildRegTree{
+	\KwIn{$a$, a public action}
+    \KwOut{$T_{rg}(a)$, a regression tree for action $a$.}	
+    $i\gets$ the agent that can perform $a$\\
+	$A_{rg} \leftarrow private(i)$\\
+    \ForEach{$a_p \in public(i)$}{
+    	define $a^r_p$:\\
+    	$pre(a^r_p)=true$\\
+        $effect(a^r_p)=\bigwedge_{l \in effect(a_p)}l \bigwedge_{l' \in pre(a_p), \neg l' \not\in effect(a_p)}l'$\\
+        add $a^r_p$ to $A_{rg}$\\
+    }
+    \ForEach{$a_{loc} \in local(i)$}{
+    	define $a^r_{loc}$:\\
+    	$pre(a^r_{loc})=true$\\
+        $effect(a^r_{loc})=\bigwedge_{l \in effect(a_{loc})}l \bigwedge_{l' \in pre(a_{loc}), \neg l' \not\in effect(a_{loc})}l'$\\
+        add $a^r_{loc}$ to $A_{rg}$\\
+    }
+	$T_{rg}(a) \leftarrow 	BuildRegTreeRec(pre(a),A_{rg},\emptyset)$\\
+
+    \Return $T_{rg}(a)$   
+}
+
+	\SetKwBlock{BuildRegTreeRec}{BuildRegTreeRec($phi$, $A_{rg}$, $\Psi$)}{end}
+\BuildRegTreeRec{
+	\KwIn{$phi$, a formula (conjunction of literals)}
+	\KwIn{$A_{rg}$, a set of actions to be used in the regression}
+	\KwIn{$\Psi$, a set of formulas in the ancestors of the current node}
+    \KwOut{$n$, the root of a regression tree for formula $\phi$.}	
+	
+    $n \leftarrow $ a new node
+    \If{$\exists \psi \in \Psi$ s.t. $\phi \models \psi$ }{
+    	$n.\phi \leftarrow false$
+    }
+    \Else{
+    	$n.\phi \leftarrow \phi$
+    }    
+    \If{$\phi \neq true$ and $\phi \neq false$}{
+    	\ForEach{action $a' \in A$}{
+        	\If{$\exists l \in \phi$ s.t. $l \in effect(a')$}{
+            	$n' \leftarrow BuildRegTreeRec(rg_{a'}(\phi),A_{rg},\Psi \cup \phi)$\\
+                add $n'$ to the children of $n$\\
+                label the edge $<n,n'>$ by $a'$\\
+            }
+        
+        }
+     }
+    \Return $n$
+
+}
+\caption{Building the regression tree for public action $a$ of agent $i$} \label{alg:regressionTree}
+\end{algorithm}
+
+
+% We run regression on the local planning problem (as define by the PSM guys)
+Given a public action $a$ of agent $i$, we use regression to identify sequences of private actions of $i$ and public actions of $i$ and other agents, that must be taken before executing $a$. We construct a regression tree over a revised version of the planning problem of $i$, consisting of all the public facts and the private facts of $i$, the private actions of $i$. 
+
+Instead of using the exiting public actions in the regression tree creation, we replace each public action with a revised version, that has no preconditions. Thus, we do not model the conditions required for the execution of pubic actions other than $a$, but rather how these public actions help us to execute $a$. 
+
+
+
+Specifically, given a public action $a_p$ of agent $i$, the revised action $a^p_r$ is defined as:
+\begin{eqnarray}
+&pre(a^r_p)=true&\\
+&effect(a^r_p)=\bigwedge_{l \in effect(a_p)}l \bigwedge_{l' \in pre(a_p), \neg l' \not\in effect(a_p)}l'&
+\end{eqnarray}
+That is, the effect of $a^r_p$ contains all the effects of $a_p$, as well as all preconditions of $a_p$ that are not removed by the effect of $a_p$. These effects model the state of the world after $a_p$ has been executed. As $a_p$ was executed, all its preconditions that were not deleted still hold. We do the same with the local projection of the public actions of other agents.
+\roni{It took me a lot of time to understand where you're going with these revised actions. Why not just say that the construction of a branch in the regression tree stops whenever reaching either truee or a public action?.}
+
+
+\bibliography{library}
+\bibliographystyle{aaai}
+\end{document}
