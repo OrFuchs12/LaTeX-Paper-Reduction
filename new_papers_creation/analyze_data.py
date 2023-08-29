@@ -4,8 +4,7 @@ import csv
 import pdfplumber
 from collections import defaultdict
 import re
-from addRows import *
-
+from addRows import add_clearpage_before_bibliography, find_page_number_before_bibliography, count_lines_in_page, compile_latex_to_pdf
 
 def remove_comments(input_file_path, output_file_path):
     with open(input_file_path, 'r', encoding='utf-8') as input_file:
@@ -25,9 +24,8 @@ def analyze_pdf(pdf_file_path):
     pdf_data = defaultdict(int)
     
     with pdfplumber.open(pdf_file_path) as pdf:
-        pdf_data['num_pages'] = len(pdf.pages)
-        
         page_number = find_page_number_before_bibliography(pdf_file_path, "References")
+        pdf_data['num_pages'] = page_number+1
         lines = count_lines_in_page(pdf_file_path, page_number)
         pdf_data['num_lines_last_page'] = lines
         
@@ -96,8 +94,11 @@ def latex_pdf_statistics(tex_file_path, pdf_file_path, summary_csv_file_path):
     create_summary_csv(combined_data, summary_csv_file_path)
     
 if __name__ == "__main__":
-    tex_file_path = "new_papers_creation/aaai_docs/main.tex"
-    pdf_file_path = "new_papers_creation/aaai_docs/main.pdf"
+    tex_file_path = "new_papers_creation/aaai_docs/main_changed.tex"
+    add_clearpage_before_bibliography(tex_file_path)
+    pdf_file_path = compile_latex_to_pdf(tex_file_path)
+    # tex_file_path = "new_papers_creation/aaai_docs/main.tex"
+    # pdf_file_path = "new_papers_creation/aaai_docs/main.pdf"
     summary_csv_file_path = "new_papers_creation/summary.csv"
     
     latex_pdf_statistics(tex_file_path, pdf_file_path, summary_csv_file_path)
