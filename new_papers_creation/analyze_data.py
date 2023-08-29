@@ -46,7 +46,7 @@ def analyze_latex(tex_file_path):
     
     with open(tex_file_path, 'r', encoding='utf-8') as tex_file:
         content = tex_file.read()
-        
+      
         # Count the number of non-commented sections
         section_pattern = re.compile(r'\\section{')
         num_sections = len(section_pattern.findall(content))
@@ -74,23 +74,28 @@ def analyze_latex(tex_file_path):
 def create_summary_csv(data, csv_file_path):
     # Create a CSV file with the summarized statistical data
     with open(csv_file_path, 'w', newline='') as csvfile:
-        fieldnames = ['Metric', 'Value']
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        # fieldnames = ['Metric', 'Value']
+        keys=data.keys()
+        writer = csv.DictWriter(csvfile, fieldnames=keys)
         
         writer.writeheader()
-        for metric, value in data.items():
-            writer.writerow({'Metric': metric, 'Value': value})
+     
+        writer.writerow(data)
 
 def latex_pdf_statistics(tex_file_path, pdf_file_path, summary_csv_file_path):
     remove_comments(tex_file_path,tex_file_path)
     analyze_result_pdf = analyze_pdf(pdf_file_path)
     analyze_result_latex = analyze_latex(tex_file_path)
     
-    combined_data = defaultdict(int)
+    combined_data = defaultdict()
+    combined_data['paper_name']=pdf_file_path
     for data_dict in [analyze_result_pdf, analyze_result_latex]:
         for key, value in data_dict.items():
-            combined_data[key] += value
-            
+            try:
+                combined_data[key] += value
+            except:
+                combined_data[key]=0
+                combined_data[key] += value
     create_summary_csv(combined_data, summary_csv_file_path)
     
 if __name__ == "__main__":
