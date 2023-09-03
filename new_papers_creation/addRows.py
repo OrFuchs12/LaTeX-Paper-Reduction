@@ -208,6 +208,7 @@ def create_3Lines_page(new_file_path):
     page_number = find_page_number_before_bibliography(pdf_file_path, keyword)
     print("page number before bibliography is", page_number)
     lines = count_lines_in_page(pdf_file_path, page_number)
+    lines_on_last_page = getLines(pdf_file_path, page_number)
     next = False
     while (lines != 3):
         text_to_add = "We consider a multi-level jury problem in which experts\n" 
@@ -231,15 +232,18 @@ def create_3Lines_page(new_file_path):
                     
                 added_rows = False
             else: #more than 3 lines and no content on second col
-                lines_on_last_page = getLines(pdf_file_path, page_number, next)
-                last_line_to_remove = find_last_line_text(lines_on_last_page, -1)
-                while not search_last_line(new_file_path, last_line_to_remove):
-                    lines_on_last_page.remove(lines_on_last_page[-1])
-                    if len(lines_on_last_page) == 0:
+                if len(lines_on_last_page) == 0:
                         lines_on_last_page = getLines(pdf_file_path, page_number-1)
                         next = True
+                else:
                     last_line_to_remove = find_last_line_text(lines_on_last_page, -1)
-                
+                    while not search_last_line(new_file_path, last_line_to_remove):
+                        lines_on_last_page.remove(lines_on_last_page[-1])
+                        if len(lines_on_last_page) == 0:
+                            lines_on_last_page = getLines(pdf_file_path, page_number-1)
+                            next = True
+                        last_line_to_remove = find_last_line_text(lines_on_last_page, -1)
+                    lines_on_last_page.remove(last_line_to_remove)
 
                 
         pdf_file_path = compile_latex_to_pdf(new_file_path)
