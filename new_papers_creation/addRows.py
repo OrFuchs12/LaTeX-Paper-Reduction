@@ -153,8 +153,11 @@ def add_clearpage_before_bibliography(tex_file_path):
         with open(tex_file_path, "r") as input_file:
             file_content = input_file.read()
         pattern = r'\\bibliography\{(.*?)\}'
-         
+        pattern2 =  r"\\clearpage\n\\bibliography{(.*?)\}"
         match = re.search(pattern, file_content)
+        match2 = re.search(pattern2, file_content)
+        if match2:
+            return
         if match:
             modified_content = re.sub(
             pattern,
@@ -196,6 +199,7 @@ text_to_add = r"\\noindent We consider a multi-level jury problem in which exper
 
         
 def create_3Lines_page(new_file_path):
+    
     add_clearpage_before_bibliography(new_file_path)
     pdf_file_path = compile_latex_to_pdf(new_file_path)
     keyword = "References"

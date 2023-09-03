@@ -19,7 +19,7 @@ def find_tex_file(directory_path):
     # if main in the name of the file
     elif len(main_tex_candidates) > 1:
         for tex_file in main_tex_candidates:
-            if 'main' in tex_file:
+            if 'main' in tex_file or 'Main' in tex_file:
                 return os.path.join(directory_path, tex_file)
     elif 'main.tex' in tex_files:
         return os.path.join(directory_path, 'main.tex')
