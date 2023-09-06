@@ -1,7 +1,5 @@
 from dir_findTEX import find_tex_file
-from Vspace_delete import has_aaai_format
-from Vspace_delete import comment_vspace_lines
-from Vspace_delete import remove_pdfinfo_commands
+from Vspace_delete import *
 import os
 from addRows import *
 import shutil
@@ -39,6 +37,7 @@ def create_new_pdf(directory_path):
             # comment the vspace lines (delete the vspace command and add a comment sign before it)
             remove_pdfinfo_commands(new_file_path)
             comment_vspace_lines(new_file_path)
+            remove_small_command(new_file_path)
             # add 3 lines to the last page
             create_3Lines_page(new_file_path)
             
@@ -58,5 +57,6 @@ def move_changed_pdfs(directory_path, destination_path):
     # move directory to destination path
     shutil.move(directory_path, destination_path)
 
-loop_through_directories("new_papers_creation/All_Directories")
+# loop_through_directories("new_papers_creation/All_Directories")
+create_new_pdf("new_papers_creation/AAAI-12")
 

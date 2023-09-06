@@ -78,8 +78,22 @@ def remove_pdfinfo_commands(tex_file_path):
 
     with open(tex_file_path, 'w') as file:
         file.writelines(new_lines)
+    
+def remove_small_command(tex_file_path):
+    with open(tex_file_path, 'r', encoding='utf-8') as input_file:
+        latex_content = input_file.read()
+
+    # Define a regular expression pattern to match \small commands
+    pattern = r'\\small\b'
+
+    # Use re.sub to replace \small commands with commented versions
+    modified_content = re.sub(pattern, r'% \g<0>', latex_content)
+
+    # Save the modified content to the output file
+    with open(tex_file_path, 'w', encoding='utf-8') as output_file:
+        output_file.write(modified_content)
 
 
-
+remove_small_command('new_papers_creation/AAAI-12/aaai12-29.tex')
 
 
