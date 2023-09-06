@@ -58,5 +58,5 @@ def move_changed_pdfs(directory_path, destination_path):
     shutil.move(directory_path, destination_path)
 
 # loop_through_directories("new_papers_creation/All_Directories")
-create_new_pdf("new_papers_creation/AAAI-12")
+create_new_pdf("new_papers_creation\\AAAI 2016")
 

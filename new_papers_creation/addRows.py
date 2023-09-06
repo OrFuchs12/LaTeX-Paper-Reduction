@@ -7,44 +7,24 @@ from lorem_text import lorem
 
 NUMBER_OF_LINES_ON_LAST_PAGE = 2
 ESTIMATED_LINES_PER_PAGE = 10
-# def get_number_of_footnotes(latex_file_path):
-#     with open(latex_file_path, 'r', encoding='utf-8') as latex_file:
-#         latex_content = latex_file.read()
-#     pattern = r'\\footnote{.*?}'
-#     footnotes = re.findall(pattern, latex_content)
-#     total_lines = 0
-#     for footnote in footnotes:
-#         lines = footnote.split('\n')
-#         total_lines += len(lines)
-#     return total_lines
-    
-    
 
+#TODO: maybe add a check for tables 
 def check_content_on_second_column(pdf_path, page_number=0):
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[page_number]
         
-        # Extract text and images from the page
         text_blocks = page.extract_words()
         images = page.images
         tables = page.extract_tables()
         
-        # Calculate the x-coordinate range for the second column
         page_width = page.width
-        second_column_left = page_width * (1 / 2)  # Adjust as needed
-        second_column_right = page_width  # Adjust as needed
+        second_column_left = page_width * (1 / 2)  
+        second_column_right = page_width
 
-        # calculate the y-coordinate range for the second column
         page_height = page.height
-        bottom_area_top = page_height * (2 / 3)  # Adjust as needed
+        bottom_area_top = page_height * (2 / 3)  
         bottom_area_bottom = page_height 
         
-        # Check if any text or images fall within the second column
-        # text_on_second_column = any(block for block in text_blocks if second_column_left <= block['x0'] <= second_column_right)
-        # images_on_second_column = any(image for image in images if second_column_left <= image['x0'] <= second_column_right)
-
-
-        # Check if any text or images fall within the bottom area
         text_on_bottom_right = any(
             block for block in text_blocks if 
             second_column_left <= block['x0'] <= second_column_right and
@@ -60,8 +40,6 @@ def check_content_on_second_column(pdf_path, page_number=0):
         return text_on_bottom_right or images_on_bottom_right 
 
 def add_to_latex(tex_file_path, lines):
-        # lorem_ipsum_text = subprocess.check_output(['lipsum', str(lines)], text=True)
-        
         lorem_ipsum_text = lorem.sentence()
         with open(tex_file_path, "r") as input_file:
             file_content = input_file.read()
@@ -88,11 +66,6 @@ def remove_from_latex(tex_file_path, chars):
         )
         with open(tex_file_path, "w") as output_file:
             output_file.write(modified)
-
-# def find_bibliography_format(line):
-#     pattern = r'\\bibliography\{(.*?)\}'
-#     match = re.search(pattern, line)
-#     return True if match else False
 
 def count_lines_in_page(pdf_path, page_number):
     with pdfplumber.open(pdf_path) as pdf:
@@ -123,11 +96,9 @@ def find_last_line_text(lines, last_index=-1):
 def search_last_line(tex_file_path, last_line_to_remove):
     with open(tex_file_path, "r") as input_file:
         file_content = input_file.read()
-    # last_line_to_remove = re.escape(last_line_to_remove)
     if last_line_to_remove[-1] == "-":
         last_line_to_remove = last_line_to_remove[:-1]
     pattern = r"{}".format(last_line_to_remove)
-    # pattern = rf"{last_line_to_remove}"
     try:
         match = re.search(pattern, file_content)    
         if match:
@@ -188,7 +159,6 @@ def add_clearpage_before_bibliography(tex_file_path):
     except Exception as e:
         print(f"An error occurred: {e}")
         
-
 def compile_latex_to_pdf(latex_file_path):
     try:
         dir_path = os.path.dirname(latex_file_path)
@@ -201,63 +171,43 @@ def compile_latex_to_pdf(latex_file_path):
     except subprocess.CalledProcessError as e:
         print("Error during LaTeX to PDF conversion:", e)
  
- 
-text_to_add = r"\\noindent We consider a multi-level jury problem in which experts are" 
-
-# def create_new_file_in_directory(file_path,directory_path):
-#     # create a new file with the same name as the original file, but with the suffix '_changed' and the same content as the original file.
-#     new_file_name = os.path.splitext(os.path.basename(file_path))[0] + " copy.tex"
-#     new_file_path = os.path.join(directory_path, new_file_name)
-#     with open(file_path, 'r') as original_file:
-#             content = original_file.read()
-
-#     with open(new_file_path, 'w') as new_file:
-#         new_file.write(content)
-#     return new_file_path
-
-        
+def check_only_text(pdf_path, page_number):
+    with pdfplumber.open(pdf_path) as pdf:
+        page = pdf.pages[page_number]  
+        text = page.extract_text()
+        images = page.images
+        tables = page.extract_tables()
+        return bool(text) and not bool(images) and not bool(tables)
+#TODO: change the name of the function because not always 3 lines        
 def create_3Lines_page(new_file_path):
     add_clearpage_before_bibliography(new_file_path)
     pdf_file_path = compile_latex_to_pdf(new_file_path)
     keyword = "References"
     lines = 0
-    added_rows =False
     page_number = find_page_number_before_bibliography(pdf_file_path, keyword)
     print("page number before bibliography is", page_number)
     lines = count_lines_in_page(pdf_file_path, page_number)
     next = False
+    
     while (lines != NUMBER_OF_LINES_ON_LAST_PAGE):
         text_to_add = "We consider a multi-level jury problem in which experts\n" 
         if lines == NUMBER_OF_LINES_ON_LAST_PAGE:
             print("paper is allready with 3 lines on the last page")
             return
+        #TODO: text to add should be also lorem ipsum
         if lines < NUMBER_OF_LINES_ON_LAST_PAGE: 
             add_to_latex(new_file_path, (NUMBER_OF_LINES_ON_LAST_PAGE-lines)*text_to_add)
-        # elif check_content_on_second_column(pdf_file_path, page_number):
-        #     added_rows = True
-        #     add_to_latex(new_file_path, text_to_add*(ESTIMATED_LINES_PER_PAGE))
-
-
-        # finding out if we have a figure on the last page
-
-        # finding out if right bottom corner is empty on the last page:
+            
         elif check_content_on_second_column(pdf_file_path, page_number):
             print("there is content on the second column on the bottom")
-            added_rows = True
             add_to_latex(new_file_path, ESTIMATED_LINES_PER_PAGE)
-        
-        # add check if theres only text in the last page
+        #TODO: not add text but delete sections until image/table goes up a page, maybe need to  
+        #add a check if there is an algorithm 
+        elif not check_only_text(pdf_file_path, page_number):
+            print("not only text on the last page")
+            add_to_latex(new_file_path, ESTIMATED_LINES_PER_PAGE)
 
         else:
-            # if added_rows:
-            #     while lines > 3:
-            #         remove_from_latex(new_file_path, len(text_to_add)*(2))# the search functions works with chars
-            #         print("lines are more than 3 but less than threshold")
-            #         pdf_file_path = compile_latex_to_pdf(new_file_path)
-            #         page_number = find_page_number_before_bibliography(pdf_file_path, keyword)
-            #         lines = count_lines_in_page(pdf_file_path, page_number)
-                    
-             #more than 3 lines and no content on second col
             lines_on_last_page = getLines(pdf_file_path, page_number, next)
             last_line_to_remove = find_last_line_text(lines_on_last_page, -1)
             while not search_last_line(new_file_path, last_line_to_remove):
@@ -266,14 +216,11 @@ def create_3Lines_page(new_file_path):
                     lines_on_last_page = getLines(pdf_file_path, page_number-1)
                     next = True
                 last_line_to_remove = find_last_line_text(lines_on_last_page, -1)
-                
 
-                
         pdf_file_path = compile_latex_to_pdf(new_file_path)
         page_number = find_page_number_before_bibliography(pdf_file_path, keyword)
         lines = count_lines_in_page(pdf_file_path, page_number)
         
 
-# pdf_file = "new_papers_creation\\AAAI13-QDEC\\QDEC-POMDP.8.pdf"
-pdf_file = "new_papers_creation\\AAAI-12\\"
+
 
