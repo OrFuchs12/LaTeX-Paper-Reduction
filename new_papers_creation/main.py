@@ -39,7 +39,7 @@ def create_new_pdf(directory_path):
             comment_vspace_lines(new_file_path)
             remove_small_command(new_file_path)
             # add 3 lines to the last page
-            create_3Lines_page(new_file_path)
+            create_extra_line_page(new_file_path)
             
 
             
