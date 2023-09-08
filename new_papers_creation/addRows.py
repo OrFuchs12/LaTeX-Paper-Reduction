@@ -169,8 +169,12 @@ def add_clearpage_before_bibliography(tex_file_path):
 def compile_latex_to_pdf(latex_file_path):
     try:
         dir_path = os.path.dirname(latex_file_path)
+        print(dir_path)
+        print(latex_file_path)
+        base_name = os.path.basename(latex_file_path)
+        subprocess.run(['pdflatex.exe', base_name], cwd=dir_path)
         base_name = os.path.splitext(os.path.basename(latex_file_path))[0]
-        subprocess.run(["tectonic", latex_file_path])
+
         pdf_file_path = os.path.join(dir_path, base_name + ".pdf")
         return pdf_file_path
         
@@ -228,7 +232,6 @@ def create_extra_line_page(new_file_path):
             lines = remove_lines(pdf_file_path, new_file_path, page_number, lines_on_last_page)
             if len(lines_on_last_page) == 0:
                 lines_on_last_page = getLines(pdf_file_path, page_number-1)
-
 
 
         

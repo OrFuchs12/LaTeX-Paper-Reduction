@@ -1,6 +1,7 @@
 import os
 
 def find_tex_file(directory_path):
+    print(directory_path)
     tex_files = [file for file in os.listdir(directory_path) if file.endswith('.tex')]
 
     if len(tex_files) == 1:
