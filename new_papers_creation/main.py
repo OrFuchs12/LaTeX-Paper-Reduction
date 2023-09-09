@@ -37,7 +37,7 @@ def create_new_pdf(directory_path):
             # comment the vspace lines (delete the vspace command and add a comment sign before it)
             remove_pdfinfo_commands(new_file_path)
             comment_vspace_lines(new_file_path)
-            remove_small_command(new_file_path)
+            # remove_small_command(new_file_path)
             # add 3 lines to the last page
             create_extra_line_page(new_file_path)
             
@@ -57,6 +57,16 @@ def move_changed_pdfs(directory_path, destination_path):
     # move directory to destination path
     shutil.move(directory_path, destination_path)
 
-# loop_through_directories("new_papers_creation/All_Directories")
-create_new_pdf("new_papers_creation\\AAAI 2016")
 
+
+
+
+
+
+
+
+    
+
+loop_through_directories("new_papers_creation\\failed_last_time")
+# create_new_pdf("new_papers_creation\\AAAI 2016")
+# create_new_pdf('new_papers_creation\\aaai_docs')

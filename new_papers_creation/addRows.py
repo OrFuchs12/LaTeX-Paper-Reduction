@@ -23,7 +23,7 @@ def check_content_on_second_column(pdf_path, page_number=0):
         second_column_right = page_width
 
         page_height = page.height
-        bottom_area_top = page_height * (2 / 3)  
+        bottom_area_top = page_height * (1/2)  
         bottom_area_bottom = page_height 
         
         text_on_bottom_right = any(
@@ -57,7 +57,7 @@ def add_to_latex(tex_file_path, lines):
         pdf_file_path = compile_latex_to_pdf(tex_file_path)
         page_number = find_page_number_before_bibliography(pdf_file_path, "References")
         lines=count_lines_in_page(pdf_file_path, page_number)
-        return lines
+        return lines, page_number
 
 
                 
@@ -101,6 +101,8 @@ def find_last_line_text(lines, last_index=-1):
         return lines[last_index]
     
 def search_last_line(tex_file_path, last_line_to_remove):
+    if len(last_line_to_remove) == 1:
+        return False
     with open(tex_file_path, "r") as input_file:
         file_content = input_file.read()
     if last_line_to_remove[-1] == "-":
@@ -136,12 +138,13 @@ def find_page_number_before_bibliography(pdf_path, bibliography_keyword):
             found_page_number = page_number  # Page numbering starts from 0
             found = True
             break
-    pdf_document.close()
     
     if found:
-        return found_page_number-1
+        num = found_page_number-1
     else:
-        return None
+        num = page_number
+    pdf_document.close()
+    return num
 
 #find bibliography format and add /clearpage before it
 def add_clearpage_before_bibliography(tex_file_path):
@@ -192,14 +195,15 @@ def check_only_text(pdf_path, page_number):
 def remove_lines(pdf_file_path, latex_path, page_number, lines_on_last_page, next=False):
     last_line_to_remove = find_last_line_text(lines_on_last_page, -1)
     while not search_last_line(latex_path, last_line_to_remove):
-        lines_on_last_page.remove(lines_on_last_page[-1])
         if len(lines_on_last_page) != 0:
+            lines_on_last_page.remove(lines_on_last_page[-1])
             last_line_to_remove = find_last_line_text(lines_on_last_page, -1)
     print("removing the lines: ", last_line_to_remove)
+    lines_on_last_page.remove(last_line_to_remove)
     pdf_file_path = compile_latex_to_pdf(latex_path)
     page_number = find_page_number_before_bibliography(pdf_file_path, "References")
     lines=count_lines_in_page(pdf_file_path, page_number)
-    return lines
+    return lines, page_number, lines_on_last_page
 
 def create_extra_line_page(new_file_path):
     add_clearpage_before_bibliography(new_file_path)
@@ -218,19 +222,24 @@ def create_extra_line_page(new_file_path):
             return
         #TODO: text to add should be also lorem ipsum
         if lines < NUMBER_OF_LINES_ON_LAST_PAGE: 
-            lines = add_to_latex(new_file_path, (NUMBER_OF_LINES_ON_LAST_PAGE-lines)*text_to_add)
-            
+            lines, page_number = add_to_latex(new_file_path, (NUMBER_OF_LINES_ON_LAST_PAGE-lines)*text_to_add)
+            lines_on_last_page = getLines(pdf_file_path, page_number, next)
         elif check_content_on_second_column(pdf_file_path, page_number):
             print("there is content on the second column on the bottom")
-            lines = add_to_latex(new_file_path, ESTIMATED_LINES_PER_PAGE)
+            lines, page_number = add_to_latex(new_file_path, ESTIMATED_LINES_PER_PAGE)
+            lines_on_last_page = getLines(pdf_file_path, page_number, next)
         #TODO: not add text but delete sections until image/table goes up a page, maybe need to  
         #add a check if there is an algorithm 
         elif not check_only_text(pdf_file_path, page_number):
             print("not only text on the last page")
-            lines = add_to_latex(new_file_path, ESTIMATED_LINES_PER_PAGE)
+            lines, page_number = add_to_latex(new_file_path, ESTIMATED_LINES_PER_PAGE)
+            lines_on_last_page = getLines(pdf_file_path, page_number, next)
         else:
-            lines = remove_lines(pdf_file_path, new_file_path, page_number, lines_on_last_page)
-            if len(lines_on_last_page) == 0:
+            lines, new_page_number, lines_on_last_page = remove_lines(pdf_file_path, new_file_path, page_number, lines_on_last_page)
+            if new_page_number != page_number:
+                page_number = new_page_number
+                lines_on_last_page = getLines(pdf_file_path, page_number, next)
+            if len(lines_on_last_page) == 0 :
                 lines_on_last_page = getLines(pdf_file_path, page_number-1)
 
 
