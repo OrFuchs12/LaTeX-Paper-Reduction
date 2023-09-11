@@ -90,7 +90,7 @@ def getLines(pdf_path, page_number, next=False):
             if next ==True:
                 page_number = page_number-1
             page = pdf.pages[page_number]  
-            text = page.extract_text()
+            text = page.extract_text(strip=False, join_tolerance=10)
             lines = text.strip().split('\n')
             return lines
         except:
@@ -107,7 +107,8 @@ def search_last_line(tex_file_path, last_line_to_remove):
         file_content = input_file.read()
     if last_line_to_remove[-1] == "-":
         last_line_to_remove = last_line_to_remove[:-1]
-    pattern = r"{}".format(last_line_to_remove)
+    # pattern = r"{}".format(last_line_to_remove)
+    pattern = re.compile(r'(.*?)' + re.escape(last_line_to_remove) + '.*')
     try:
         match = re.search(pattern, file_content)    
         if match:
@@ -198,6 +199,9 @@ def remove_lines(pdf_file_path, latex_path, page_number, lines_on_last_page, nex
         if len(lines_on_last_page) != 0:
             lines_on_last_page.remove(lines_on_last_page[-1])
             last_line_to_remove = find_last_line_text(lines_on_last_page, -1)
+        else:
+            lines_on_last_page = getLines(pdf_file_path, page_number-1)
+            last_line_to_remove = find_last_line_text(lines_on_last_page, -1)
     print("removing the lines: ", last_line_to_remove)
     lines_on_last_page.remove(last_line_to_remove)
     pdf_file_path = compile_latex_to_pdf(latex_path)
@@ -238,8 +242,8 @@ def create_extra_line_page(new_file_path):
             lines, new_page_number, lines_on_last_page = remove_lines(pdf_file_path, new_file_path, page_number, lines_on_last_page)
             if new_page_number != page_number:
                 page_number = new_page_number
-                lines_on_last_page = getLines(pdf_file_path, page_number, next)
-            if len(lines_on_last_page) == 0 :
+                lines_on_last_page = getLines(pdf_file_path, page_number)
+            if len(lines_on_last_page) == 0:
                 lines_on_last_page = getLines(pdf_file_path, page_number-1)
 
 
