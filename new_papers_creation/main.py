@@ -67,6 +67,20 @@ def move_changed_pdfs(directory_path, destination_path):
 
     
 
-loop_through_directories("new_papers_creation\\failed_last_time")
+# loop_through_directories("new_papers_creation\\failed_last_time")
 # create_new_pdf("new_papers_creation\\AAAI 2016")
 # create_new_pdf('new_papers_creation\\aaai_docs')
+str = "hello yosi my name is or"
+clean_str = "helloyosimynameisor"
+substring = "my name"
+clean_substring = "myname"
+
+# Find the index of the substring in the cleaned string
+clean_index = clean_str.find(clean_substring)
+
+if clean_index != -1:
+    # Calculate the corresponding index in the original string
+    original_index = clean_index + str[:clean_index + 1 ].count(" ")
+    print(f"The substring '{substring}' was found at index {original_index} in the original string.")
+else:
+    print(f"The substring '{substring}' was not found in the original string.")

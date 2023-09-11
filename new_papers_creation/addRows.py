@@ -247,7 +247,40 @@ def create_extra_line_page(new_file_path):
                 lines_on_last_page = getLines(pdf_file_path, page_number-1)
 
 
-        
+def remove_line(latex_file_path, pdf_line):
+    # clean the pdf line
+    clean_pdf_line = re.sub(r'[^a-zA-Z0-9]+', '', pdf_line)
+    # loop throgh the lines in the latex file backwards
+    with open(latex_file_path, "r") as input_file:
+        file_content = input_file.read()
+    lines = file_content.strip().split('\n')
+    for line in reversed(lines):
+        # clean the line 
+        cleaned_latex_line = re.sub(r'[^a-zA-Z0-9]+', '', line)
+        # check if clean_pdf_line is a substring of cleaned_latex_line
+        if clean_pdf_line in cleaned_latex_line:
+            try:
+                period_index = line.index('.')
+
+                # Get everything until the first comma, including the comma
+                new_line = line[period_index + 2:]
+                # switch the line with the new line in the lines list
+                lines[lines.index(line)] = new_line
+                
+            except ValueError:
+            # remove the line from the latex file
+                lines.remove(line)
+            break
+    # write the new latex file
+    with open(latex_file_path, "w") as output_file:
+        output_file.write('\n'.join(lines))
+
+
+
+# write test for the remove_line function
+pdfline = "ration and sensing policy, and is thus one of the more"
+tex_file_path = "new_papers_creation/AAAI-12/aaai12-29_changed.tex"
+remove_line(tex_file_path, pdfline)
 
 
 
