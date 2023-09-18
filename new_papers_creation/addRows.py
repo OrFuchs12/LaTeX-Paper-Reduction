@@ -42,7 +42,7 @@ def check_content_on_second_column(pdf_path, page_number=0):
 
 def add_to_latex(tex_file_path, lines):
         lorem_ipsum_text = lorem.sentence()
-        with open(tex_file_path, "r") as input_file:
+        with open(tex_file_path, "r", encoding="utf-8") as input_file:
             file_content = input_file.read()
         pattern = r"\\clearpage\s*\\bibliography\{(.*?)\}"
         match = re.search(pattern, file_content)
@@ -52,7 +52,7 @@ def add_to_latex(tex_file_path, lines):
             + lorem_ipsum_text
             + file_content[match.start():]
             )
-            with open(tex_file_path, "w") as output_file:
+            with open(tex_file_path, "w", encoding="utf-8") as output_file:
                 output_file.write(modified)
         pdf_file_path = compile_latex_to_pdf(tex_file_path)
         page_number = find_page_number_before_bibliography(pdf_file_path, "References")
@@ -62,7 +62,7 @@ def add_to_latex(tex_file_path, lines):
 
                 
 def remove_from_latex(tex_file_path, chars):
-    with open(tex_file_path, "r") as input_file:
+    with open(tex_file_path, "r", encoding="utf-8") as input_file:
         file_content = input_file.read()
     pattern = r"\\clearpage\s*\\bibliography\{(.*?)\}"
     match = re.search(pattern, file_content)
@@ -71,7 +71,7 @@ def remove_from_latex(tex_file_path, chars):
         file_content[:match.start()-chars]
         + file_content[match.start():]
         )
-        with open(tex_file_path, "w") as output_file:
+        with open(tex_file_path, "w", encoding="utf-8") as output_file:
             output_file.write(modified)
 
 def count_lines_in_page(pdf_path, page_number):
@@ -100,31 +100,31 @@ def getLines(pdf_path, page_number, next=False):
 def find_last_line_text(lines, last_index=-1):
         return lines[last_index]
     
-def search_last_line(tex_file_path, last_line_to_remove):
-    if len(last_line_to_remove) == 1:
-        return False
-    with open(tex_file_path, "r") as input_file:
-        file_content = input_file.read()
-    if last_line_to_remove[-1] == "-":
-        last_line_to_remove = last_line_to_remove[:-1]
-    # pattern = r"{}".format(last_line_to_remove)
-    pattern = re.compile(r'(.*?)' + re.escape(last_line_to_remove) + '.*')
-    try:
-        match = re.search(pattern, file_content)    
-        if match:
-            modified = (
-            file_content[:match.start()]
-            + file_content[match.end():]
-            )
-            with open(tex_file_path, "w") as output_file:
-                output_file.write(modified)
-            return True
-        else:
-            print("last line not found")
-            return False
-    except:
-        print("error in search_last_line")
-        return False
+# def search_last_line(tex_file_path, last_line_to_remove):
+#     if len(last_line_to_remove) == 1:
+#         return False
+#     with open(tex_file_path, "r") as input_file:
+#         file_content = input_file.read()
+#     if last_line_to_remove[-1] == "-":
+#         last_line_to_remove = last_line_to_remove[:-1]
+#     # pattern = r"{}".format(last_line_to_remove)
+#     pattern = re.compile(r'(.*?)' + re.escape(last_line_to_remove) + '.*')
+#     try:
+#         match = re.search(pattern, file_content)    
+#         if match:
+#             modified = (
+#             file_content[:match.start()]
+#             + file_content[match.end():]
+#             )
+#             with open(tex_file_path, "w") as output_file:
+#                 output_file.write(modified)
+#             return True
+#         else:
+#             print("last line not found")
+#             return False
+#     except:
+#         print("error in search_last_line")
+#         return False
 
 def find_page_number_before_bibliography(pdf_path, bibliography_keyword):
     pdf_document = fitz.open(pdf_path)
@@ -153,7 +153,7 @@ def add_clearpage_before_bibliography(tex_file_path):
         if not os.path.exists(tex_file_path):
             print("File path {} does not exist. Exiting...".format(tex_file_path))
             return
-        with open(tex_file_path, "r") as input_file:
+        with open(tex_file_path, "r", encoding="utf-8") as input_file:
             file_content = input_file.read()
         pattern = r'\\bibliography\{(.*?)\}'
          
@@ -165,8 +165,15 @@ def add_clearpage_before_bibliography(tex_file_path):
             file_content,
             count=1,
             )
-            with open(tex_file_path, "w") as output_file:
-                output_file.write(modified_content)
+        pattern = r"\\clearpage\s*\\bibliography\{(.*?)\}"
+        match = re.search(pattern, modified_content)
+        
+        #check if \clearpage\n\bibliography has a % before it and if so remove it
+        if modified_content[match.start()] == "%":
+            modified_content = modified_content[:match.start()-1] + modified_content[match.start():]
+            
+        with open(tex_file_path, "w", encoding="utf-8") as output_file:
+            output_file.write(modified_content)
     except Exception as e:
         print(f"An error occurred: {e}")
         
@@ -185,24 +192,77 @@ def compile_latex_to_pdf(latex_file_path):
     except subprocess.CalledProcessError as e:
         print("Error during LaTeX to PDF conversion:", e)
  
-def check_only_text(pdf_path, page_number):
+def check_only_text(pdf_path, page_number, lines_on_last_page, latex_path):
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[page_number]  
         text = page.extract_text()
         images = page.images
         tables = page.extract_tables()
-        return bool(text) and not bool(images) and not bool(tables)
+        other = get_tables_and_images(lines_on_last_page, latex_path)
+        return bool(text) and not bool(images) and not bool(tables) and not other
+    
+    
+def remove_line(latex_file_path, pdf_line):
+    removed = False
+    # clean the pdf line
+    clean_pdf_line = re.sub(r'[^a-zA-Z0-9]+', '', pdf_line)
+    # loop throgh the lines in the latex file backwards
+    with open(latex_file_path, "r", encoding="utf-8") as input_file:
+        file_content = input_file.read()
+    lines = file_content.strip().split('\n')
+    for line in reversed(lines):
+        #if line starts with \ it is a commands and sould be skipped
+        if line.startswith("\\") or line.startswith("%"):
+            continue
+        # clean the line 
+        cleaned_latex_line = re.sub(r'[^a-zA-Z0-9]+', '', line)
+        # check if clean_pdf_line is a substring of cleaned_latex_line
+        if clean_pdf_line in cleaned_latex_line:
+            try:
+                space_count = 0
+                index = -1
+                while space_count < 5:
+                    index = line.index(' ', index + 1)
+                    if index == -1:
+                        break
+                    space_count += 1
+                
+                new_line = line[index:]
+                #if in the line[:index+1] there is { and  not } then find the next } and delete until there
+                if line[:index+1].count("{") > line[:index+1].count("}"):
+                    index = line.index('}', index + 1)
+                    new_line = line[index+1:]
+                # switch the line with the new line in the lines list
+                lines[lines.index(line)] = new_line
+                
+            except ValueError:
+            # remove the line from the latex file
+                lines.remove(line)
+            print("removed the line: ", line[:index+1])
+            removed = True
+            break
+    if removed:
+    # write the new latex file
+        with open(latex_file_path, "w", encoding="utf-8") as output_file:
+            output_file.write('\n'.join(lines))
+        return True
+    else:
+        print("line not found")
+        return False
 
 def remove_lines(pdf_file_path, latex_path, page_number, lines_on_last_page, next=False):
+    if (len(lines_on_last_page) == 0):
+        lines_on_last_page = getLines(pdf_file_path, page_number-1)
     last_line_to_remove = find_last_line_text(lines_on_last_page, -1)
-    while not search_last_line(latex_path, last_line_to_remove):
+    while not remove_line(latex_path, last_line_to_remove):
         if len(lines_on_last_page) != 0:
             lines_on_last_page.remove(lines_on_last_page[-1])
+            if (len(lines_on_last_page) == 0):
+                lines_on_last_page = getLines(pdf_file_path, page_number-1)
             last_line_to_remove = find_last_line_text(lines_on_last_page, -1)
         else:
             lines_on_last_page = getLines(pdf_file_path, page_number-1)
             last_line_to_remove = find_last_line_text(lines_on_last_page, -1)
-    print("removing the lines: ", last_line_to_remove)
     lines_on_last_page.remove(last_line_to_remove)
     pdf_file_path = compile_latex_to_pdf(latex_path)
     page_number = find_page_number_before_bibliography(pdf_file_path, "References")
@@ -234,7 +294,7 @@ def create_extra_line_page(new_file_path):
             lines_on_last_page = getLines(pdf_file_path, page_number, next)
         #TODO: not add text but delete sections until image/table goes up a page, maybe need to  
         #add a check if there is an algorithm 
-        elif not check_only_text(pdf_file_path, page_number):
+        elif not check_only_text(pdf_file_path, page_number, lines_on_last_page, new_file_path):
             print("not only text on the last page")
             lines, page_number = add_to_latex(new_file_path, ESTIMATED_LINES_PER_PAGE)
             lines_on_last_page = getLines(pdf_file_path, page_number, next)
@@ -247,40 +307,28 @@ def create_extra_line_page(new_file_path):
                 lines_on_last_page = getLines(pdf_file_path, page_number-1)
 
 
-def remove_line(latex_file_path, pdf_line):
-    # clean the pdf line
-    clean_pdf_line = re.sub(r'[^a-zA-Z0-9]+', '', pdf_line)
-    # loop throgh the lines in the latex file backwards
-    with open(latex_file_path, "r") as input_file:
+def get_tables_and_images(lines_on_last_page, latex_file_path):
+    #get all the senstences that begin with \caption{ and end with }
+    pattern = r"\\caption\{(.*?)\}"
+    with open(latex_file_path, "r", encoding="utf-8") as input_file:
         file_content = input_file.read()
-    lines = file_content.strip().split('\n')
-    for line in reversed(lines):
-        # clean the line 
-        cleaned_latex_line = re.sub(r'[^a-zA-Z0-9]+', '', line)
-        # check if clean_pdf_line is a substring of cleaned_latex_line
-        if clean_pdf_line in cleaned_latex_line:
-            try:
-                period_index = line.index('.')
+    matches = re.findall(pattern, file_content)
+    #check if any of the matches are in lines on last page, but first leave only numbers and letters for both lines
+    clean_lines_on_last_page = [re.sub(r'[^a-zA-Z0-9]+', '', line) for line in lines_on_last_page]
+    clean_matches = [re.sub(r'[^a-zA-Z0-9]+', '', match) for match in matches]
+    latex_match = clean_matches[-1]
+    for pdf_match in clean_lines_on_last_page:
+            if latex_match in pdf_match:
+                return True
+    return False
 
-                # Get everything until the first comma, including the comma
-                new_line = line[period_index + 2:]
-                # switch the line with the new line in the lines list
-                lines[lines.index(line)] = new_line
-                
-            except ValueError:
-            # remove the line from the latex file
-                lines.remove(line)
-            break
-    # write the new latex file
-    with open(latex_file_path, "w") as output_file:
-        output_file.write('\n'.join(lines))
 
 
 
 # write test for the remove_line function
-pdfline = "ration and sensing policy, and is thus one of the more"
-tex_file_path = "new_papers_creation/AAAI-12/aaai12-29_changed.tex"
-remove_line(tex_file_path, pdfline)
+# pdfline = "ration and sensing policy, and is thus one of the more"
+# tex_file_path = "new_papers_creation/AAAI-12/aaai12-29_changed.tex"
+# remove_line(tex_file_path, pdfline)
 
 
 

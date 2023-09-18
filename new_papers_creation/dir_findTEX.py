@@ -9,7 +9,7 @@ def find_tex_file(directory_path):
 
     main_tex_candidates = []
     for tex_file in tex_files:
-        with open(os.path.join(directory_path, tex_file), 'r') as f:
+        with open(os.path.join(directory_path, tex_file), 'r', encoding="utf-8") as f:
             content = f.read()
             # file dont end with _changed.tex
             if '\\begin{document}' in content and not tex_file.endswith('_changed.tex') :
