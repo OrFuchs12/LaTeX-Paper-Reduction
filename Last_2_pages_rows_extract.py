@@ -18,7 +18,9 @@ def find_first_row_in_last_page(pdf_file_path, latex_path):
         text = page.within_bbox(left_column).extract_text()
         #TODO: check for tbale works, need to add image and algorithm... 
         text = check_if_text_inside_table(pdf_file_path, text.split('\n'), latex_path)
-        
+        #image
+        #add a check if the table lines are in index 0 and only then delete 
+        #add indication about figures/tables/algorithms
         return text[0]
 
             
@@ -102,7 +104,7 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
         return rows_list
                     
                 
-
+    #check for missing tables and images
     except Exception as e:
             print(f"An error occurred: {e}")
 
