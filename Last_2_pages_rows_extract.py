@@ -122,10 +122,14 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
                     
                 
 def extract_text_from_tables(pdf_path):
+    table_settings = {
+    "vertical_strategy": "text",
+    "horizontal_strategy": "lines"
+    }
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
         #get the text inside the tables 
-        text_in_first_table = page.extract_tables()[0]
+        text_in_first_table = page.extract_tables(table_settings)[0]
         return text_in_first_table
     
 def check_if_text_inside_table(pdf_path, text_in_page, latex_path):
@@ -137,19 +141,23 @@ def check_if_text_inside_table(pdf_path, text_in_page, latex_path):
         #concat all items in a row to one string
         text_in_table = [' '.join(row) for row in text_in_table]
         caption_line = None
+        removed_caption = False
         #find the line of the caption of the table
         if text_in_table:
             #search for regex Table\d*: in the text of the page
             for index, line in enumerate(text_in_page):
                 if re.search(r'Table\d*:', line):
                     caption_line = index
+                    if caption_line == 0:
+                        text_in_page = remove_caption(text_in_page, latex_path , 'Table')
+                        removed_caption = True
                     break
             #for each line until caption line check if the line is in the table
             is_start_page = False
             for index, line in enumerate(text_in_page):
                 if caption_line == None:
                     return text_in_page, is_start_page
-                if  index < caption_line:
+                if removed_caption or (not removed_caption and index < caption_line):
                     for row in text_in_table:
                         clean_line = re.sub(r'[^a-zA-Z]+', '', line)
                         clean_row = re.sub(r'[^a-zA-Z]+', '', row)
@@ -177,8 +185,9 @@ def remove_caption(text_in_page, latex_path , caption_type):
     #find all lines that start with \caption
     caption_lines = []
     temp_line= ""
+    pattern = r'^\s*\\caption'
     for line in lines:
-        if line.startswith(r'\caption'):
+        if re.match(pattern, line):
             if '}' in line:
                 caption_lines.append(line)
             else:
@@ -203,15 +212,14 @@ def remove_caption(text_in_page, latex_path , caption_type):
         if clean_beginning_of_caption in line:
             caption_line = line
             break
+    clean_caption_line = re.sub(r'[^a-zA-Z]+', '', caption_line)
     for index, line in enumerate(text_in_page):
         #remove the regex Table\d: from clean_line
         if caption_type == 'Table':
             clean_line = re.sub(r'Table\d*:', '', line)
         if caption_type == 'Figure':
             clean_line = re.sub(r'Figure\s\d*:', '', line)
-      
         clean_line = re.sub(r'[^a-zA-Z]+', '', clean_line)
-        clean_caption_line = re.sub(r'[^a-zA-Z]+', '', caption_line)
         #search for cdot in the clean_caption_line and remove
         clean_caption_line = clean_caption_line.replace('cdot', '')
         if clean_line in clean_caption_line:
@@ -227,7 +235,7 @@ def remove_caption(text_in_page, latex_path , caption_type):
 
 # print(get_tables_coordinates('test_for_last_page_files/samd_changed.pdf', - NUMBER_OF_LAST_PAGES))
 # print(find_first_row_in_last_page('test_for_last_page_files/samd_changed.pdf'))
-list= convert_Latex_to_rows_list('test_for_last_page_files/prize_changed.tex','test_for_last_page_files/prize_changed.pdf')      
+list= convert_Latex_to_rows_list('test_for_last_page_files/aiide2023_changed.tex','test_for_last_page_files/aiide2023_changed.pdf')      
 # print(list)
 
 # print(check_if_text_inside_table('test_for_last_page_files/samd_changed.pdf'))
