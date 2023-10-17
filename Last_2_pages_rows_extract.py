@@ -10,28 +10,47 @@ def find_first_row_in_last_page(pdf_file_path, latex_path):
     # Open the PDF file and extract the last page
     with pdfplumber.open(pdf_file_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
-
         # Define the x-coordinate ranges for each column
         left_column = (0, 0, page.width / 2, page.height)
-
         # Extract text only from the left column
         text = page.within_bbox(left_column).extract_text()
-        #TODO: check for tbale works, need to add image and algorithm... 
-        first_line, is_start_table, is_start_figure = check_if_text_inside_table(pdf_file_path, text.split('\n'), latex_path)
-        if is_start_table==False or is_start_figure==True:
-            first_line, is_start_image = check_if_text_inside_image(pdf_file_path, text.split('\n'), latex_path)
+        text = text.split('\n')
+        iteration =0
+        last_iteration = False
+        while(len(text) > 1):
+            if last_iteration:
+                break
+            
+            first_line, is_start_table, is_start_figure, return_index, last_iteration = check_if_text_inside_table(pdf_file_path, text, latex_path, iteration)
+            if is_start_table==False or is_start_figure==True:
+                first_line, is_start_image, return_index = check_if_text_inside_image(pdf_file_path, text, latex_path, is_start_figure)
+            if is_start_table or is_start_figure or is_start_image:
+                #the first line is different from the first line in text and we need to check again if the first line is inside table or image
+                text= text[return_index:]
+                iteration+=1
+            else:
+                break
+             
+                
+                
         return first_line
 
 
-def check_if_text_inside_image(pdf_path, text_in_page, latex_path):
-    file = fitz.open(pdf_path)
-    page = file[-NUMBER_OF_LAST_PAGES]
+def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figure = False):
+    return_index = 0
+    index = 0
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
+        if is_start_figure:
+            #find the first line of text in page that starts with Figure
+            for index, line in enumerate(text_in_page):
+                if line.startswith('Figure'):
+                    text_in_page = text_in_page[index:]
+                    break
         if text_in_page[0].startswith('Figure'):
-                text_in_page = remove_caption(text_in_page, latex_path, 'Figure')
-                return text_in_page, True        
-        return text_in_page, False
+                text_in_page, return_index = remove_caption(text_in_page, latex_path, 'Figure')
+                return text_in_page, True, return_index+index        
+        return text_in_page[0], False, return_index+index
     
 def convert_Latex_to_rows_list(latex_path,pdf_path):
     # list of rows to extract from the latex file
@@ -91,19 +110,22 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
     except Exception as e:
             print(f"An error occurred: {e}")
 
-def extract_text_from_tables(pdf_path, latex_path):
+def extract_text_from_tables(pdf_path, latex_path, iteration):
     is_table = False
     is_figure = False
     text = ""
     first_line = ""
+    last_iteration = False
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
-        #get the text inside the tables 
-        #set horizonal and vertical strategies to lines        
-        tables = page.find_tables()
+        left_column = (0, 0, page.width / 2, page.height)
+        tables = page.within_bbox(left_column).find_tables()
+        return_index = 0
         if tables:
             is_table = True
-            first_table = page.find_tables()[0]
+            if len(tables) == iteration+1:
+                last_iteration = True                
+            first_table = tables[iteration]
             table_bbox = first_table.bbox
             #get the first y_coordinate of table
             first_y_coordinate = table_bbox[1]
@@ -113,8 +135,8 @@ def extract_text_from_tables(pdf_path, latex_path):
             # Extract text only from the left column
             text = page.within_bbox(left_column).extract_words()
             #check if the first line in the text is not in the table then its the first line
-            if text[0]['top'] < first_y_coordinate and not text[0]['text'].startswith('Table'):
-                return text[0], is_table, is_figure
+            if text[0]['top'] < first_y_coordinate and text[0]['bottom'] < first_y_coordinate and not text[0]['text'].startswith('Table'):
+                return text[0], is_table, is_figure, 0, last_iteration
             #the table is first so we need to get the y coordinate of the last line in the table
             y_coordinate = table_bbox[3]
             #get the first line in page that is after the table
@@ -126,7 +148,8 @@ def extract_text_from_tables(pdf_path, latex_path):
                     rel_text = page.within_bbox(bbox).extract_text()
                     rel_text = rel_text.split('\n')
                     if line['text'].startswith('Table'):
-                        first_line = remove_caption(rel_text, latex_path, 'Table')
+                        first_line, return_index = remove_caption(rel_text, latex_path, 'Table')
+                        return_index += index
                     #find images that were detected as tables
                     elif not text[0]['text'].startswith('Table'):
                         is_figure = True
@@ -135,14 +158,15 @@ def extract_text_from_tables(pdf_path, latex_path):
                         break
                     else: 
                         first_line = rel_text[0]
+                        return_index = index
                     break
-        return first_line, is_table, is_figure
+        return first_line, is_table, is_figure, return_index, last_iteration
     
-def check_if_text_inside_table(pdf_path, text_in_page, latex_path):
+def check_if_text_inside_table(pdf_path, text_in_page, latex_path, iteration=0):
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
-        text_after_table, is_table, is_figure = extract_text_from_tables(pdf_path, latex_path)
-        return text_after_table, is_table, is_figure
+        text_after_table, is_table, is_figure, return_index, last_iteration = extract_text_from_tables(pdf_path, latex_path, iteration)
+        return text_after_table, is_table, is_figure, return_index, last_iteration
                             
 def remove_caption(text_in_page, latex_path , caption_type):
     with open(latex_path, 'r', encoding='utf-8' ) as f:
@@ -151,17 +175,16 @@ def remove_caption(text_in_page, latex_path , caption_type):
     caption_lines = []
     temp_line= ""
     pattern = r'^\s*\\caption'
-    for line in lines:
+    for i, line in enumerate(lines):
         if re.match(pattern, line):
             if '}' in line:
                 caption_lines.append(line)
             else:
                 temp_line= line
-                index=lines.index(line)
+                index=i
                 while '}' not in lines[index]:
                     index+=1
                     temp_line+=lines[index]
-                temp_line+=lines[index]
                 caption_lines.append(temp_line)
     #remove \caption from the lines
     caption_lines = [line.replace(r'\caption{', '') for line in caption_lines]
@@ -171,12 +194,23 @@ def remove_caption(text_in_page, latex_path , caption_type):
     caption_lines = [re.sub(r'[^a-zA-Z]+', '', line) for line in caption_lines]
     #find the caption that starts with text_in_page[0]
     caption_line = ''
-    for line in caption_lines:
-        beginning_of_caption = text_in_page[0].split(':')[1]
-        clean_beginning_of_caption = re.sub(r'[^a-zA-Z]+', '', beginning_of_caption)
-        if clean_beginning_of_caption in line:
-            caption_line = line
-            break
+    text_index = 0
+    beginning_of_caption = text_in_page[text_index].split(':')[1]
+
+    while len(caption_lines) >1:
+        for index, line in enumerate(caption_lines):
+            clean_beginning_of_caption = re.sub(r'[^a-zA-Z]+', '', beginning_of_caption)
+            if clean_beginning_of_caption in line:
+                continue
+            else:
+                caption_lines[index] = ''
+        #remove the empty lines
+        caption_lines = list(filter(None, caption_lines))
+        text_index+=1
+        beginning_of_caption = text_in_page[text_index]
+
+    caption_line = caption_lines[0]
+
     clean_caption_line = re.sub(r'[^a-zA-Z]+', '', caption_line)
     for index, line in enumerate(text_in_page):
         #remove the regex Table\d: from clean_line
@@ -193,7 +227,7 @@ def remove_caption(text_in_page, latex_path , caption_type):
             break
     #filter out empty lines
     text_in_page = list(filter(None, text_in_page))
-    return text_in_page[0]
+    return text_in_page[0], index
 
 def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption_type) :  
     with pdfplumber.open(pdf_path) as pdf:
