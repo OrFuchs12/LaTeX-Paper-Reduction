@@ -2,6 +2,7 @@ import pdfplumber
 import re
 import pdb
 import PyPDF2
+import fitz
 
 NUMBER_OF_LAST_PAGES = 2
 
@@ -23,6 +24,8 @@ def find_first_row_in_last_page(pdf_file_path, latex_path):
 
 
 def check_if_text_inside_image(pdf_path, text_in_page, latex_path):
+    file = fitz.open(pdf_path)
+    page = file[-NUMBER_OF_LAST_PAGES]
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
         if text_in_page[0].startswith('Figure'):
@@ -90,22 +93,21 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
 
 def extract_text_from_tables(pdf_path, latex_path):
     is_table = False
+    is_figure = False
     text = ""
     first_line = ""
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
         #get the text inside the tables 
+        #set horizonal and vertical strategies to lines        
         tables = page.find_tables()
         if tables:
             is_table = True
-            is_figure = False
             first_table = page.find_tables()[0]
-            last_row = first_table.rows[-1]
-            first_row = first_table.rows[0]
-            last_bbox = last_row.bbox
-            first_bbox = first_row.bbox
-            #get the y coordinate of the first line in the tabke
-            first_y_coordinate = first_bbox[1]
+            table_bbox = first_table.bbox
+            #get the first y_coordinate of table
+            first_y_coordinate = table_bbox[1]
+            text_inside_table = page.extract_tables()[0]
             #get the text in the page of the left column
             left_column = (0, 0, page.width / 2, page.height)
             # Extract text only from the left column
@@ -114,7 +116,7 @@ def extract_text_from_tables(pdf_path, latex_path):
             if text[0]['top'] < first_y_coordinate and not text[0]['text'].startswith('Table'):
                 return text[0], is_table, is_figure
             #the table is first so we need to get the y coordinate of the last line in the table
-            y_coordinate = last_bbox[3]
+            y_coordinate = table_bbox[3]
             #get the first line in page that is after the table
             for index, line in enumerate(text):
                 if line['top'] > y_coordinate:
@@ -199,9 +201,9 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
         for page in pages:
             page_text = page.extract_text()
             if caption_type == 'Figure':
-                table_to_find = re.findall(r'Figure\s\d*:', page_text)
+                table_to_find = re.findall(r'Figure\s*\d*:', page_text)
             elif caption_type == 'Table':
-                table_to_find = re.findall(r'Table\s\d*:', page_text)
+                table_to_find = re.findall(r'Table\s*\d*:', page_text)
             for table in table_to_find:
                 index= re.search(r'\d+', table).group()
                 with open(latex_path, 'r', encoding='utf-8', errors='ignore') as tex_file:
@@ -216,6 +218,7 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
                          begin_pattern= r'\begin{table'
                          end_pattern= r'\end{table'#check if it is the right pattern
                     index_counter = 1
+                    index_in_latex = 0
                     for line in lines:
                         if begin_pattern in line and index_counter == int(index):
                             index_in_latex = lines.index(line)
@@ -226,8 +229,8 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
                             table_latex.append(line)
                         elif begin_pattern in line and index_counter < int(index):
                             index_counter+=1
-                            table_started = True
-                            table_latex.append(line)
+                            # table_started = True
+                            # table_latex.append(line)
                             line = ""
                         elif end_pattern in line and table_started:
                             table_latex.append(line)
@@ -241,7 +244,7 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
                             break
                     if not found_table:
                         for line in table_latex:
-                            rows_list.insert(index_in_latex, line)
+                            rows_list[index_in_latex] = line
                             index_in_latex+=1
                        
     return rows_list
@@ -252,7 +255,7 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
 
 # print(get_tables_coordinates('test_for_last_page_files/samd_changed.pdf', - NUMBER_OF_LAST_PAGES))
 # print(find_first_row_in_last_page('test_for_last_page_files/samd_changed.pdf'))
-list= convert_Latex_to_rows_list('test_for_last_page_files/aiide2023_changed.tex','test_for_last_page_files/aiide2023_changed.pdf')      
+list= convert_Latex_to_rows_list('test_for_last_page_files/AAAI-LevO.3805_changed.tex','test_for_last_page_files/AAAI-LevO.3805_changed.pdf')      
 # print(list)
 
 # print(check_if_text_inside_table('test_for_last_page_files/samd_changed.pdf'))
