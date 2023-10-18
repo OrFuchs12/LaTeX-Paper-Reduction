@@ -17,11 +17,12 @@ def find_first_row_in_last_page(pdf_file_path, latex_path):
         text = text.split('\n')
         iteration =0
         last_iteration = False
+        return_index = 0
         while(len(text) > 1):
             if last_iteration:
                 break
             
-            first_line, is_start_table, is_start_figure, return_index, last_iteration = check_if_text_inside_table(pdf_file_path, text, latex_path, iteration)
+            first_line, is_start_table, is_start_figure, return_index, last_iteration = check_if_text_inside_table(pdf_file_path, text, latex_path, iteration, return_index)
             if is_start_table==False or is_start_figure==True:
                 first_line, is_start_image, return_index = check_if_text_inside_image(pdf_file_path, text, latex_path, is_start_figure)
             if is_start_table or is_start_figure or is_start_image:
@@ -110,7 +111,7 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
     except Exception as e:
             print(f"An error occurred: {e}")
 
-def extract_text_from_tables(pdf_path, latex_path, iteration):
+def extract_text_from_tables(pdf_path, latex_path,text, iteration, return_index=0):
     is_table = False
     is_figure = False
     text = ""
@@ -120,7 +121,6 @@ def extract_text_from_tables(pdf_path, latex_path, iteration):
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
         left_column = (0, 0, page.width / 2, page.height)
         tables = page.within_bbox(left_column).find_tables()
-        return_index = 0
         if tables:
             is_table = True
             if len(tables) == iteration+1:
@@ -132,10 +132,11 @@ def extract_text_from_tables(pdf_path, latex_path, iteration):
             text_inside_table = page.extract_tables()[0]
             #get the text in the page of the left column
             left_column = (0, 0, page.width / 2, page.height)
-            # Extract text only from the left column
-            text = page.within_bbox(left_column).extract_words()
+            # Extract text only from the left column and separate by lines
+            text = page.within_bbox(left_column).extract_text_lines()
+            
             #check if the first line in the text is not in the table then its the first line
-            if text[0]['top'] < first_y_coordinate and text[0]['bottom'] < first_y_coordinate and not text[0]['text'].startswith('Table'):
+            if text[return_index]['top'] < first_y_coordinate and text[return_index]['bottom'] < first_y_coordinate and not text[0]['text'].startswith('Table'):
                 return text[0], is_table, is_figure, 0, last_iteration
             #the table is first so we need to get the y coordinate of the last line in the table
             y_coordinate = table_bbox[3]
@@ -162,10 +163,10 @@ def extract_text_from_tables(pdf_path, latex_path, iteration):
                     break
         return first_line, is_table, is_figure, return_index, last_iteration
     
-def check_if_text_inside_table(pdf_path, text_in_page, latex_path, iteration=0):
+def check_if_text_inside_table(pdf_path, text_in_page, latex_path, iteration=0, return_index=0):
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
-        text_after_table, is_table, is_figure, return_index, last_iteration = extract_text_from_tables(pdf_path, latex_path, iteration)
+        text_after_table, is_table, is_figure, return_index, last_iteration = extract_text_from_tables(pdf_path, latex_path, text_in_page,iteration,return_index)
         return text_after_table, is_table, is_figure, return_index, last_iteration
                             
 def remove_caption(text_in_page, latex_path , caption_type):
@@ -290,6 +291,6 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
 # print(get_tables_coordinates('test_for_last_page_files/samd_changed.pdf', - NUMBER_OF_LAST_PAGES))
 # print(find_first_row_in_last_page('test_for_last_page_files/samd_changed.pdf'))
 list= convert_Latex_to_rows_list('test_for_last_page_files/AAAI-LevO.3805_changed.tex','test_for_last_page_files/AAAI-LevO.3805_changed.pdf')      
-# print(list)
+print(list)
 
 # print(check_if_text_inside_table('test_for_last_page_files/samd_changed.pdf'))
