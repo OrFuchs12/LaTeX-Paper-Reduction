@@ -13,6 +13,7 @@ import features_single
 import pandas as pd
 import time
 import xgboost as xg
+from Last_2_pages_rows_extract import convert_Latex_to_rows_list
 
 
 def take(n, iterable):
@@ -52,26 +53,27 @@ def combine_two_paragraphs(lst, index_1, index_2):
     return lst
 
 
-def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to_file):
+def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file):  # ,path_to_file):
 
+
+    lidor = convert_Latex_to_rows_list(latex_path, pdf_path)
     with open(latex_path, encoding='UTF-8') as file:
-        lidor = []
         latex_clean_lines = []
         with open(latex_path, encoding='UTF-8') as file:
-            foundHeader = False
-            foundBottom = False
+            # foundHeader = False
+            # foundBottom = False
             for line in file:
                 latex_clean_lines.append(line)
-                if foundHeader == False:
-                    if line.startswith("\\begin{document}"):
-                        foundHeader = True
-                    lidor.append("\n")
-                else:
-                    if foundBottom == False and line.startswith("\\end{document}"):
-                        foundBottom = True
-                    else:
-                        if foundBottom == False:
-                            lidor.append(line)
+                # if foundHeader == False:
+                #     if line.startswith("\\begin{document}"):
+                #         foundHeader = True
+                #     lidor.append("\n")
+                # else:
+                #     if foundBottom == False and line.startswith("\\end{document}"):
+                #         foundBottom = True
+                #     else:
+                #         if foundBottom == False:
+                #             lidor.append(line)
 
     
     list_of_starts, tags = perry2.parse2_lidor(latex_path, lidor)  # perry.parse2_lidor(latex_path, lidor)
@@ -665,7 +667,7 @@ def simple_greedy(path_to_pdf, path_to_latex):
                 dct = pickle.load(dct_file)
 
             # get list of all possible operators to apply on the file
-            res = perform_operators(dct, 0, path_to_latex, "~/results/new_files/")
+            res = perform_operators(dct, 0, path_to_latex, path_to_pdf ,"~/results/new_files/")
             print("total operators:", len(res))
 
             # whether there are no more operators
@@ -1052,7 +1054,7 @@ if __name__ == "__main__":
     #0 -> simple greedy algorithm.
     #1 -> heuristic greedy algorithm.
     #2 -> model greedy algorithm.
-    if x==0: 
+    if x==0:  
         run_greedy_experiment(simple_greedy, "simple greedy", "results_simple_greedy", pdf_tex_files_dir, dir_to_results)
     elif x==1:
         run_greedy_experiment(heuristic_greedy, "heuristic greedy", "results_heuristic_greedy", pdf_tex_files_dir, dir_to_results)

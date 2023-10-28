@@ -1,32 +1,13 @@
 import perry
 import combining_tex_by_content_comparison_functions_h as combining_tex_by_content_comparison_functions
+from Last_2_pages_rows_extract import convert_Latex_to_rows_list
 
 def run(latex_path,pdf_path,bib_path):
     try:
     # lidor = Lidor_part.read_file(latex_path, bib_path)
-        lidor = []
-        with open(latex_path, encoding='UTF-8') as file:
-            # doc = file.read()
-
-            foundHeader=False
-            foundBottom=False
-            for line in file:
-                if foundHeader==False:
-                    if line.startswith("\\begin{document}"):
-                        foundHeader=True
-                    lidor.append("\n")
-                else:
-                    if foundBottom==False and line.startswith("\\end{document}"):
-                        foundBottom=True
-                    else:
-                        if foundBottom==False:
-                            lidor.append(line)
+        lidor = convert_Latex_to_rows_list(latex_path, pdf_path)
 
 
-
-        # lidor_new = ["\n" for line in range(29)]
-        # lidor = lidor_new + lidor
-        #print(11)
         tags, lines = perry.parse(latex_path, lidor)
         
         tags_without_figures_and_tables = []

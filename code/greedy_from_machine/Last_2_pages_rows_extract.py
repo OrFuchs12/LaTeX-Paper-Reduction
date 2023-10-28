@@ -288,9 +288,4 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
 
 
 
-# print(get_tables_coordinates('test_for_last_page_files/samd_changed.pdf', - NUMBER_OF_LAST_PAGES))
-# print(find_first_row_in_last_page('test_for_last_page_files/samd_changed.pdf'))
-list= convert_Latex_to_rows_list('test_for_last_page_files/AAAI-LevO.3805_changed.tex','test_for_last_page_files/AAAI-LevO.3805_changed.pdf')      
-print(list)
 
-# print(check_if_text_inside_table('test_for_last_page_files/samd_changed.pdf'))
