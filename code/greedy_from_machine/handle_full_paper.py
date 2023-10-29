@@ -8,7 +8,7 @@ import re
 
 NUMBER_OF_LAST_PAGES = 2
 
-pdf_path = 'last_pages_from_full_paper\AAAI 2016\prize_changed.pdf'
+# pdf_path = 'last_pages_from_full_paper\AAAI 2016\prize_changed.pdf'
   
 #create a new pdf file with only last pages
 def copy_last_pages(input_pdf_path, output_pdf_path, NUMBER_OF_LAST_PAGES):
@@ -25,7 +25,7 @@ def copy_last_pages(input_pdf_path, output_pdf_path, NUMBER_OF_LAST_PAGES):
     pdf_document.close()
     new_pdf_document.close()
             
-copy_last_pages(pdf_path, "output.pdf", NUMBER_OF_LAST_PAGES)
+# copy_last_pages("code/greedy_from_machine/files/samd_changed.pdf", "output.pdf", NUMBER_OF_LAST_PAGES)
 
 def remove_comments(latex_path):
     with open(latex_path, 'r') as f:
@@ -45,6 +45,3 @@ def remove_astrik_inside_paranthases(latex_path):
             line = re.sub(r'\\end{(\w+)\*}', r'\\end{\1}', line)
             f.write(line)
     
-
-copy_last_pages
-remove_astrik_inside_paranthases("code\\greedy_from_machine\\files\\prize_changed.tex")

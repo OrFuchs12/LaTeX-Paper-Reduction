@@ -2,7 +2,7 @@ import pdfplumber
 import re
 import pdb
 import PyPDF2
-import fitz
+# import fitz
 
 NUMBER_OF_LAST_PAGES = 2
 

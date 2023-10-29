@@ -51,6 +51,7 @@ def run(p):
     path = Path(p).expanduser()
 
     pages = extract_pages(path)
+ 
     pages_number=2
     for i in range(pages_number):
         a[i]=[]
