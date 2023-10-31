@@ -15,6 +15,7 @@ import time
 import xgboost as xg
 from Last_2_pages_rows_extract import convert_Latex_to_rows_list
 from handle_full_paper import copy_last_pages
+from handle_full_paper import remove_comments
 
 def take(n, iterable):
     "Return first n items of the iterable as a list"
@@ -637,11 +638,12 @@ def simple_greedy(path_to_pdf, path_to_latex):
     try:
         operators_done = []
         #perform feature extraction to the file
-        extract_name= path_to_pdf.split("/")[-1].split(".")[0]
-        
-        new_path= "new.pdf"
-        copy_last_pages(path_to_pdf, new_path, 2)
-        features_single.run_feature_extraction(path_to_latex, new_path, '/code/greedy_from_machine/bibliography.bib',
+        # extract_name= path_to_pdf.split("/")[-1].split(".")[0]
+        # remove_comments(path_to_latex)
+            
+        # new_path= "new.pdf"
+        # copy_last_pages(path_to_pdf, new_path, 2)
+        features_single.run_feature_extraction(path_to_latex, path_to_pdf, '/code/greedy_from_machine/bibliography.bib',
                                                     "code/~/results/dct0",
                                                     "~/results/new_files/dct0", "test", pd.DataFrame())
         lines, pages = check_lines(path_to_pdf)
@@ -738,7 +740,7 @@ def heuristic_greedy(path_to_pdf, path_to_latex):
     try:
         operators_done = []
         #perform feature extraction to the file
-        features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'greedy_from_machine/bibliography.bib',
+        features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
                                                     "~/results/dct0",
                                                     "~/results/new_files/dct0", "test", pd.DataFrame())
         lines, pages = check_lines(path_to_pdf)
@@ -875,7 +877,7 @@ def model_greedy(path_to_pdf, path_to_latex, models):
             return -1, -1, False, -1
 
         #perform feature extraction to the file
-        df1 = features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'greedy_from_machine/bibliography.bib',
+        df1 = features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
                                                         "~/results/dct0",
                                                         "~/results/new_files/dct0", "test",
                                                         pd.DataFrame())
@@ -1019,6 +1021,8 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
             file_path = os.path.join(directory, filename + ".tex")
             if os.path.isfile(file_path):
                 path_to_latex = file_path
+                remove_comments(path_to_latex)
+
 
             # whether you want to run the model-based greedy algorithm
             if models: 

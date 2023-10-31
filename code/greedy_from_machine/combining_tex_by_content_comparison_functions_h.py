@@ -53,19 +53,12 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
 
                 if i[1].startswith("TABLETABLE"):  # it's a table
 
-                    if len(tables) > tables_counter and tables[tables_counter][0][-1]=="True":
+                    if tables[tables_counter][0][-1]=="True":
                         current_need_to_be_caption_table=True
                     # object_dict.append([i[0], figures[figures_counter], i[1], index_line, k, j])
-                        helper_dict = {"First_line_bbox": i[0], "Text": tables[tables_counter][0], "Line": index_line,
-                                        "k": k, "j": j,"Type":"Table","LaTeX":"", "NumberLine":tables[tables_counter][1]}
-                        object_dict.append(helper_dict)
-                        tables_counter += 1
-                    if len(figures) > figures_counter and figures[figures_counter][0][-1]=="True":
-                        current_need_to_be_caption_figure=True
-                        helper_dict={"First_line_bbox":i[0],"Text":figures[figures_counter][0],"Line":index_line,"k":k,"j":j,"Type":"Figure"
-                                     ,"LaTeX":"", "NumberLine":figures[figures_counter][1]}
-                        object_dict.append(helper_dict)
-                        figures_counter+=1
+                    helper_dict = {"First_line_bbox": i[0], "Text": tables[tables_counter][0], "Line": index_line,
+                                    "k": k, "j": j,"Type":"Table","LaTeX":"", "NumberLine":tables[tables_counter][1]}
+                    object_dict.append(helper_dict)
 
                     if len(object_dict) > 1:
                         # object_dict[len(object_dict) - 2].append(last_line_bbox)
@@ -75,7 +68,7 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
                         object_dict[len(object_dict) - 2]["pdf_array"] =pdf_arr_for_appending
 
                         pdf_arr_for_appending=[i]
-                    
+                    tables_counter += 1
                     object_dict_counter += 1
 
                 elif i[1].startswith("FIGUREFIGURE"):  # it's a figure
@@ -700,6 +693,7 @@ def running_from_outside(pdf_path,tags,figures,tables,algorithms,lines_to_search
         final_list=filling_missing_objects_locations(objects_list,missing_objects_list,tags,lines_to_search,pdf_extract)
 
         final_list=fixing_missing_objects(final_list,tags,lines_to_search,pdf_extract)
+        final_list = objects_list
 
         totheight=0
         for k in pdf_extract[1][0]:

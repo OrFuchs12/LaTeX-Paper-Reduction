@@ -28,9 +28,9 @@ def copy_last_pages(input_pdf_path, output_pdf_path, NUMBER_OF_LAST_PAGES):
 # copy_last_pages("code/greedy_from_machine/files/samd_changed.pdf", "output.pdf", NUMBER_OF_LAST_PAGES)
 
 def remove_comments(latex_path):
-    with open(latex_path, 'r') as f:
+    with open(latex_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
-    with open(latex_path, 'w') as f:
+    with open(latex_path, 'w', encoding='utf-8') as f:
         for line in lines:
             if not re.match(r'^\s*%', line):
                 f.write(line)
@@ -45,3 +45,4 @@ def remove_astrik_inside_paranthases(latex_path):
             line = re.sub(r'\\end{(\w+)\*}', r'\\end{\1}', line)
             f.write(line)
     
+# copy_last_pages("code/greedy_from_machine/files/Keller_changed.pdf", "updated_keller.pdf", NUMBER_OF_LAST_PAGES)
