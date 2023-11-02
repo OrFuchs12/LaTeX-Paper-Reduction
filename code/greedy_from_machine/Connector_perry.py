@@ -64,6 +64,8 @@ def recurs(hirar, lines):
         if type == "par":
             for par in paragraphs:
                 size = paragraphs[par]
+                if size.__len__() == 1:
+                    size = [size[0], size[0] + 1]
                 lns = lines[size[0]:size[1]]
                 liine_koin = ''.join(lns)
                 parpar2.append([liine_koin, size])

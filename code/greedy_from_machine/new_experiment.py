@@ -1,5 +1,6 @@
 import os
 import pickle
+import subprocess
 import time
 import perry
 import perry2
@@ -57,24 +58,29 @@ def combine_two_paragraphs(lst, index_1, index_2):
 def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file):  # ,path_to_file):
 
 
-    lidor = convert_Latex_to_rows_list(latex_path, pdf_path)
-    with open(latex_path, encoding='UTF-8') as file:
-        latex_clean_lines = []
-        with open(latex_path, encoding='UTF-8') as file:
-            # foundHeader = False
-            # foundBottom = False
-            for line in file:
-                latex_clean_lines.append(line)
-                # if foundHeader == False:
-                #     if line.startswith("\\begin{document}"):
-                #         foundHeader = True
-                #     lidor.append("\n")
-                # else:
-                #     if foundBottom == False and line.startswith("\\end{document}"):
-                #         foundBottom = True
-                #     else:
-                #         if foundBottom == False:
-                #             lidor.append(line)
+    # lidor = convert_Latex_to_rows_list(latex_path, pdf_path)
+    lidor = []
+    latex_clean_lines = []
+    with open(latex_path, encoding='UTF-8') as f:
+        file = f.read()
+        file = file.split("\n")
+        foundHeader=False
+        foundBottom=False
+        for line in file:
+            line = line.lstrip()
+            latex_clean_lines.append(line)
+            if foundHeader==False:
+                if line.startswith("\\begin{document}"):
+                    foundHeader=True
+                lidor.append("\n")
+            else:
+                if foundBottom==False and line.startswith("\\end{document}"):
+                    foundBottom=True
+                elif foundBottom == False and line == "":
+                    lidor.append("\n")
+                else:
+                    if foundBottom==False:
+                        lidor.append(line)
 
     
     list_of_starts, tags = perry2.parse2_lidor(latex_path, lidor)  # perry.parse2_lidor(latex_path, lidor)
@@ -177,6 +183,9 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file):  #
     pdf_pairs = [(pdf_order[i], pdf_order[i + 1]) for i in range(len(pdf_order) - 1)]
     latex_pairs = [(latex_order[i], latex_order[i + 1]) for i in range(len(latex_order) - 1)]
     pair_to_check = []
+    
+    height = 1
+    width = 1
 
     for key, value in objects.items():  # in this loop we will make all the operators
 
@@ -700,8 +709,11 @@ def simple_greedy(path_to_pdf, path_to_latex):
             f.close()
 
             # compile the file
-            cmd_line_act = 'tectonic -X compile ' + "code/~/results/new_files/after_operator1.tex"
-            os.system(cmd_line_act)
+            # cmd_line_act = 'tectonic -X compile ' + "code/~/results/new_files/after_operator1.tex"
+            dir_path = os.path.dirname(path_to_latex)
+            base_name = os.path.basename(path_to_latex)
+            subprocess.run(['pdflatex.exe', base_name], cwd=dir_path)
+            # os.system(cmd_line_act)
 
             lines_before = lines
             # check the new current number of lines
