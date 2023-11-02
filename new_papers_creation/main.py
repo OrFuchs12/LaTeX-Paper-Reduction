@@ -1,7 +1,5 @@
 from dir_findTEX import find_tex_file
-from Vspace_delete import has_aaai_format
-from Vspace_delete import comment_vspace_lines
-from Vspace_delete import remove_pdfinfo_commands
+from Vspace_delete import *
 import os
 from addRows import *
 import shutil
@@ -32,15 +30,17 @@ def create_new_pdf(directory_path):
             # create a new file with the same name as the original file, but with the suffix '_changed' and the same content as the original file.
             new_file_name = os.path.splitext(os.path.basename(tex_file_path))[0] + "_changed.tex"
             new_file_path = os.path.join(directory_path, new_file_name)
-            with open(tex_file_path, 'r') as original_file:
+            with open(tex_file_path, 'r', encoding="utf-8") as original_file:
                 content = original_file.read()
-            with open(new_file_path, 'w') as new_file:
+            with open(new_file_path, 'w', encoding="utf-8") as new_file:
                 new_file.write(content)        
             # comment the vspace lines (delete the vspace command and add a comment sign before it)
             remove_pdfinfo_commands(new_file_path)
             comment_vspace_lines(new_file_path)
+            remove_new_page_command(new_file_path)
+            # remove_small_command(new_file_path)
             # add 3 lines to the last page
-            create_3Lines_page(new_file_path)
+            create_extra_line_page(new_file_path)
             
 
             
@@ -58,5 +58,30 @@ def move_changed_pdfs(directory_path, destination_path):
     # move directory to destination path
     shutil.move(directory_path, destination_path)
 
-loop_through_directories("new_papers_creation/All_Directories")
 
+
+
+
+
+
+
+
+    
+
+loop_through_directories("new_papers_creation\\failed_last_time")
+# create_new_pdf("new_papers_creation\\AAAI 2016")
+# create_new_pdf('new_papers_creation\\aaai_docs')
+# str = "hello yosi my name is or"
+# clean_str = "helloyosimynameisor"
+# substring = "my name"
+# clean_substring = "myname"
+
+# # Find the index of the substring in the cleaned string
+# clean_index = clean_str.find(clean_substring)
+
+# if clean_index != -1:
+#     # Calculate the corresponding index in the original string
+#     original_index = clean_index + str[:clean_index + 1 ].count(" ")
+#     print(f"The substring '{substring}' was found at index {original_index} in the original string.")
+# else:
+#     print(f"The substring '{substring}' was not found in the original string.")
