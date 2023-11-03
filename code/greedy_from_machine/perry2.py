@@ -481,6 +481,16 @@ def parse(path, lines= None):
     return create_tag, create_lines_to_search
 
 def parse2_lidor(path, lines= None):
+    """_summary_
+
+    Args:
+        path : path to latex file
+        lines :lidor's lines
+
+    Returns:
+        list of starts: list of line numbers
+        , list of tags
+    """
     if lines != None:
         file = lines
     else:

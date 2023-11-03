@@ -2,6 +2,18 @@ import perry
 import combining_tex_by_content_comparison_functions_h as combining_tex_by_content_comparison_functions
 
 def run(latex_path,pdf_path,bib_path):
+    """_summary_
+
+    Args:
+        latex_path : the path to the latex file
+        pdf_path : the path to the pdf file
+        bib_path : the path to the bib file
+    Description:
+        This function creates lidor (the list of relevant lines in latex) and then runs the algorithm on it.
+
+    Returns:
+        list of dictionaries, each dictionary represents a part of the paper
+    """
     try:
     # lidor = Lidor_part.read_file(latex_path, bib_path)
         lidor = []

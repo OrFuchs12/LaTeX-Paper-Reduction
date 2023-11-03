@@ -54,6 +54,7 @@ def combine_two_paragraphs(lst, index_1, index_2):
 
 def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to_file):
 
+    #lidor creation, same as in test (creation of the lines that matter in latex) 
     with open(latex_path, encoding='UTF-8') as file:
         lidor = []
         latex_clean_lines = []
@@ -608,7 +609,7 @@ def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to
 
 
 """ 
-    This function return the number of lines in the last page of pdf file, parameters:
+    This function return the number of lines in the last page of pdf file and the number of pages, parameters:
     file_path - path to the pdf file 
 """
 def check_lines(file_path):
@@ -662,7 +663,7 @@ def simple_greedy(path_to_pdf, path_to_latex):
             print("index:", index)
             # get the dictionary of the file
             with open('code/~/results/dct0', 'rb') as dct_file:
-                dct = pickle.load(dct_file)
+                dct = pickle.load(dct_file) #dict of dicts: for each object in file what are the features
 
             # get list of all possible operators to apply on the file
             res = perform_operators(dct, 0, path_to_latex, "~/results/new_files/")
@@ -986,7 +987,7 @@ def model_greedy(path_to_pdf, path_to_latex, models):
     models - dict of models (dictionary) 
 """
 def run_greedy_experiment(variant_function, variant_name, variant_file_name, files_dir, results_dir, models=None):
-    names = []
+    names = [] #names of the files
     directory = files_dir
     for file in os.scandir(directory):
         if file.is_file():
@@ -1046,7 +1047,7 @@ if __name__ == "__main__":
     x=int(sys.argv[1])
     pdf_tex_files_dir=sys.argv[2]
     dir_to_results=sys.argv[3]
-    path_to_models=sys.argv[4]
+    path_to_models=sys.argv[4] # the tree of all optional of applying operators 
 
     # How to select algorithm type:
     #0 -> simple greedy algorithm.
