@@ -68,6 +68,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file):  #
         foundBottom=False
         for line in file:
             line = line.lstrip()
+            line += "\n"
             latex_clean_lines.append(line)
             if foundHeader==False:
                 if line.startswith("\\begin{document}"):
@@ -184,8 +185,8 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file):  #
     latex_pairs = [(latex_order[i], latex_order[i + 1]) for i in range(len(latex_order) - 1)]
     pair_to_check = []
     
-    height = 1
-    width = 1
+    height = 0
+    width = 0
 
     for key, value in objects.items():  # in this loop we will make all the operators
 
@@ -710,8 +711,8 @@ def simple_greedy(path_to_pdf, path_to_latex):
 
             # compile the file
             # cmd_line_act = 'tectonic -X compile ' + "code/~/results/new_files/after_operator1.tex"
-            dir_path = os.path.dirname(path_to_latex)
-            base_name = os.path.basename(path_to_latex)
+            dir_path = "code/~/results/new_files"
+            base_name = os.path.basename("code/~/results/new_files/after_operator1.tex")
             subprocess.run(['pdflatex.exe', base_name], cwd=dir_path)
             # os.system(cmd_line_act)
 
