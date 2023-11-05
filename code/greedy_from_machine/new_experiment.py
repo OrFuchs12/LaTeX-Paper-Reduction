@@ -713,7 +713,9 @@ def simple_greedy(path_to_pdf, path_to_latex):
             # cmd_line_act = 'tectonic -X compile ' + "code/~/results/new_files/after_operator1.tex"
             dir_path = "code/~/results/new_files"
             base_name = os.path.basename("code/~/results/new_files/after_operator1.tex")
-            subprocess.run(['pdflatex.exe', base_name], cwd=dir_path)
+            # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+            subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
+            
             # os.system(cmd_line_act)
 
             lines_before = lines
