@@ -218,7 +218,7 @@ def remove_caption(text_in_page, latex_path , caption_type):
         if caption_type == 'Table':
             clean_line = re.sub(r'Table\d*:', '', line)
         if caption_type == 'Figure':
-            clean_line = re.sub(r'Figure\s\d*:', '', line)
+            clean_line = re.sub(r'Figure\s*\d*:', '', line)
         clean_line = re.sub(r'[^a-zA-Z]+', '', clean_line)
         #search for cdot in the clean_caption_line and remove
         clean_caption_line = clean_caption_line.replace('cdot', '')

@@ -11,8 +11,8 @@ NUMBER_OF_LAST_PAGES = 2
 # pdf_path = 'last_pages_from_full_paper\AAAI 2016\prize_changed.pdf'
   
 #create a new pdf file with only last pages
-def copy_last_pages(input_pdf_path, output_pdf_path, NUMBER_OF_LAST_PAGES):
-    
+def copy_last_pages(input_pdf_path, NUMBER_OF_LAST_PAGES):
+    output_pdf_path = input_pdf_path[:-4] + "_last_pages.pdf"
     pdf_document = fitz.open(input_pdf_path)
     total_pages = len(pdf_document)
     new_pdf_document = fitz.open()
@@ -24,6 +24,7 @@ def copy_last_pages(input_pdf_path, output_pdf_path, NUMBER_OF_LAST_PAGES):
     
     pdf_document.close()
     new_pdf_document.close()
+    return output_pdf_path
             
 # copy_last_pages("code/greedy_from_machine/files/samd_changed.pdf", "output.pdf", NUMBER_OF_LAST_PAGES)
 

@@ -18,6 +18,8 @@ from Last_2_pages_rows_extract import convert_Latex_to_rows_list
 from handle_full_paper import copy_last_pages
 from handle_full_paper import remove_comments
 
+NUMBER_OF_LAST_PAGES = 2
+
 def take(n, iterable):
     "Return first n items of the iterable as a list"
     return list(islice(iterable, n))
@@ -715,19 +717,22 @@ def simple_greedy(path_to_pdf, path_to_latex):
             base_name = os.path.basename("code/~/results/new_files/after_operator1.tex")
             # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
             subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
+            last_pages_pdf = copy_last_pages(path_to_pdf, NUMBER_OF_LAST_PAGES)
+            
             
             # os.system(cmd_line_act)
 
             lines_before = lines
             # check the new current number of lines
-            lines, pages = check_lines("code/~/results/new_files/after_operator1.pdf")
-            print("current lines:", lines)
-            print("current pages:", pages)
+            lines, pages = check_lines(last_pages_pdf)
+            fullLines , fullPages = check_lines("code/~/results/new_files/after_operator1.pdf")
+            print("current lines:", fullLines)
+            print("current pages:", fullPages)
 
             path_to_latex = "code/~/results/new_files/after_operator1.tex"
 
             features_single.run_feature_extraction("code/~/results/new_files/after_operator1.tex", 
-                    "code/~/results/new_files/after_operator1.pdf", '~/results/bibliography.bib',
+                    last_pages_pdf, '~/results/bibliography.bib',
                     "code/~/results/dct0", "~/results/new_files/dct0", "test", pd.DataFrame())
 
             total_cost += res[index][0]
@@ -1031,6 +1036,7 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
             file_path = os.path.join(directory, filename + ".pdf")
             if os.path.isfile(file_path):
                 path_to_pdf = file_path
+                last_pages_pdf_path = copy_last_pages(path_to_pdf,NUMBER_OF_LAST_PAGES )
             
             # get the full latex path of the file
             file_path = os.path.join(directory, filename + ".tex")
@@ -1041,11 +1047,11 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
 
             # whether you want to run the model-based greedy algorithm
             if models: 
-                iterations, time_taken, reduced, cost = variant_function(path_to_pdf, path_to_latex, models)
+                iterations, time_taken, reduced, cost = variant_function(last_pages_pdf_path, path_to_latex, models)
 
             # whether you want to run other greedy algorithms
             else: 
-                iterations, time_taken, reduced, cost = variant_function(path_to_pdf, path_to_latex)
+                iterations, time_taken, reduced, cost = variant_function(last_pages_pdf_path, path_to_latex)
 
             if iterations != -1:
                 results.append((filename, variant_name, reduced, iterations, time_taken, cost))
