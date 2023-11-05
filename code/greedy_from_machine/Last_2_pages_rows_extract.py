@@ -60,7 +60,7 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
     first_row_to_begin = find_first_row_in_last_page(pdf_path, latex_path)
     print(first_row_to_begin)
     # clean the line to make it easier to compare
-    clean_line = re.sub(r'[^a-zA-Z]+', '', first_row_to_begin)
+    clean_line = re.sub(r'[^a-zA-Z0-9]+', '', first_row_to_begin)
     # search the line in  the latex file
     try:
         with open(latex_path, 'r',encoding='utf-8', errors='ignore') as tex_file:
@@ -78,7 +78,7 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
         for line in lines:
             # Use re.sub to replace LaTeX commands with an empty string
             clean_linePDF = re.sub(pattern, '', line)
-            clean_latex_line_to_compare = re.sub(r'[^a-zA-Z]+', '', clean_linePDF)
+            clean_latex_line_to_compare = re.sub(r'[^a-zA-Z0-9]+', '', clean_linePDF)
             while(not found_start and clean_line not in clean_latex_line_to_compare):
                 lines_before_the_line += 1
                 rows_list.append('\n')
