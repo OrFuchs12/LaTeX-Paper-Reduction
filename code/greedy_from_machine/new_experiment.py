@@ -60,30 +60,30 @@ def combine_two_paragraphs(lst, index_1, index_2):
 def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file):  # ,path_to_file):
 
 
-    # lidor = convert_Latex_to_rows_list(latex_path, pdf_path)
-    lidor = []
+    lidor = convert_Latex_to_rows_list(latex_path, pdf_path)
+    # lidor = []
     latex_clean_lines = []
     with open(latex_path, encoding='UTF-8') as f:
         file = f.read()
         file = file.split("\n")
-        foundHeader=False
-        foundBottom=False
+        # foundHeader=False
+        # foundBottom=False
         for line in file:
             line = line.lstrip()
             line += "\n"
             latex_clean_lines.append(line)
-            if foundHeader==False:
-                if line.startswith("\\begin{document}"):
-                    foundHeader=True
-                lidor.append("\n")
-            else:
-                if foundBottom==False and line.startswith("\\end{document}"):
-                    foundBottom=True
-                elif foundBottom == False and line == "":
-                    lidor.append("\n")
-                else:
-                    if foundBottom==False:
-                        lidor.append(line)
+            # if foundHeader==False:
+            #     if line.startswith("\\begin{document}"):
+            #         foundHeader=True
+            #     lidor.append("\n")
+            # else:
+            #     if foundBottom==False and line.startswith("\\end{document}"):
+            #         foundBottom=True
+            #     elif foundBottom == False and line == "":
+            #         lidor.append("\n")
+            #     else:
+            #         if foundBottom==False:
+            #             lidor.append(line)
 
     
     list_of_starts, tags = perry2.parse2_lidor(latex_path, lidor)  # perry.parse2_lidor(latex_path, lidor)
