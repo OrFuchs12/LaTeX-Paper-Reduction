@@ -2,6 +2,8 @@ import os
 import pickle
 import subprocess
 import time
+
+import pdfplumber
 import perry
 import perry2
 import PyPDF2
@@ -17,8 +19,16 @@ import xgboost as xg
 from Last_2_pages_rows_extract import convert_Latex_to_rows_list
 from handle_full_paper import copy_last_pages
 from handle_full_paper import remove_comments
+import cv2
 
 NUMBER_OF_LAST_PAGES = 2
+
+
+def get_new_height(img_path, new_width):
+    im = cv2.imread(img_path)
+    height, width, channel = im.shape
+    new_height = round((height * new_width / width), 2) 
+    return new_height
 
 def take(n, iterable):
     "Return first n items of the iterable as a list"
@@ -58,7 +68,6 @@ def combine_two_paragraphs(lst, index_1, index_2):
 
 
 def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file):  # ,path_to_file):
-
 
     lidor = convert_Latex_to_rows_list(latex_path, pdf_path)
     # lidor = []
@@ -432,10 +441,12 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file):  #
                         width = float(number)
                         break
                     running_index += 1
+            given_height = False
             start_index = string_to_edit.find('height')
             running_index = 0
             if (start_index != -1):  # find the number for height
                 running_index = start_index
+                given_height = True
                 while (running_index < len(string_to_edit)):
                     if (string_to_edit[running_index] == '='):
                         running_index += 1  # now we will find the number and change it
@@ -450,11 +461,26 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file):  #
                         height = float(number)
                         break
                     running_index += 1
+            else: #no height declared in latex, we will find the height using proportion of width 
+                #get image path
+                start_img_path_index = string_to_edit.find('{')
+                end_img_path_index = string_to_edit.find('}')
+                img_path = string_to_edit[start_img_path_index+1:end_img_path_index]
+                #add current working directory to the path
+                prefix = "code/greedy_from_machine/files"
+                img_path = os.path.join(prefix, img_path)
+                height = get_new_height(img_path, width) 
+               
+                
+                
             # create 5 options:
             options = [0.9, 0.8, 0.7, 0.6, 0.5]  # scale options
             figure_name_key_new_latex_list_value[
                 key] = []  # this dict will have the key as the figure name and then value will be the lists of the new latex content for the new file
             string_to_edit = latex_clean_lines[found_index]  # the string to edit
+            if not given_height:
+                index_for_height = string_to_edit.find(']')
+                string_to_edit = string_to_edit[:index_for_height] + ",height=" + str(height) + "\columnwidth" + string_to_edit[index_for_height:]
             heuristic = 0
             for i in range(5):
                 if (i == 0):
@@ -471,6 +497,8 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file):  #
                 new_height = height * options[i]
                 new_str = string_to_edit.replace(str(width), str(new_width))
                 new_str = new_str.replace(str(height), str(new_height))
+
+                    
                 copy_list = copy.deepcopy(latex_clean_lines)
                 copy_list[found_index] = new_str
                 figure_name_key_new_latex_list_value[key].append(
