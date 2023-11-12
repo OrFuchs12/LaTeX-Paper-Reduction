@@ -2,7 +2,7 @@ import os
 import pickle
 import subprocess
 import time
-
+import shutil
 import pdfplumber
 import perry
 import perry2
@@ -1076,6 +1076,18 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
                 path_to_latex = file_path
                 remove_comments(path_to_latex)
 
+
+            # move ol files in 'code/greedy_from_machine/files' directory to 'code/~/results/new_files' directory
+            source_dir = "code/greedy_from_machine/files"
+            destination_dir = "code/~/results/new_files"            
+            for file in os.listdir(source_dir):
+                if not (file.lower().endswith(".pdf") or file.lower().endswith(".tex")):
+                    source_path = os.path.join(source_dir, file)
+                    destination_path = os.path.join(destination_dir, file)
+                    shutil.copy(source_path, destination_path)
+                
+            
+            
 
             # whether you want to run the model-based greedy algorithm
             if models: 
