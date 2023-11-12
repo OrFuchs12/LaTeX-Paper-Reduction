@@ -688,6 +688,7 @@ def simple_greedy(path_to_pdf, path_to_latex):
                                                     "~/results/new_files/dct0", "test", pd.DataFrame())
         lines, pages = check_lines(path_to_pdf)
 
+
         #check whether the file is not good for the algorithm:
         if lines < 2:
             print("Less then 2 lines")
@@ -702,12 +703,15 @@ def simple_greedy(path_to_pdf, path_to_latex):
         reduced = False
         iteration = 0
         total_cost = 0
+        starting_lines = lines
+        
 
         print("begin lines:", lines)
         print("begin pages:", pages)
+        print("target lines:", target)
         start = time.time()
-        while (lines > target and pages > 1):
-            print("index:", index)
+        while ( not reduced ): # if we manage to short the paper
+            print("lines : --------------", lines, "pages: --------------", pages)
             # get the dictionary of the file
             with open('code/~/results/dct0', 'rb') as dct_file:
                 dct = pickle.load(dct_file)
@@ -745,17 +749,17 @@ def simple_greedy(path_to_pdf, path_to_latex):
             base_name = os.path.basename("code/~/results/new_files/after_operator1.tex")
             # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
             subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
-            last_pages_pdf = copy_last_pages(path_to_pdf, NUMBER_OF_LAST_PAGES)
+            path_to_new_pdf = "code/~/results/new_files/after_operator1.pdf"
+            last_pages_pdf = copy_last_pages(path_to_new_pdf, NUMBER_OF_LAST_PAGES)
             
             
             # os.system(cmd_line_act)
 
-            lines_before = lines
             # check the new current number of lines
             lines, pages = check_lines(last_pages_pdf)
             fullLines , fullPages = check_lines("code/~/results/new_files/after_operator1.pdf")
-            print("current lines:", fullLines)
-            print("current pages:", fullPages)
+            print("current lines:", lines)
+            print("current pages:", pages)
 
             path_to_latex = "code/~/results/new_files/after_operator1.tex"
 
@@ -768,7 +772,7 @@ def simple_greedy(path_to_pdf, path_to_latex):
             iteration += 1
 
             # if we manage to short the paper
-            if (lines <= target or pages < 2):
+            if (lines <= target or pages < 2 or lines > starting_lines): # lines > starting_lines is for the case that we get the last 2 pages after we made it shoreter
                 reduced = True
 
         end = time.time()
