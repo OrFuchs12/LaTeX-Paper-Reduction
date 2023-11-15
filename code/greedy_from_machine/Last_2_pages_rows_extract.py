@@ -3,6 +3,7 @@ import re
 import pdb
 import PyPDF2
 # import fitz
+from handle_full_paper import remove_comments
 
 NUMBER_OF_LAST_PAGES = 2
 
@@ -192,7 +193,7 @@ def remove_caption(text_in_page, latex_path , caption_type):
     #keep only what is before }
     caption_lines = [line.split('}')[0] for line in caption_lines]
     #leave only numbers and letters in the lines
-    caption_lines = [re.sub(r'[^a-zA-Z]+', '', line) for line in caption_lines]
+    caption_lines = [re.sub(r'[^a-zA-Z0-9]+', '', line) for line in caption_lines]
     #find the caption that starts with text_in_page[0]
     caption_line = ''
     text_index = 0
@@ -288,4 +289,5 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
 
 
 
-
+# remove_comments("code/greedy_from_machine/test_lidor/main_changed.tex")
+# convert_Latex_to_rows_list("code/greedy_from_machine/test_lidor/main_changed.tex", "code/greedy_from_machine/test_lidor/main_changed.pdf")
