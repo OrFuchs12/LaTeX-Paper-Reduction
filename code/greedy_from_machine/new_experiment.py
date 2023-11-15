@@ -685,7 +685,7 @@ def simple_greedy(path_to_pdf, path_to_latex):
         # copy_last_pages(path_to_pdf, new_path, 2)
         features_single.run_feature_extraction(path_to_latex, path_to_pdf, '/code/greedy_from_machine/bibliography.bib',
                                                     "code/~/results/dct0",
-                                                    "~/results/new_files/dct0", "test", pd.DataFrame())
+                                                    "code/~/results/new_files/dct0", "test", pd.DataFrame())
         lines, pages = check_lines(path_to_pdf)
 
 
@@ -717,7 +717,7 @@ def simple_greedy(path_to_pdf, path_to_latex):
                 dct = pickle.load(dct_file)
 
             # get list of all possible operators to apply on the file
-            res = perform_operators(dct, 0, path_to_latex, path_to_pdf ,"~/results/new_files/")
+            res = perform_operators(dct, 0, path_to_latex, path_to_pdf ,"code/~/results/new_files/")
             print("total operators:", len(res))
 
             # whether there are no more operators
@@ -764,8 +764,8 @@ def simple_greedy(path_to_pdf, path_to_latex):
             path_to_latex = "code/~/results/new_files/after_operator1.tex"
 
             features_single.run_feature_extraction("code/~/results/new_files/after_operator1.tex", 
-                    last_pages_pdf, '~/results/bibliography.bib',
-                    "code/~/results/dct0", "~/results/new_files/dct0", "test", pd.DataFrame())
+                    last_pages_pdf, 'code/~/results/bibliography.bib',
+                    "code/~/results/dct0", "code/~/results/new_files/dct0", "test", pd.DataFrame())
 
             total_cost += res[index][0]
             index += 1
@@ -793,8 +793,8 @@ def heuristic_greedy(path_to_pdf, path_to_latex):
         operators_done = []
         #perform feature extraction to the file
         features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
-                                                    "~/results/dct0",
-                                                    "~/results/new_files/dct0", "test", pd.DataFrame())
+                                                    "code/~/results/dct0",
+                                                    "code/~/results/new_files/dct0", "test", pd.DataFrame())
         lines, pages = check_lines(path_to_pdf)
         #check whether the file is not good for the algorithm:
         if lines < 2:
@@ -811,16 +811,17 @@ def heuristic_greedy(path_to_pdf, path_to_latex):
         iteration = 0
         LINE_WIDTH = 10
         total_cost = 0
+        starting_lines = lines
         print("begin lines:", lines)
         print("begin pages:", pages)
         start = time.time()
-        while (lines > target and pages > 1):
+        while (not reduced):
             print("index:", index)
             # get the dictionary of the file
-            with open('~/results/dct0', 'rb') as dct_file:
+            with open('code/~/results/dct0', 'rb') as dct_file:
                 dct = pickle.load(dct_file)
             # get list of all possible operators to apply on the file
-            res = perform_operators(dct, 0, path_to_latex, "~/results/new_files/")
+            res = perform_operators(dct, 0, path_to_latex, path_to_pdf, "code/~/results/new_files/")
             print("total operators:", len(res))
 
             # whether there are no more operators
@@ -844,32 +845,36 @@ def heuristic_greedy(path_to_pdf, path_to_latex):
             if res[index][0] >= LINE_WIDTH:
                 latex_after_operator = res[index][1]
                 # write the file after operator to file
-                f = open("~/results/new_files/after_operator2.tex", "w")
+                f = open("code/~/results/new_files/after_operator2.tex", "w")
                 f.write(latex_after_operator)
                 f.close()
 
                 # compile the file
-                cmd_line_act = 'tectonic -X compile ' + "~/results/new_files/after_operator2.tex"
-                os.system(cmd_line_act)
+                dir_path = "code/~/results/new_files"
+                base_name = os.path.basename("code/~/results/new_files/after_operator2.tex")
+                # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+                subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
+                path_to_new_pdf = "code/~/results/new_files/after_operator2.pdf"
+                last_pages_pdf = copy_last_pages(path_to_new_pdf, NUMBER_OF_LAST_PAGES)
 
                 lines_before = lines
                 # check the new current number of lines
-                lines, pages = check_lines("~/results/new_files/after_operator2.pdf")
+                lines, pages = check_lines(last_pages_pdf)
                 print("current lines:", lines)
                 print("current pages:", pages)
 
-                path_to_latex = "~/results/new_files/after_operator2.tex"
+                path_to_latex = "code/~/results/new_files/after_operator2.tex"
 
-                features_single.run_feature_extraction("~/results/new_files/after_operator2.tex", 
-                    "~/results/new_files/after_operator2.pdf", '~/results/bibliography.bib',
-                    "~/results/dct0", "~/results/new_files/dct0", "test", pd.DataFrame())
+                features_single.run_feature_extraction("code/~/results/new_files/after_operator2.tex", 
+                    last_pages_pdf, 'code/~/results/bibliography.bib',
+                    "code/~/results/dct0", "code/~/results/new_files/dct0", "test", pd.DataFrame())
 
                 iteration += 1
                 total_cost += res[index][0]
                 index += 1
 
                 # if we manage to short the paper
-                if (lines <= target or pages < 2):
+                if (lines <= target or pages < 2 or lines > starting_lines): 
                     reduced = True
 
             else:
@@ -930,8 +935,8 @@ def model_greedy(path_to_pdf, path_to_latex, models):
 
         #perform feature extraction to the file
         df1 = features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
-                                                        "~/results/dct0",
-                                                        "~/results/new_files/dct0", "test",
+                                                        "code/~/results/dct0",
+                                                        "code/~/results/new_files/dct0", "test",
                                                         pd.DataFrame())
         df1 = df1.T
         df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
@@ -943,21 +948,22 @@ def model_greedy(path_to_pdf, path_to_latex, models):
         reduced = False
         iteration = 0
         total_cost = 0
+        starting_lines = lines
 
         print("begin lines:", lines)
         print("begin pages:", pages)
 
         start = time.time()
-        while (lines > target and pages > 1):
+        while (not reduced):
 
             print("index:", index)
 
             # get the dictionary of the file
-            with open('~/results/dct0', 'rb') as dct_file:
+            with open('code/~/results/dct0', 'rb') as dct_file:
                 dct = pickle.load(dct_file)
 
             # get list of all possible operators to apply on the file
-            res = perform_operators(dct, 0, path_to_latex, "~/results/new_files/")
+            res = perform_operators(dct, 0, path_to_latex, path_to_pdf, "code/~/results/new_files/")
             print("total operators:", len(res))
 
             # whether there are no more operators
@@ -992,27 +998,31 @@ def model_greedy(path_to_pdf, path_to_latex, models):
             if prediction > 0 and res[index][0] >= 10:
                 latex_after_operator = res[index][1]
 
-                f = open("~/results/new_files/after_operator3.tex", "w")
+                f = open("code/~/results/new_files/after_operator3.tex", "w")
                 # write the file after operator to file
                 f.write(latex_after_operator)
                 f.close()
 
                 # compile the file
-                cmd_line_act = 'tectonic -X compile ' + "~/results/new_files/after_operator3.tex"
-                os.system(cmd_line_act)
+                dir_path = "code/~/results/new_files"
+                base_name = os.path.basename("code/~/results/new_files/after_operator3.tex")
+                # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+                subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
+                path_to_new_pdf = "code/~/results/new_files/after_operator3.pdf"
+                last_pages_pdf = copy_last_pages(path_to_new_pdf, NUMBER_OF_LAST_PAGES)
 
                 lines_before = lines
                 # check the new current number of lines
-                lines, pages = check_lines("~/results/new_files/after_operator3.pdf")
+                lines, pages = check_lines(last_pages_pdf)
                 print("current lines:", lines)
                 print("current pages:", pages)
 
-                path_to_latex = "/results/new_files/after_operator3.tex"
+                path_to_latex = "code/~/results/new_files/after_operator3.tex"
 
                 df1 = features_single.run_feature_extraction(
-                    "~/results/new_files/after_operator3.tex",
-                    "~/results/new_files/after_operator3.pdf", '~/results/bibliography.bib',
-                    "~/results/dct0", "~/results/new_files/dct0", "test",
+                    "code/~/results/new_files/after_operator3.tex",
+                    last_pages_pdf, 'code/~/results/bibliography.bib',
+                    "code/~/results/dct0", "code/~/results/new_files/dct0", "test",
                     pd.DataFrame())
                 df1 = df1.T
                 df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
@@ -1023,7 +1033,7 @@ def model_greedy(path_to_pdf, path_to_latex, models):
                 iteration += 1
                 
                 # if we manage to short the paper
-                if (lines <= target or pages < 2):
+                if (lines <= target or pages < 2 or lines > starting_lines):
                     reduced = True
             else:
                 index += 1
@@ -1046,69 +1056,58 @@ def model_greedy(path_to_pdf, path_to_latex, models):
     models - dict of models (dictionary) 
 """
 def run_greedy_experiment(variant_function, variant_name, variant_file_name, files_dir, results_dir, models=None):
-    names = []
     directory = files_dir
-    for file in os.scandir(directory):
-        if file.is_file():
-            # uncomment this 2 lines if you don't have the pdfs
-            # cmd_line_act = '"C:\\Users\\user\\tectonic.exe" ' + f"{directory}\\{file.name}"
-            # os.system(cmd_line_act)
-            names.append(file.name.split('.')[0])
-
     results = []
     idx = 0
-    done = 1
-
-    # iterate all the files in the directory
-    for filename in set(names):
-        print(f"file in test {idx}:", filename)
+    for paper_dir in os.scandir(directory):
+        names = []
+        paper_directory = paper_dir.name
         idx += 1
-        try:
-            # get the full pdf path of the file
-            file_path = os.path.join(directory, filename + ".pdf")
-            if os.path.isfile(file_path):
-                path_to_pdf = file_path
-                last_pages_pdf_path = copy_last_pages(path_to_pdf,NUMBER_OF_LAST_PAGES )
-            
-            # get the full latex path of the file
-            file_path = os.path.join(directory, filename + ".tex")
-            if os.path.isfile(file_path):
-                path_to_latex = file_path
-                remove_comments(path_to_latex)
+        done = 1
 
-
-            # move ol files in 'code/greedy_from_machine/files' directory to 'code/~/results/new_files' directory
-            source_dir = "code/greedy_from_machine/files"
-            destination_dir = "code/~/results/new_files"            
-            for file in os.listdir(source_dir):
-                if not (file.lower().endswith(".pdf") or file.lower().endswith(".tex")):
-                    source_path = os.path.join(source_dir, file)
-                    destination_path = os.path.join(destination_dir, file)
-                    shutil.copy(source_path, destination_path)
+        for file in os.scandir(paper_dir):
+            if file.is_file():
+                # uncomment this 2 lines if you don't have the pdfs
+                # cmd_line_act = '"C:\\Users\\user\\tectonic.exe" ' + f"{directory}\\{file.name}"
+                # os.system(cmd_line_act)
+                print(f"file in test {idx}:", file.name)
+                if file.name.lower().endswith("_changed.pdf") :
+                    file_path = os.path.join(paper_dir.path, file.name)
+                    path_to_pdf = file_path
+                    last_pages_pdf_path = copy_last_pages(path_to_pdf,NUMBER_OF_LAST_PAGES )
+                if file.name.lower().endswith("_changed.tex") :
+                    file_path = os.path.join(paper_dir.path, file.name)
+                    path_to_latex = file_path
+                    remove_comments(path_to_latex)
                 
-            
-            
+                # move ol files in 'code/greedy_from_machine/files' directory to 'code/~/results/new_files' directory
+                source_dir = os.path.join("code/greedy_from_machine/files", paper_directory)
+                destination_dir = os.path.join("code/~/results/new_files", paper_directory)       
+                os.makedirs(destination_dir, exist_ok=True)     
+                if not (file.name.lower().endswith(".pdf") or file.name.lower().endswith(".tex")):
+                    source_path = file.path
+                    destination_path = os.path.join(destination_dir, file.name)
+                    shutil.copy(source_path, destination_path)
 
-            # whether you want to run the model-based greedy algorithm
-            if models: 
-                iterations, time_taken, reduced, cost = variant_function(last_pages_pdf_path, path_to_latex, models)
+                # whether you want to run the model-based greedy algorithm
+        if models: 
+            iterations, time_taken, reduced, cost = variant_function(last_pages_pdf_path, path_to_latex, models)
 
-            # whether you want to run other greedy algorithms
-            else: 
-                iterations, time_taken, reduced, cost = variant_function(last_pages_pdf_path, path_to_latex)
+        # whether you want to run other greedy algorithms
+        else: 
+            iterations, time_taken, reduced, cost = variant_function(last_pages_pdf_path, path_to_latex)
 
-            if iterations != -1:
-                results.append((filename, variant_name, reduced, iterations, time_taken, cost))
-
-                # write the results every document finished (just in case)
-                df = pd.DataFrame(results, columns=["Name", "Algorithm", "Reduced", "Iterations", "Time", "Cost"])
+        if iterations != -1:
+            results.append((paper_directory, file.name, variant_name, reduced, iterations, time_taken, cost))
+            try:
+            # write the results every document finished (just in case)
+                df = pd.DataFrame(results, columns=["Directory", "Name", "Algorithm", "Reduced", "Iterations", "Time", "Cost"])
                 df.to_csv(f'{results_dir}/{variant_file_name}.csv', index=False)
+            except Exception as e:
+                print(e)
 
-                print("Done!", done)
-                done += 1
-
-        except Exception as e:
-            print(e)
+            print("Done!", done)
+            done += 1
 
     # write the final results
     df = pd.DataFrame(results, columns=["Name", "Algorithm", "Reduced", "Iterations", "Time", "Cost"])
