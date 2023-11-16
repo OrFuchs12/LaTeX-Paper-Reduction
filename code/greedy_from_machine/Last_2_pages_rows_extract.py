@@ -57,6 +57,7 @@ def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figu
 def convert_Latex_to_rows_list(latex_path,pdf_path):
     # list of rows to extract from the latex file
     rows_list = []
+
     # the first row in the page we want to start the extraction from
     first_row_to_begin = find_first_row_in_last_page(pdf_path, latex_path)
     print(first_row_to_begin)
@@ -76,8 +77,12 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
         # clean the line to make it easier to compare
         pattern = r'\\[a-zA-Z]+(?:\[[^\]]\])?(?:\{[^\}]\})?'
 
-        for line in lines:
+        for i in range(len(lines)):
+            line = lines[i]
             # Use re.sub to replace LaTeX commands with an empty string
+            if i < len(lines) - 1:
+                line_next= lines[i + 1]
+                line = line + line_next
             clean_linePDF = re.sub(pattern, '', line)
             clean_latex_line_to_compare = re.sub(r'[^a-zA-Z0-9]+', '', clean_linePDF)
             while(not found_start and clean_line not in clean_latex_line_to_compare):
@@ -289,5 +294,6 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
 
 
 
-# remove_comments("code/greedy_from_machine/test_lidor/main_changed.tex")
-# convert_Latex_to_rows_list("code/greedy_from_machine/test_lidor/main_changed.tex", "code/greedy_from_machine/test_lidor/main_changed.pdf")
+remove_comments("code/greedy_from_machine/lidor_test/AAAI-main_changed.tex")
+lidor = convert_Latex_to_rows_list("code/greedy_from_machine/lidor_test/AAAI-main_changed.tex", "code/greedy_from_machine/lidor_test/AAAI-main_changed.pdf")
+print(lidor)

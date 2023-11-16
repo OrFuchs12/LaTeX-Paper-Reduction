@@ -31,11 +31,13 @@ def copy_last_pages(input_pdf_path, NUMBER_OF_LAST_PAGES):
 def remove_comments(latex_path):
     with open(latex_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
+
     with open(latex_path, 'w', encoding='utf-8') as f:
         for line in lines:
-            if not re.match(r'^\s*%', line):
+            # Check if the line is a comment or empty
+            if not re.match(r'^\s*%|^\s*$', line):
                 f.write(line)
-
+                
 #things like \begin{figure*} become \begin{figure}
 def remove_astrik_inside_paranthases(latex_path):
     with open(latex_path, 'r') as f:
