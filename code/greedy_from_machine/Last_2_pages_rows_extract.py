@@ -55,6 +55,7 @@ def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figu
         return text_in_page[0], False, return_index+index
     
 def convert_Latex_to_rows_list(latex_path,pdf_path):
+    remove_comments(latex_path)
     # list of rows to extract from the latex file
     rows_list = []
 
@@ -294,6 +295,5 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
 
 
 
-remove_comments("code/greedy_from_machine/lidor_test/AAAI-main_changed.tex")
 lidor = convert_Latex_to_rows_list("code/greedy_from_machine/lidor_test/AAAI-main_changed.tex", "code/greedy_from_machine/lidor_test/AAAI-main_changed.pdf")
 print(lidor)
