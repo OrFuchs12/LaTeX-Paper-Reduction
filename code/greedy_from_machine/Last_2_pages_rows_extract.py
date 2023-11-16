@@ -100,8 +100,8 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
                 match_was_in_second_line = False
                 continue
             first_line = lines[i]
-            if i == 369: 
-                print("line")
+            if i == 455: 
+                print("here")
             # Use re.sub to replace LaTeX commands with an empty string
             if i < len(lines) - 1:
                 next_line= lines[i + 1]
@@ -109,6 +109,9 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
             line = remove_math_patterns(line)
             clean_linePDF = re.sub(pattern, '', line)
             clean_latex_line_to_compare = re.sub(r'[^a-zA-Z0-9]+', '', clean_linePDF)
+            next_line = remove_math_patterns(next_line)
+            clean_line = clean_line.lower()
+            clean_latex_line_to_compare = clean_latex_line_to_compare.lower()
             while(not found_start and clean_line not in clean_latex_line_to_compare):
                 lines_before_the_line += 1
                 rows_list.append('\n')
@@ -117,15 +120,16 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
                 print("found the line")
                 print(clean_line)
                 print(clean_latex_line_to_compare)
-                match_started_in_first_line = clean_line in re.sub(r'[^a-zA-Z0-9]+', '', re.sub(pattern, '', first_line))
-                if match_started_in_first_line:
-                    rows_list.append(line)
-                    found_start = True
-                else:
+                match_started_in_next_line = clean_line in re.sub(r'[^a-zA-Z0-9]+', '', re.sub(pattern, '', next_line))
+                if match_started_in_next_line:
                     rows_list.append('\n')
                     rows_list.append(next_line)
                     found_start = True
                     match_was_in_second_line = True
+                    
+                else:
+                    rows_list.append(first_line)
+                    found_start = True
                 continue                
 
             while found_start and not line.startswith("\\end{document}"):
@@ -325,9 +329,8 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
 
 
 
-lidor = convert_Latex_to_rows_list("code/greedy_from_machine/lidor_test/AAAI-LevO.6080_changed.tex", "code/greedy_from_machine/lidor_test/AAAI-LevO.6080_changed.pdf")
+lidor = convert_Latex_to_rows_list("code/greedy_from_machine/lidor_test/main_changed.tex", "code/greedy_from_machine/lidor_test/main_changed.pdf")
 print(lidor)
 
 
-# Example usage:
 
