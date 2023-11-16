@@ -68,7 +68,18 @@ def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figu
                     break
         if text_in_page[0].startswith('Figure'):
                 text_in_page, return_index = remove_caption(text_in_page, latex_path, 'Figure')
-                return text_in_page, True, return_index+index        
+                return text_in_page, True, return_index+index
+        #regex for (letter) 
+        pattern = r'\([a-z]\)'
+        #check if text_in_page[0] starts with pattern 
+        if re.match(pattern, text_in_page[0]):
+            #remove lines from text in page until we find a line that starts with Figure
+            for index, line in enumerate(text_in_page):
+                if line.startswith('Figure'):
+                    text_in_page = text_in_page[index:]
+                    break
+            text_in_page, return_index = remove_caption(text_in_page, latex_path, 'Figure')
+            return text_in_page, True, return_index+index
         return text_in_page[0], False, return_index+index
     
 def convert_Latex_to_rows_list(latex_path,pdf_path):
@@ -241,7 +252,7 @@ def remove_caption(text_in_page, latex_path , caption_type):
 
     while len(caption_lines) >1:
         for index, line in enumerate(caption_lines):
-            clean_beginning_of_caption = re.sub(r'[^a-zA-Z]+', '', beginning_of_caption)
+            clean_beginning_of_caption = re.sub(r'[^a-zA-Z0-9]+', '', beginning_of_caption)
             if clean_beginning_of_caption in line:
                 continue
             else:
@@ -250,19 +261,23 @@ def remove_caption(text_in_page, latex_path , caption_type):
         caption_lines = list(filter(None, caption_lines))
         text_index+=1
         beginning_of_caption = text_in_page[text_index]
-
+    if (len(caption_lines) == 0):
+        raise Exception("No caption found")
     caption_line = caption_lines[0]
 
-    clean_caption_line = re.sub(r'[^a-zA-Z]+', '', caption_line)
+    clean_caption_line = re.sub(r'[^a-zA-Z0-9]+', '', caption_line)
     for index, line in enumerate(text_in_page):
         #remove the regex Table\d: from clean_line
         if caption_type == 'Table':
             clean_line = re.sub(r'Table\d*:', '', line)
         if caption_type == 'Figure':
             clean_line = re.sub(r'Figure\s*\d*:', '', line)
-        clean_line = re.sub(r'[^a-zA-Z]+', '', clean_line)
-        #search for cdot in the clean_caption_line and remove
+        clean_line = re.sub(r'[^a-zA-Z0-9]+', '', clean_line)
+        
+        #edge cases
         clean_caption_line = clean_caption_line.replace('cdot', '')
+        clean_caption_line = clean_caption_line.replace('phi', '')
+        
         if clean_line in clean_caption_line:
             text_in_page[index] = ''
         else:
@@ -329,7 +344,7 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
 
 
 
-lidor = convert_Latex_to_rows_list("code/greedy_from_machine/lidor_test/main_changed.tex", "code/greedy_from_machine/lidor_test/main_changed.pdf")
+lidor = convert_Latex_to_rows_list("code/greedy_from_machine/lidor_test/AAAI submission_changed.tex", "code/greedy_from_machine/lidor_test/AAAI submission_changed.pdf")
 print(lidor)
 
 
