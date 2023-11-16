@@ -7,6 +7,23 @@ from handle_full_paper import remove_comments
 
 NUMBER_OF_LAST_PAGES = 2
 
+def remove_math_patterns(text):
+    # Stage 1: Identify parts enclosed by $
+    pattern = r'\$.*?\$'
+    matches = re.finditer(pattern, text)
+
+    for match in matches:
+        original_match = match.group(0)
+        
+        # Stage 2: Replace 'something_letter' or 'something_number' with 'something_'
+        replacement = re.sub(r'_(\w)', '_', original_match)
+        text = text.replace(original_match, replacement, 1)  # Replace only the first occurrence
+
+    return text
+
+
+
+
 def find_first_row_in_last_page(pdf_file_path, latex_path):
     # Open the PDF file and extract the last page
     with pdfplumber.open(pdf_file_path) as pdf:
@@ -77,13 +94,19 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
         found_end = False
         # clean the line to make it easier to compare
         pattern = r'\\[a-zA-Z]+(?:\[[^\]]\])?(?:\{[^\}]\})?'
-
+        match_was_in_second_line = False
         for i in range(len(lines)):
-            line = lines[i]
+            if match_was_in_second_line:
+                match_was_in_second_line = False
+                continue
+            first_line = lines[i]
+            if i == 369: 
+                print("line")
             # Use re.sub to replace LaTeX commands with an empty string
             if i < len(lines) - 1:
-                line_next= lines[i + 1]
-                line = line + line_next
+                next_line= lines[i + 1]
+                line = first_line + next_line
+            line = remove_math_patterns(line)
             clean_linePDF = re.sub(pattern, '', line)
             clean_latex_line_to_compare = re.sub(r'[^a-zA-Z0-9]+', '', clean_linePDF)
             while(not found_start and clean_line not in clean_latex_line_to_compare):
@@ -94,8 +117,15 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
                 print("found the line")
                 print(clean_line)
                 print(clean_latex_line_to_compare)
-                rows_list.append(line)
-                found_start = True
+                match_started_in_first_line = clean_line in re.sub(r'[^a-zA-Z0-9]+', '', re.sub(pattern, '', first_line))
+                if match_started_in_first_line:
+                    rows_list.append(line)
+                    found_start = True
+                else:
+                    rows_list.append('\n')
+                    rows_list.append(next_line)
+                    found_start = True
+                    match_was_in_second_line = True
                 continue                
 
             while found_start and not line.startswith("\\end{document}"):
@@ -295,5 +325,9 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
 
 
 
-lidor = convert_Latex_to_rows_list("code/greedy_from_machine/lidor_test/AAAI-main_changed.tex", "code/greedy_from_machine/lidor_test/AAAI-main_changed.pdf")
+lidor = convert_Latex_to_rows_list("code/greedy_from_machine/lidor_test/AAAI-LevO.6080_changed.tex", "code/greedy_from_machine/lidor_test/AAAI-LevO.6080_changed.pdf")
 print(lidor)
+
+
+# Example usage:
+
