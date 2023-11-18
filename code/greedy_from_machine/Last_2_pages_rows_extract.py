@@ -42,7 +42,7 @@ def find_first_row_in_last_page(pdf_file_path, latex_path):
             
             first_line, is_start_table, is_start_figure, return_index, last_iteration = check_if_text_inside_table(pdf_file_path, text, latex_path, iteration, return_index)
             if is_start_table==False or is_start_figure==True:
-                first_line, is_start_image, return_index = check_if_text_inside_image(pdf_file_path, text, latex_path, is_start_figure)
+                first_line, is_start_image, return_index, last_iteration = check_if_text_inside_image(pdf_file_path, text, latex_path, is_start_figure)
             if is_start_table or is_start_figure or is_start_image:
                 #the first line is different from the first line in text and we need to check again if the first line is inside table or image
                 text= text[return_index:]
@@ -58,6 +58,7 @@ def find_first_row_in_last_page(pdf_file_path, latex_path):
 def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figure = False):
     return_index = 0
     index = 0
+    last_iteration = False
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
         if is_start_figure:
@@ -68,7 +69,9 @@ def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figu
                     break
         if text_in_page[0].startswith('Figure'):
                 text_in_page, return_index = remove_caption(text_in_page, latex_path, 'Figure')
-                return text_in_page, True, return_index+index
+                if return_index == 0:
+                    last_iteration = True
+                return text_in_page, True, return_index+index, last_iteration
         #regex for (letter) 
         pattern = r'\([a-z]\)'
         #check if text_in_page[0] starts with pattern 
@@ -79,8 +82,8 @@ def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figu
                     text_in_page = text_in_page[index:]
                     break
             text_in_page, return_index = remove_caption(text_in_page, latex_path, 'Figure')
-            return text_in_page, True, return_index+index
-        return text_in_page[0], False, return_index+index
+            return text_in_page, True, return_index+index, last_iteration
+        return text_in_page[0], False, return_index+index, last_iteration
     
 def convert_Latex_to_rows_list(latex_path,pdf_path):
     remove_comments(latex_path)
@@ -248,7 +251,11 @@ def remove_caption(text_in_page, latex_path , caption_type):
     #find the caption that starts with text_in_page[0]
     caption_line = ''
     text_index = 0
-    beginning_of_caption = text_in_page[text_index].split(':')[1]
+    try :
+        beginning_of_caption = text_in_page[text_index].split(':')[1]
+    except IndexError:
+        print("not a real caption")
+        return text_in_page[0], 0
 
     while len(caption_lines) >1:
         for index, line in enumerate(caption_lines):
@@ -309,10 +316,10 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
                          begin_pattern= r'\begin{table'
                          end_pattern= r'\end{table'#check if it is the right pattern
                     index_counter = 1
-                    index_in_latex = 0
-                    for line in lines:
+                    # index_in_latex = 0
+                    for index_in_latex, line in enumerate(lines):
                         if begin_pattern in line and index_counter == int(index):
-                            index_in_latex = lines.index(line)
+                            beginning_index = index_in_latex
                             table_started = True
                             table_latex.append(line)
                             line = ""
@@ -335,8 +342,8 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
                             break
                     if not found_table:
                         for line in table_latex:
-                            rows_list[index_in_latex] = line
-                            index_in_latex+=1
+                            rows_list[beginning_index] = line
+                            beginning_index+=1
                        
     return rows_list
 
@@ -344,7 +351,7 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
 
 
 
-lidor = convert_Latex_to_rows_list("code/greedy_from_machine/lidor_test/AAAI submission_changed.tex", "code/greedy_from_machine/lidor_test/AAAI submission_changed.pdf")
+lidor = convert_Latex_to_rows_list("code/greedy_from_machine/lidor_test/main_changed.tex", "code/greedy_from_machine/lidor_test/main_changed.pdf")
 print(lidor)
 
 
