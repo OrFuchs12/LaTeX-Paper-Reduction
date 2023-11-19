@@ -233,19 +233,26 @@ def remove_caption(text_in_page, latex_path , caption_type):
     pattern = r'^\s*\\caption'
     for i, line in enumerate(lines):
         if re.match(pattern, line):
-            if '}' in line:
-                caption_lines.append(line)
-            else:
-                temp_line= line
+            brace_count = line.count('{') - line.count('}')
+            temp_line= line
+            if brace_count > 0:
                 index=i
-                while '}' not in lines[index]:
+                while brace_count > 0:
                     index+=1
                     temp_line+=lines[index]
+                    brace_count += lines[index].count('{') - lines[index].count('}')
                 caption_lines.append(temp_line)
+            else:
+                caption_lines.append(temp_line)
+    #replace any \emph in the lines
+    caption_lines = [line.replace(r'\emph', '') for line in caption_lines]
+    #replace any \textit in the lines
+    caption_lines = [line.replace(r'\textit', '') for line in caption_lines]
+    caption_lines = [line.replace(r'\textbf', '') for line in caption_lines]
     #remove \caption from the lines
     caption_lines = [line.replace(r'\caption{', '') for line in caption_lines]
     #keep only what is before }
-    caption_lines = [line.split('}')[0] for line in caption_lines]
+    caption_lines = [line.rsplit('}', 1)[0] for line in caption_lines]
     #leave only numbers and letters in the lines
     caption_lines = [re.sub(r'[^a-zA-Z0-9]+', '', line) for line in caption_lines]
     #find the caption that starts with text_in_page[0]
@@ -351,7 +358,7 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
 
 
 
-lidor = convert_Latex_to_rows_list("code/greedy_from_machine/lidor_test/main_changed.tex", "code/greedy_from_machine/lidor_test/main_changed.pdf")
+lidor = convert_Latex_to_rows_list("code/greedy_from_machine/lidor_test/main-aaai-2021_changed.tex", "code/greedy_from_machine/lidor_test/main-aaai-2021_changed.pdf")
 print(lidor)
 
 
