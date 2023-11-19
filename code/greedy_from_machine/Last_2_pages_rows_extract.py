@@ -123,7 +123,9 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
             line = remove_math_patterns(line)
             clean_linePDF = re.sub(pattern, '', line)
             clean_latex_line_to_compare = re.sub(r'[^a-zA-Z0-9]+', '', clean_linePDF)
-            next_line = remove_math_patterns(next_line)
+            clean_next_line = remove_math_patterns(next_line)
+            clean_next_line = re.sub(r'[^a-zA-Z0-9]+', '', clean_next_line)
+            clean_next_line = clean_next_line.lower()
             clean_line = clean_line.lower()
             clean_latex_line_to_compare = clean_latex_line_to_compare.lower()
             while(not found_start and clean_line not in clean_latex_line_to_compare):
@@ -134,7 +136,8 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
                 print("found the line")
                 print(clean_line)
                 print(clean_latex_line_to_compare)
-                match_started_in_next_line = clean_line in re.sub(r'[^a-zA-Z0-9]+', '', re.sub(pattern, '', next_line))
+                print(next_line)
+                match_started_in_next_line = clean_line in re.sub(r'[^a-zA-Z0-9]+', '', re.sub(pattern, '', clean_next_line))
                 if match_started_in_next_line:
                     rows_list.append('\n')
                     rows_list.append(next_line)
@@ -358,7 +361,7 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
 
 
 
-lidor = convert_Latex_to_rows_list("code/greedy_from_machine/lidor_test/main-aaai-2021_changed.tex", "code/greedy_from_machine/lidor_test/main-aaai-2021_changed.pdf")
+lidor = convert_Latex_to_rows_list("code/greedy_from_machine/lidor_test/main_changed.tex", "code/greedy_from_machine/lidor_test/main_changed.pdf")
 print(lidor)
 
 
