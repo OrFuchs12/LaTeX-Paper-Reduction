@@ -708,7 +708,8 @@ def running_from_outside(pdf_path,tags,figures,tables,algorithms,lines_to_search
         final_list.append(totheight)
 
         return final_list
-    except:
+    except Exception as e:
+        print(e)
         return []
 
 

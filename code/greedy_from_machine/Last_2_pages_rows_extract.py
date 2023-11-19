@@ -120,6 +120,8 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
             if i < len(lines) - 1:
                 next_line= lines[i + 1]
                 line = first_line + next_line
+            else:
+                line = lines[i]
             line = remove_math_patterns(line)
             clean_linePDF = re.sub(pattern, '', line)
             clean_latex_line_to_compare = re.sub(r'[^a-zA-Z0-9]+', '', clean_linePDF)
@@ -143,7 +145,6 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
                     rows_list.append(next_line)
                     found_start = True
                     match_was_in_second_line = True
-                    
                 else:
                     rows_list.append(first_line)
                     found_start = True
@@ -361,8 +362,8 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
 
 
 
-lidor = convert_Latex_to_rows_list("code/greedy_from_machine/lidor_test/main_changed.tex", "code/greedy_from_machine/lidor_test/main_changed.pdf")
-print(lidor)
+# lidor = convert_Latex_to_rows_list("code/greedy_from_machine/lidor_test/main_changed.tex", "code/greedy_from_machine/lidor_test/main_changed.pdf")
+# print(lidor)
 
 
 
