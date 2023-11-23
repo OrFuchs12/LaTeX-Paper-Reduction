@@ -114,8 +114,6 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
                 match_was_in_second_line = False
                 continue
             first_line = lines[i]
-            if i == 455: 
-                print("here")
             # Use re.sub to replace LaTeX commands with an empty string
             if i < len(lines) - 1:
                 next_line= lines[i + 1]
@@ -359,11 +357,109 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
     return rows_list
 
 
+def extract_tables_from_latex(latex_path):
+    with open(latex_path, 'r') as file:
+        content = file.read()
+
+    # Use a modified pattern to capture both table and table* environments
+    table_pattern = re.compile(r'\\begin{table\*?}(.*?)\\end{table\*?}', re.DOTALL)
+
+    # Find all matches of the table pattern
+    table_matches = table_pattern.findall(content)
+
+    # Create a dictionary to store table_id and corresponding content as a list of lines
+    tables_dict = {}
+    # Iterate through the matches and store them in the dictionary
+    for i, table_content in enumerate(table_matches, start=1):
+        table_id = i
+        # Split table content into lines
+        table_lines = [line.strip() for line in table_content.split('\n')]
+        clean_table_lines = []
+        for line in table_lines:
+            multicolumn_pattern = re.compile(r'\\multicolumn{[0-9]+}{.*?}{(.*?)}')
+            line = re.sub(multicolumn_pattern, r'{\1}', line)
+            line = remove_math_patterns(line)
+            latex_command_pattern = re.compile(r'\\[a-zA-Z]+')
+            line = re.sub(latex_command_pattern, '', line)
+            line = re.sub(r'[^a-zA-Z0-9]+', '', line)
+            line= line.lower()
+            clean_table_lines.append(line)
+        tables_dict[table_id] = clean_table_lines
+
+    return tables_dict
+ 
+
+def find_first_line(pdf_path, latex_path):
+    with pdfplumber.open(pdf_path) as pdf:
+        pages = pdf.pages[-NUMBER_OF_LAST_PAGES:]
+        tables_dict = extract_tables_from_latex(latex_path)
+        page = pages[0]
+        left_column = (0, 0, page.width / 2, page.height)
+        text = page.within_bbox(left_column).extract_text()
+        text = text.split('\n')
+        inTable=True
+        last_table_id=-1
+        was_in_table = False
+        i = 0
+        while inTable:
+            was_in_table = False
+            line = text[i]
+            if line.startswith('Table'):
+                line, return_index = remove_caption(text[i:], latex_path, 'Table')
+                i+=return_index
+            clean_pdf_line = re.sub(r'[^a-zA-Z0-9]+', '', line)
+            clean_pdf_line = clean_pdf_line.lower()
+
+            for table_id, table_lines in tables_dict.items():
+            # if the table is lower than the last table we found we can skip it because we already checked it
+                if table_id < last_table_id:
+                    continue
+                for table_line in table_lines:
+                    if clean_pdf_line in table_line: 
+                        inTable=True
+                        last_table_id= table_id
+                        was_in_table = True
+                        return (" latex line :  " ,table_line, "\n pdf line : " , clean_pdf_line )
+                        break
+            if not was_in_table:
+                inTable=False
+                break
+            i+=1
+        return remove_caption(text[i:], latex_path, 'Table')[0]
+           
+
+
+    
+            
+
+            
+
+    
 
 
 
-# lidor = convert_Latex_to_rows_list("code/greedy_from_machine/lidor_test/main_changed.tex", "code/greedy_from_machine/lidor_test/main_changed.pdf")
-# print(lidor)
+pdf_path = 'code/greedy_from_machine/lidor_test/main_changed.pdf'
+latex_path = 'code/greedy_from_machine/lidor_test/main_changed.tex'
+remove_comments(latex_path)
+
+print(find_first_line(pdf_path, latex_path))
 
 
 
+
+
+
+# def remove_multicolumn(line):
+#     # Define a regular expression pattern to match \multicolumn commands
+#     multicolumn_pattern = re.compile(r'\\multicolumn{[0-9]+}{.*?}{(.*?)}')
+
+#     # Use re.sub to replace all \multicolumn commands with the captured content
+#     cleaned_line = re.sub(multicolumn_pattern, r'{\1}', line)
+
+#     return cleaned_line
+
+# # Example usage:
+# latex_line = "\multicolumn{6}{c|}{$\eta = 0.3$}"
+# cleaned_line = remove_multicolumn(latex_line)
+
+# print(cleaned_line)
