@@ -419,7 +419,7 @@ def find_first_line(pdf_path, latex_path):
                         inTable=True
                         last_table_id= table_id
                         was_in_table = True
-                        return (" latex line :  " ,table_line, "\n pdf line : " , clean_pdf_line )
+                        return text[i]
                         break
             if not was_in_table:
                 inTable=False
