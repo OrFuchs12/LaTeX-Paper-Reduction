@@ -39,7 +39,7 @@ def find_first_row_in_last_page(pdf_file_path, latex_path):
         while(len(text) > 1):
             if last_iteration:
                 break
-            
+            return_index = find_first_line(pdf_file_path, latex_path, return_index)
             first_line, is_start_table, is_start_figure, return_index, last_iteration = check_if_text_inside_table(pdf_file_path, text, latex_path, iteration, return_index)
             if is_start_table==False or is_start_figure==True:
                 first_line, is_start_image, return_index, last_iteration = check_if_text_inside_image(pdf_file_path, text, latex_path, is_start_figure)
@@ -107,7 +107,7 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
         # flag to know if we found the line we want to end the extraction from
         found_end = False
         # clean the line to make it easier to compare
-        pattern = r'\\[a-zA-Z]+(?:\[[^\]]\])?(?:\{[^\}]\})?'
+        pattern = r'\\[a-zA-Z]+(?:\[[^\]]+\])?(?:\{[^\}]+\})?'
         match_was_in_second_line = False
         for i in range(len(lines)):
             if match_was_in_second_line:
@@ -124,6 +124,7 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
             clean_linePDF = re.sub(pattern, '', line)
             clean_latex_line_to_compare = re.sub(r'[^a-zA-Z0-9]+', '', clean_linePDF)
             clean_next_line = remove_math_patterns(next_line)
+            clean_next_line = re.sub(pattern, '', clean_next_line)
             clean_next_line = re.sub(r'[^a-zA-Z0-9]+', '', clean_next_line)
             clean_next_line = clean_next_line.lower()
             clean_line = clean_line.lower()
@@ -136,8 +137,8 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
                 print("found the line")
                 print(clean_line)
                 print(clean_latex_line_to_compare)
-                print(next_line)
-                match_started_in_next_line = clean_line in re.sub(r'[^a-zA-Z0-9]+', '', re.sub(pattern, '', clean_next_line))
+                print(clean_next_line)
+                match_started_in_next_line = clean_line in clean_next_line
                 if match_started_in_next_line:
                     rows_list.append('\n')
                     rows_list.append(next_line)
@@ -176,8 +177,22 @@ def extract_text_from_tables(pdf_path, latex_path,text, iteration, return_index=
     last_iteration = False
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
-        left_column = (0, 0, page.width / 2, page.height)
-        tables = page.within_bbox(left_column).find_tables()
+        tt_table_settings = {
+            "vertical_strategy": "lines",
+            "horizontal_strategy": "text",
+            
+        }
+        lt_table_settings = {
+            "vertical_strategy": "text",
+            "horizontal_strategy": "lines",
+        }
+        tt_tables = page.find_tables(tt_table_settings)
+        if tt_tables:
+            tables = tt_tables
+        else:
+            lt_tables = page.find_tables(lt_table_settings)
+            if lt_tables:
+                tables = lt_tables
         if tables:
             is_table = True
             if len(tables) == iteration+1:
@@ -186,7 +201,6 @@ def extract_text_from_tables(pdf_path, latex_path,text, iteration, return_index=
             table_bbox = first_table.bbox
             #get the first y_coordinate of table
             first_y_coordinate = table_bbox[1]
-            text_inside_table = page.extract_tables()[0]
             #get the text in the page of the left column
             left_column = (0, 0, page.width / 2, page.height)
             # Extract text only from the left column and separate by lines
@@ -194,7 +208,8 @@ def extract_text_from_tables(pdf_path, latex_path,text, iteration, return_index=
             
             #check if the first line in the text is not in the table then its the first line
             if text[return_index]['top'] < first_y_coordinate and text[return_index]['bottom'] < first_y_coordinate and not text[0]['text'].startswith('Table'):
-                return text[0], is_table, is_figure, 0, last_iteration
+                first_line = text[return_index]['text']
+                return first_line, is_table, is_figure, return_index, last_iteration
             #the table is first so we need to get the y coordinate of the last line in the table
             y_coordinate = table_bbox[3]
             #get the first line in page that is after the table
@@ -356,7 +371,6 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
                        
     return rows_list
 
-
 def extract_tables_from_latex(latex_path):
     with open(latex_path, 'r') as file:
         content = file.read()
@@ -388,62 +402,82 @@ def extract_tables_from_latex(latex_path):
 
     return tables_dict
  
-
-def find_first_line(pdf_path, latex_path):
+def find_first_line(pdf_path,latex_path, return_index):
+    tables_dict = extract_tables_from_latex(latex_path)
     with pdfplumber.open(pdf_path) as pdf:
-        pages = pdf.pages[-NUMBER_OF_LAST_PAGES:]
-        tables_dict = extract_tables_from_latex(latex_path)
-        page = pages[0]
-        left_column = (0, 0, page.width / 2, page.height)
-        text = page.within_bbox(left_column).extract_text()
+        page = pdf.pages[-NUMBER_OF_LAST_PAGES]
+        text = page.extract_text()
         text = text.split('\n')
-        inTable=True
-        last_table_id=-1
-        was_in_table = False
-        i = 0
-        while inTable:
-            was_in_table = False
-            line = text[i]
-            if line.startswith('Table'):
-                line, return_index = remove_caption(text[i:], latex_path, 'Table')
-                i+=return_index
-            clean_pdf_line = re.sub(r'[^a-zA-Z0-9]+', '', line)
-            clean_pdf_line = clean_pdf_line.lower()
+    line = text[return_index]
+    if line.startswith('Table'):
+        line, return_index = remove_caption(text, latex_path, 'Table')
+    clean_pdf_line = re.sub(r'[^a-zA-Z0-9]+', '', line)
+    clean_pdf_line = clean_pdf_line.lower()
+    for table_id, table_lines in tables_dict.items():
+        for table_line in table_lines:
+            if clean_pdf_line in table_line: 
+                return  return_index + 1
+    return return_index
+    
 
-            for table_id, table_lines in tables_dict.items():
-            # if the table is lower than the last table we found we can skip it because we already checked it
-                if table_id < last_table_id:
-                    continue
-                for table_line in table_lines:
-                    if clean_pdf_line in table_line: 
-                        inTable=True
-                        last_table_id= table_id
-                        was_in_table = True
-                        return text[i]
-                        break
-            if not was_in_table:
-                inTable=False
-                break
-            i+=1
-        return remove_caption(text[i:], latex_path, 'Table')[0]
+
+# def find_first_line(pdf_path, latex_path):
+#     with pdfplumber.open(pdf_path) as pdf:
+#         pages = pdf.pages[-NUMBER_OF_LAST_PAGES:]
+#         tables_dict = extract_tables_from_latex(latex_path)
+#         page = pages[0]
+#         left_column = (0, 0, page.width / 2, page.height)
+#         text = page.within_bbox(left_column).extract_text()
+#         text = text.split('\n')
+#         inTable=True
+#         last_table_id=-1
+#         was_in_table = False
+#         i = 0
+#         while inTable:
+#             was_in_table = False
+#             line = text[i]
+#             if line.startswith('Table'):
+#                 line, return_index = remove_caption(text[i:], latex_path, 'Table')
+#                 i+=return_index
+#             clean_pdf_line = re.sub(r'[^a-zA-Z0-9]+', '', line)
+#             clean_pdf_line = clean_pdf_line.lower()
+
+#             for table_id, table_lines in tables_dict.items():
+#             # if the table is lower than the last table we found we can skip it because we already checked it
+#                 if table_id < last_table_id:
+#                     continue
+#                 for table_line in table_lines:
+#                     if clean_pdf_line in table_line: 
+#                         inTable=True
+#                         last_table_id= table_id
+#                         was_in_table = True
+#                         return text[i]
+#                         break
+#             if not was_in_table:
+#                 inTable=False
+#                 break
+#             i+=1
+#         return remove_caption(text[i:], latex_path, 'Table')[0]
            
 
 
     
             
 
-            
+import os       
 
     
 
+#  pdf_ path is the file in code/greedy_from_machine/lidor_test that ends with .pdf
+for file in os.listdir('code/greedy_from_machine/lidor_test'):
+    if file.endswith('.pdf'):
+        pdf_path = os.path.join('code/greedy_from_machine/lidor_test', file)
+        latex_path = os.path.join('code/greedy_from_machine/lidor_test', file[:-4] + '.tex')
 
 
-pdf_path = 'code/greedy_from_machine/lidor_test/main_changed.pdf'
-latex_path = 'code/greedy_from_machine/lidor_test/main_changed.tex'
-remove_comments(latex_path)
 
-print(find_first_line(pdf_path, latex_path))
-
+lidor = convert_Latex_to_rows_list(latex_path,pdf_path)
+print(lidor)
 
 
 
