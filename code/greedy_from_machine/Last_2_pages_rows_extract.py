@@ -179,6 +179,7 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
     last_iteration = False
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
+        left_column = (0, 0, page.width / 2, page.height)
         tt_table_settings = {
             "vertical_strategy": "lines",
             "horizontal_strategy": "text",
@@ -188,7 +189,6 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
             "horizontal_strategy": "lines",
         }
         tt_tables = page.find_tables(tt_table_settings)
-
         if tt_tables:
             tables = tt_tables
         else:
@@ -203,17 +203,43 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
             table_bbox = first_table.bbox
             #get the first y_coordinate of table
             first_y_coordinate = table_bbox[1]
-            #get the text in the page of the left column
+            table_text = ""
             left_column = (0, 0, page.width / 2, page.height)
+            if tt_tables:
+                tt_text_inside_table = page.extract_tables(tt_table_settings)[iteration][0]
+                #make the list filter all None values
+                tt_text_inside_table = list(filter(None, tt_text_inside_table))
+                #make a string out of the list
+                tt_text_inside_table = ''.join(tt_text_inside_table)
+                #leave only letters and numbers
+                tt_text_inside_table = re.sub(r'[^a-zA-Z0-9]+', '', tt_text_inside_table)
+                table_text = tt_text_inside_table
+            else:
+                lt_text_inside_table = page.extract_tables(lt_table_settings)[iteration][0]
+                #make the list filter all None values
+                lt_text_inside_table = list(filter(None, lt_text_inside_table))
+                #make a string out of the list
+                lt_text_inside_table = ''.join(lt_text_inside_table)
+                #leave only letters and numbers
+                lt_text_inside_table = re.sub(r'[^a-zA-Z0-9]+', '', lt_text_inside_table)
+                table_text = lt_text_inside_table
+            #get the text in the page of the left column
+            
             # Extract text only from the left column and separate by lines
             text = page.within_bbox(left_column).extract_text_lines()
-            
+            #extract text only from after the table so from y_coordinate
+            y_coordinate = table_bbox[3]
+            bbox = (0, y_coordinate, page.width / 2, page.height)
+            rel_text = page.within_bbox(bbox).extract_text()
+            rel_text = rel_text.split('\n')
             #check if the first line in the text is not in the table then its the first line
             if text[return_index]['top'] < first_y_coordinate and text[return_index]['bottom'] < first_y_coordinate and not text[return_index]['text'].startswith('Table'):
                 first_line = text[return_index]['text']
                 return first_line, is_table, is_figure, return_index, last_iteration
             #the table is first so we need to get the y coordinate of the last line in the table
-            y_coordinate = table_bbox[3]
+            
+            
+            
             #get the first line in page that is after the table
             for index, line in enumerate(text):
                 if line['top'] > y_coordinate:
@@ -222,6 +248,7 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
                     bbox = (0, y_coordinate, page.width / 2, page.height)
                     rel_text = page.within_bbox(bbox).extract_text()
                     rel_text = rel_text.split('\n')
+
                     if line['text'].startswith('Table'):
                         first_line, return_index = remove_caption(rel_text, latex_path, 'Table')
                         return_index += index
