@@ -40,7 +40,7 @@ def find_first_row_in_last_page(pdf_file_path, latex_path):
             if last_iteration:
                 break
             return_index = find_first_line(pdf_file_path, latex_path, return_index)
-            first_line, is_start_table, is_start_figure, return_index, last_iteration = check_if_text_inside_table(pdf_file_path, text, latex_path, iteration, return_index)
+            first_line, is_start_table, is_start_figure, return_index, last_iteration = check_if_text_inside_table(pdf_file_path, latex_path, iteration, return_index)
             if is_start_table==False or is_start_figure==True:
                 first_line, is_start_image, return_index, last_iteration = check_if_text_inside_image(pdf_file_path, text, latex_path, is_start_figure)
             if is_start_table or is_start_figure or is_start_image:
@@ -107,9 +107,11 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
         # flag to know if we found the line we want to end the extraction from
         found_end = False
         # clean the line to make it easier to compare
-        pattern = r'\\[a-zA-Z]+(?:\[[^\]]+\])?(?:\{[^\}]+\})?'
+        pattern = r'\\[a-zA-Z]+(?:\[[^\]]\])?(?:\{[^\}]\})?'
         match_was_in_second_line = False
         for i in range(len(lines)):
+            if i == 354:
+                print("here")
             if match_was_in_second_line:
                 match_was_in_second_line = False
                 continue
@@ -169,7 +171,7 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
     except Exception as e:
             print(f"An error occurred: {e}")
 
-def extract_text_from_tables(pdf_path, latex_path,text, iteration, return_index=0):
+def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
     is_table = False
     is_figure = False
     text = ""
@@ -180,20 +182,20 @@ def extract_text_from_tables(pdf_path, latex_path,text, iteration, return_index=
         tt_table_settings = {
             "vertical_strategy": "lines",
             "horizontal_strategy": "text",
-            
         }
         lt_table_settings = {
             "vertical_strategy": "text",
             "horizontal_strategy": "lines",
         }
         tt_tables = page.find_tables(tt_table_settings)
+
         if tt_tables:
             tables = tt_tables
         else:
             lt_tables = page.find_tables(lt_table_settings)
             if lt_tables:
                 tables = lt_tables
-        if tables:
+        if tables and len(tables) > iteration:
             is_table = True
             if len(tables) == iteration+1:
                 last_iteration = True                
@@ -207,7 +209,7 @@ def extract_text_from_tables(pdf_path, latex_path,text, iteration, return_index=
             text = page.within_bbox(left_column).extract_text_lines()
             
             #check if the first line in the text is not in the table then its the first line
-            if text[return_index]['top'] < first_y_coordinate and text[return_index]['bottom'] < first_y_coordinate and not text[0]['text'].startswith('Table'):
+            if text[return_index]['top'] < first_y_coordinate and text[return_index]['bottom'] < first_y_coordinate and not text[return_index]['text'].startswith('Table'):
                 first_line = text[return_index]['text']
                 return first_line, is_table, is_figure, return_index, last_iteration
             #the table is first so we need to get the y coordinate of the last line in the table
@@ -235,10 +237,10 @@ def extract_text_from_tables(pdf_path, latex_path,text, iteration, return_index=
                     break
         return first_line, is_table, is_figure, return_index, last_iteration
     
-def check_if_text_inside_table(pdf_path, text_in_page, latex_path, iteration=0, return_index=0):
+def check_if_text_inside_table(pdf_path, latex_path, iteration=0, return_index=0):
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
-        text_after_table, is_table, is_figure, return_index, last_iteration = extract_text_from_tables(pdf_path, latex_path, text_in_page,iteration,return_index)
+        text_after_table, is_table, is_figure, return_index, last_iteration = extract_text_from_tables(pdf_path, latex_path,iteration,return_index)
         return text_after_table, is_table, is_figure, return_index, last_iteration
                             
 def remove_caption(text_in_page, latex_path , caption_type):
@@ -280,7 +282,6 @@ def remove_caption(text_in_page, latex_path , caption_type):
     except IndexError:
         print("not a real caption")
         return text_in_page[0], 0
-
     while len(caption_lines) >1:
         for index, line in enumerate(caption_lines):
             clean_beginning_of_caption = re.sub(r'[^a-zA-Z0-9]+', '', beginning_of_caption)
@@ -288,7 +289,7 @@ def remove_caption(text_in_page, latex_path , caption_type):
                 continue
             else:
                 caption_lines[index] = ''
-        #remove the empty lines
+    #remove the empty lines
         caption_lines = list(filter(None, caption_lines))
         text_index+=1
         beginning_of_caption = text_in_page[text_index]
@@ -297,13 +298,15 @@ def remove_caption(text_in_page, latex_path , caption_type):
     caption_line = caption_lines[0]
 
     clean_caption_line = re.sub(r'[^a-zA-Z0-9]+', '', caption_line)
+    clean_caption_line = clean_caption_line.lower()
     for index, line in enumerate(text_in_page):
         #remove the regex Table\d: from clean_line
         if caption_type == 'Table':
-            clean_line = re.sub(r'Table\d*:', '', line)
+            clean_line = re.sub(r'Table\s*\d*:\s*', '', line)
         if caption_type == 'Figure':
-            clean_line = re.sub(r'Figure\s*\d*:', '', line)
+            clean_line = re.sub(r'Figure\s*\d*\s*:', '', line)
         clean_line = re.sub(r'[^a-zA-Z0-9]+', '', clean_line)
+        clean_line = clean_line.lower()
         
         #edge cases
         clean_caption_line = clean_caption_line.replace('cdot', '')
@@ -316,6 +319,7 @@ def remove_caption(text_in_page, latex_path , caption_type):
     #filter out empty lines
     text_in_page = list(filter(None, text_in_page))
     return text_in_page[0], index
+
 
 def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption_type) :  
     with pdfplumber.open(pdf_path) as pdf:
