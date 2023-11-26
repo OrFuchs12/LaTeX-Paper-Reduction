@@ -177,9 +177,9 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
     text = ""
     first_line = ""
     last_iteration = False
+    tt_tables = None
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
-        left_column = (0, 0, page.width / 2, page.height)
         tt_table_settings = {
             "vertical_strategy": "lines",
             "horizontal_strategy": "text",
@@ -188,13 +188,14 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
             "vertical_strategy": "text",
             "horizontal_strategy": "lines",
         }
-        tt_tables = page.find_tables(tt_table_settings)
-        if tt_tables:
-            tables = tt_tables
+        lt_tables = page.find_tables(lt_table_settings)
+        if lt_tables:
+            tables = lt_tables
         else:
-            lt_tables = page.find_tables(lt_table_settings)
-            if lt_tables:
-                tables = lt_tables
+            tt_tables = page.find_tables(tt_table_settings)
+            if tt_tables:
+                tables = tt_tables
+        left_column = (0, 0, page.width / 2, page.height)
         if tables and len(tables) > iteration:
             is_table = True
             if len(tables) == iteration+1:
@@ -253,7 +254,7 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
                         first_line, return_index = remove_caption(rel_text, latex_path, 'Table')
                         return_index += index
                     #find images that were detected as tables
-                    elif not text[0]['text'].startswith('Table'):
+                    elif text[return_index]['text'].startswith('Figure'):
                         is_figure = True
                         is_table = False
                         first_line = None
