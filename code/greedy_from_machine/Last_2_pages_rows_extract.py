@@ -17,6 +17,7 @@ def remove_math_patterns(text):
         
         # Stage 2: Replace 'something_letter' or 'something_number' with 'something_'
         replacement = re.sub(r'_(\w)', '_', original_match)
+        replacement = re.sub(r'_\{.*?\}', '_', replacement)
         text = text.replace(original_match, replacement, 1)  # Replace only the first occurrence
 
     return text
@@ -95,6 +96,7 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
     print(first_row_to_begin)
     # clean the line to make it easier to compare
     clean_line = re.sub(r'[^a-zA-Z0-9]+', '', first_row_to_begin)
+    clean_line = clean_line.lower()
     # search the line in  the latex file
     try:
         with open(latex_path, 'r',encoding='utf-8', errors='ignore') as tex_file:
@@ -110,8 +112,6 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
         pattern = r'\\[a-zA-Z]+(?:\[[^\]]\])?(?:\{[^\}]\})?'
         match_was_in_second_line = False
         for i in range(len(lines)):
-            if i == 354:
-                print("here")
             if match_was_in_second_line:
                 match_was_in_second_line = False
                 continue
@@ -123,14 +123,23 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
             else:
                 line = lines[i]
             line = remove_math_patterns(line)
-            clean_linePDF = re.sub(pattern, '', line)
-            clean_latex_line_to_compare = re.sub(r'[^a-zA-Z0-9]+', '', clean_linePDF)
+            frac_pattern = re.compile(r'\\frac\{(\w+)\}\{(\d+)\} ([^\s]+) (\d+)')
+            # Replace the pattern with the desired format
+            clean_line_latex = re.sub(frac_pattern, r'{\1} \3 \4', line)
+            clean_line_latex = re.sub(r'\\phi', '', clean_line_latex)
+            clean_line_latex = re.sub(pattern, '', clean_line_latex)
+            clean_latex_line_to_compare = re.sub(r'[^a-zA-Z0-9]+', '', clean_line_latex)
+            
             clean_next_line = remove_math_patterns(next_line)
+            clean_next_line = re.sub(frac_pattern, r'{\1} \3 \4', clean_next_line)
             clean_next_line = re.sub(pattern, '', clean_next_line)
             clean_next_line = re.sub(r'[^a-zA-Z0-9]+', '', clean_next_line)
             clean_next_line = clean_next_line.lower()
+            
             clean_line = clean_line.lower()
             clean_latex_line_to_compare = clean_latex_line_to_compare.lower()
+            clean_next_line = clean_next_line.lower()
+            
             while(not found_start and clean_line not in clean_latex_line_to_compare):
                 lines_before_the_line += 1
                 rows_list.append('\n')
@@ -178,6 +187,7 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
     first_line = ""
     last_iteration = False
     tt_tables = None
+    tables = None
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
         tt_table_settings = {
@@ -202,6 +212,10 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
                 last_iteration = True                
             first_table = tables[iteration]
             table_bbox = first_table.bbox
+            #recognize tables only on the right column because we dont need them
+            if table_bbox[0] > page.width / 2:
+                is_table = False
+                return first_line, is_table, is_figure, return_index, last_iteration
             #get the first y_coordinate of table
             first_y_coordinate = table_bbox[1]
             table_text = ""
@@ -254,7 +268,7 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
                         first_line, return_index = remove_caption(rel_text, latex_path, 'Table')
                         return_index += index
                     #find images that were detected as tables
-                    elif text[return_index]['text'].startswith('Figure'):
+                    elif line['text'].startswith('Figure'):
                         is_figure = True
                         is_table = False
                         first_line = None
@@ -292,16 +306,35 @@ def remove_caption(text_in_page, latex_path , caption_type):
             else:
                 caption_lines.append(temp_line)
     #replace any \emph in the lines
-    caption_lines = [line.replace(r'\emph', '') for line in caption_lines]
-    #replace any \textit in the lines
-    caption_lines = [line.replace(r'\textit', '') for line in caption_lines]
-    caption_lines = [line.replace(r'\textbf', '') for line in caption_lines]
-    #remove \caption from the lines
-    caption_lines = [line.replace(r'\caption{', '') for line in caption_lines]
-    #keep only what is before }
-    caption_lines = [line.rsplit('}', 1)[0] for line in caption_lines]
-    #leave only numbers and letters in the lines
-    caption_lines = [re.sub(r'[^a-zA-Z0-9]+', '', line) for line in caption_lines]
+    # caption_lines = [line.replace(r'\emph', '') for line in caption_lines]
+    # #replace any \textit in the lines
+    # caption_lines = [line.replace(r'\textit', '') for line in caption_lines]
+    # caption_lines = [line.replace(r'\textbf', '') for line in caption_lines]
+    # caption_lines = [line.replace(r'\phi', '') for line in caption_lines]
+    # caption_lines = [line.replace(r'\cdot', '') for line in caption_lines]
+    # caption_lines = [line.replace(r'\em', '') for line in caption_lines]
+    # caption_lines = [line.replace(r'\underline', '') for line in caption_lines]
+    # caption_lines = [remove_math_patterns(line) for line in caption_lines]
+    # #remove \caption from the lines
+    # caption_lines = [line.replace(r'\caption{', '') for line in caption_lines]
+    # #keep only what is before }
+    # caption_lines = [line.rsplit('}', 1)[0] for line in caption_lines]
+    # #leave only numbers and letters in the lines
+    # caption_lines = [re.sub(r'[^a-zA-Z0-9]+', '', line) for line in caption_lines]
+    
+    for index, line in enumerate(caption_lines):
+        line = line.replace(r'\emph', '')
+        line = line.replace(r'\textit', '')
+        line = line.replace(r'\textbf', '')
+        line = line.replace(r'\phi', '') 
+        line = line.replace(r'\cdot', '')
+        line = line.replace(r'\em', '')
+        line = line.replace(r'\underline', '')
+        line = remove_math_patterns(line)
+        line = line.replace(r'\caption{', '')
+        line = line.rsplit('}', 1)[0] 
+        line = re.sub(r'[^a-zA-Z0-9]+', '', line)
+        caption_lines[index] = line
     #find the caption that starts with text_in_page[0]
     caption_line = ''
     text_index = 0
@@ -324,7 +357,6 @@ def remove_caption(text_in_page, latex_path , caption_type):
     if (len(caption_lines) == 0):
         raise Exception("No caption found")
     caption_line = caption_lines[0]
-
     clean_caption_line = re.sub(r'[^a-zA-Z0-9]+', '', caption_line)
     clean_caption_line = clean_caption_line.lower()
     for index, line in enumerate(text_in_page):
@@ -336,9 +368,7 @@ def remove_caption(text_in_page, latex_path , caption_type):
         clean_line = re.sub(r'[^a-zA-Z0-9]+', '', clean_line)
         clean_line = clean_line.lower()
         
-        #edge cases
-        clean_caption_line = clean_caption_line.replace('cdot', '')
-        clean_caption_line = clean_caption_line.replace('phi', '')
+
         
         if clean_line in clean_caption_line:
             text_in_page[index] = ''
@@ -346,6 +376,9 @@ def remove_caption(text_in_page, latex_path , caption_type):
             break
     #filter out empty lines
     text_in_page = list(filter(None, text_in_page))
+    
+    if len(text_in_page) == 0:
+        raise Exception("go to next column")
     return text_in_page[0], index
 
 
