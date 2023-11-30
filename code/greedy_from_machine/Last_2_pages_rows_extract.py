@@ -207,14 +207,12 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
                 tables = lt_tables
         left_column = (0, 0, page.width / 2, page.height)
         if tables and len(tables) > iteration:
-            is_table = True
             if len(tables) == iteration+1:
                 last_iteration = True                
             first_table = tables[iteration]
             table_bbox = first_table.bbox
             #recognize tables only on the right column because we dont need them
             if table_bbox[0] > page.width / 2:
-                is_table = False
                 return first_line, is_table, is_figure, return_index, last_iteration
             #get the first y_coordinate of table
             first_y_coordinate = table_bbox[1]
@@ -244,6 +242,7 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
 
                     if line['text'].startswith('Table'):
                         first_line, return_index = remove_caption(rel_text, latex_path, 'Table')
+                        is_table = True
                         return_index += index
                     #find images that were detected as tables
                     elif line['text'].startswith('Figure'):
@@ -514,11 +513,11 @@ import os
 
     
 
-#  pdf_ path is the file in code/greedy_from_machine/lidor_test that ends with .pdf
-for file in os.listdir('code/greedy_from_machine/lidor_test'):
+#  pdf_ path is the file in code/greedy_from_machine/test_lidor that ends with .pdf
+for file in os.listdir('code/greedy_from_machine/test_lidor'):
     if file.endswith('.pdf'):
-        pdf_path = os.path.join('code/greedy_from_machine/lidor_test', file)
-        latex_path = os.path.join('code/greedy_from_machine/lidor_test', file[:-4] + '.tex')
+        pdf_path = os.path.join('code/greedy_from_machine/test_lidor', file)
+        latex_path = os.path.join('code/greedy_from_machine/test_lidor', file[:-4] + '.tex')
 
 
 

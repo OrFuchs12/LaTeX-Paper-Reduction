@@ -211,6 +211,14 @@ def receive_lines_version_1(lines):
                 continue
         elif new_line.startswith("\\caption"):
             if new_line.split("{")[1].split("}")[0] != "":
+                brace_count = new_line.count("{") - new_line.count("}")
+                caption_index = i + 1
+                while brace_count > 0:
+                    new_line += lines[caption_index]
+                    brace_count = new_line.count("{") - new_line.count("}")
+                    caption_index +=1
+                label_pattern = r"\\label{.*}"
+                new_line = re.sub(label_pattern, "", new_line)
                 if scope == "algorithm":
                     continue
                 elif scope=="figure":
