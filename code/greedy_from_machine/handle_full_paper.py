@@ -46,6 +46,7 @@ def remove_astrik_inside_paranthases(latex_path):
         for line in lines:
             line = re.sub(r'\\begin{(\w+)\*}', r'\\begin{\1}', line)
             line = re.sub(r'\\end{(\w+)\*}', r'\\end{\1}', line)
+            line = re.sub(r'\\section\*', r'\\section', line)
             f.write(line)
     
 # copy_last_pages("code/greedy_from_machine/files/Keller_changed.pdf", "updated_keller.pdf", NUMBER_OF_LAST_PAGES)

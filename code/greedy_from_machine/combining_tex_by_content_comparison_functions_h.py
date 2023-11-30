@@ -52,7 +52,7 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
                 box, line = i
 
                 if i[1].startswith("TABLETABLE"):  # it's a table
-
+                    
                     if tables[tables_counter][0][-1]=="True":
                         current_need_to_be_caption_table=True
                     # object_dict.append([i[0], figures[figures_counter], i[1], index_line, k, j])

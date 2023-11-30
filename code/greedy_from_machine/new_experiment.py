@@ -19,6 +19,7 @@ import xgboost as xg
 from Last_2_pages_rows_extract import convert_Latex_to_rows_list
 from handle_full_paper import copy_last_pages
 from handle_full_paper import remove_comments
+from handle_full_paper import remove_astrik_inside_paranthases
 import cv2
 
 NUMBER_OF_LAST_PAGES = 2
@@ -975,7 +976,7 @@ def model_greedy(path_to_pdf, path_to_latex, models):
                 model_to_predict = (str(res[index][2]), str(res[index][3]), str(res[index][4]), res[index][5])
             else:
                 model_to_predict = (str(res[index][2]), str(res[index][3]), res[index][5])
-
+ 
             # whether we applied the operator before
             if model_to_predict in operators_done:
                 index += 1
@@ -1074,11 +1075,12 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
                 if file.name.lower().endswith("_changed.pdf") :
                     file_path = os.path.join(paper_dir.path, file.name)
                     path_to_pdf = file_path
-                    last_pages_pdf_path = copy_last_pages(path_to_pdf,NUMBER_OF_LAST_PAGES )
+                    last_pages_pdf_path = copy_last_pages(path_to_pdf,NUMBER_OF_LAST_PAGES)
                 if file.name.lower().endswith("_changed.tex") :
                     file_path = os.path.join(paper_dir.path, file.name)
                     path_to_latex = file_path
                     remove_comments(path_to_latex)
+                    remove_astrik_inside_paranthases(path_to_latex)
                 
                 # move ol files in 'code/greedy_from_machine/files' directory to 'code/~/results/new_files' directory
                 source_dir = os.path.join("code/greedy_from_machine/files", paper_directory)

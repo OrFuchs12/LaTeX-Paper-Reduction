@@ -202,7 +202,7 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
         if tt_tables:
             tables = tt_tables
         else:
-            lt_tables = page.find_tables(tt_table_settings)
+            lt_tables = page.find_tables(lt_table_settings)
             if lt_tables:
                 tables = lt_tables
         left_column = (0, 0, page.width / 2, page.height)
@@ -522,8 +522,8 @@ for file in os.listdir('code/greedy_from_machine/lidor_test'):
 
 
 
-lidor = convert_Latex_to_rows_list(latex_path,pdf_path)
-print(lidor)
+# lidor = convert_Latex_to_rows_list(latex_path,pdf_path)
+# print(lidor)
 
 
 

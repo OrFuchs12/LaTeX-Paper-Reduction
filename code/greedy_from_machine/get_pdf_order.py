@@ -100,6 +100,8 @@ def order(path):
     for i in range(2):
         pdf_total_order[i]=order_page(path,i,tables_dict,pictures_dict,frompdf)
 
+    
+
     return pdf_total_order
 
 if __name__ == '__main__':
