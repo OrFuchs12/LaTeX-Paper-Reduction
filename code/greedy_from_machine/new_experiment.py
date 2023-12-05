@@ -676,6 +676,7 @@ def check_lines(file_path):
     path_to_latex - path to the latex file 
 """
 def simple_greedy(path_to_pdf, path_to_latex):
+    reduced = False
     try:
         operators_done = []
         #perform feature extraction to the file

@@ -96,8 +96,8 @@ def order_page(path,page_num,tables_dict,pictures_dict,frompdf):
         if "TABLETABLE" in left_column_items_list[i][1][0]:
             if "Figure" in left_column_items_list[i+1][1][0]:
                 left_column_sorted_dict[left_column_items_list[i][0]] = ("FIGUREFIGURE", 0)
-                if left_column_items_list[i+1][1][1][2] > 300:
-                    right_column_sorted_dict[left_column_items_list[i][0]] = ("FIGUREFIGURE", 0)
+                # if left_column_items_list[i+1][1][1][2] > 300:
+                #     right_column_sorted_dict[left_column_items_list[i][0]] = ("FIGUREFIGURE", 0)
     
     right_column_items_list = list(right_column_sorted_dict.items())
     for i in range(len(right_column_items_list)):

@@ -34,8 +34,8 @@ def remove_comments(latex_path):
 
     with open(latex_path, 'w', encoding='utf-8') as f:
         for line in lines:
-            # Check if the line is a comment or empty
-            if not re.match(r'^\s*%|^\s*$', line):
+            # Check if the line is a comment    
+            if not re.match(r'^\s*%', line):
                 f.write(line)
                 
 #things like \begin{figure*} become \begin{figure}

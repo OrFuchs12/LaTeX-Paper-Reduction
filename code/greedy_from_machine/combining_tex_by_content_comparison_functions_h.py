@@ -40,6 +40,8 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
 
     current_need_to_be_caption_table=False
     current_need_to_be_caption_figure=False
+    
+    last_obj_caption = []
 
     pdf_arr_for_appending=[]
     for k in range(2):
@@ -118,17 +120,18 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
 
                     currline = regex.sub('', line)
                     currline=currline.replace("fi", "")
-                    currline=currline.replace("fl", "")
+                    # currline=currline.replace("fl", "")
                     helpline = regex.sub('', lines_to_search[next_line_to_find][1])
                     helpline=helpline.replace("fi", "")
                     helpline=helpline.replace("fl", "")
                     if current_need_to_be_caption_figure==True: #looking for caption
 
-                        for caption in figure_captions_set:
+                        for cap_index, caption in enumerate(figure_captions_set):
                             helpline = regex.sub('', caption[0][1])
                             helpline = helpline.replace("fi", "")
                             helpline = helpline.replace("fl", "")
                             if currline.startswith(helpline):
+                                last_obj_caption = ["Figure", cap_index]
                                 current_need_to_be_caption_figure = False
                                 # object_dict.append([box, line, index_line, k, j])
                                 helper_dict = {"First_line_bbox": box, "Text": line,
@@ -182,6 +185,7 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
 
 
                     elif currline.startswith(helpline):
+                            last_obj_caption = []
 
                             # print(helpline)
                             next_line_to_find += 1
@@ -269,6 +273,28 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
                             # next_line_to_find += 1
                             object_dict_counter += 1
                             last_text_position = len(object_dict)
+                    elif len(last_obj_caption) > 0 and last_obj_caption[0] == "Figure":
+                        helpline= list(figure_captions_set)[last_obj_caption[1]]
+                        helpline = helpline[0][3]
+                        helpline = helpline.replace(r'\emph', '')
+                        helpline = helpline.replace(r'\textit', '')
+                        helpline = helpline.replace(r'\textbf', '')
+                        helpline = helpline.replace(r'\phi', '') 
+                        helpline = helpline.replace(r'\cdot', '')
+                        helpline = helpline.replace(r'\em', '')
+                        helpline = helpline.replace(r'\underline', '')
+                        helpline = helpline.replace(r'\geq', '')                                    
+                        helpline=  regex.sub('',helpline)
+                        if currline in helpline:
+                            new_text = object_dict[-1]["Text"] + line
+                            new_bbox = (object_dict[-1]["First_line_bbox"][0], box[1])
+                            object_dict[-1]["Text"] = new_text
+                            object_dict[-1]["First_line_bbox"] = new_bbox
+                            
+                    
+
+                        
+                    
 
 
                 last_line_bbox=box

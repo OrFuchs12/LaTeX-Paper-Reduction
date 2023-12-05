@@ -218,6 +218,8 @@ def count_paragraphs(lines,ans,new_dict):
         par_start = 0
         definition_flag = False
         for line_number in range(section[0],section[1]+1):
+            if line_number == 308:
+                pass
             str_line = str(lines[line_number])
             if str_line.startswith("\\begin") or str_line.startswith("$\\begin"):
                 if str_line.startswith("\\begin{definition}"):

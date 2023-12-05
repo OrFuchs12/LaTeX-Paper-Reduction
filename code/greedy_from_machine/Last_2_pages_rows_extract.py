@@ -161,11 +161,11 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
                 continue                
 
             while found_start and not line.startswith("\\end{document}"):
-                if(line == ''):
+                if(first_line == ''):
                     rows_list.append('\n')
                     break
                 else:
-                    rows_list.append(line)
+                    rows_list.append(first_line)
                     break
             if found_start and line.startswith("\\end{document}"):
                 rows_list.append(line)
