@@ -514,10 +514,10 @@ import os
     
 
 #  pdf_ path is the file in code/greedy_from_machine/test_lidor that ends with .pdf
-for file in os.listdir('code/greedy_from_machine/test_lidor'):
-    if file.endswith('.pdf'):
-        pdf_path = os.path.join('code/greedy_from_machine/test_lidor', file)
-        latex_path = os.path.join('code/greedy_from_machine/test_lidor', file[:-4] + '.tex')
+# for file in os.listdir('code/greedy_from_machine/test_lidor'):
+#     if file.endswith('.pdf'):
+#         pdf_path = os.path.join('code/greedy_from_machine/test_lidor', file)
+#         latex_path = os.path.join('code/greedy_from_machine/test_lidor', file[:-4] + '.tex')
 
 
 

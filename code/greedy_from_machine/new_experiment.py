@@ -27,9 +27,12 @@ NUMBER_OF_LAST_PAGES = 2
 
 def get_new_height(img_path, new_width):
     im = cv2.imread(img_path)
-    height, width, channel = im.shape
-    new_height = round((height * new_width / width), 2) 
-    return new_height
+    try:
+        height, width, channel = im.shape
+        new_height = round((height * new_width / width), 2) 
+        return new_height
+    except:
+        return None
 
 def take(n, iterable):
     "Return first n items of the iterable as a list"
@@ -68,7 +71,7 @@ def combine_two_paragraphs(lst, index_1, index_2):
     return lst
 
 
-def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file):  # ,path_to_file):
+def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, paper_name):  # ,path_to_file):
 
     lidor = convert_Latex_to_rows_list(latex_path, pdf_path)
     # lidor = []
@@ -468,9 +471,11 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file):  #
                 end_img_path_index = string_to_edit.find('}')
                 img_path = string_to_edit[start_img_path_index+1:end_img_path_index]
                 #add current working directory to the path
-                prefix = "code/greedy_from_machine/files"
+                prefix = os.path.join("code/~/results/new_files/", paper_name)
                 img_path = os.path.join(prefix, img_path)
-                height = get_new_height(img_path, width) 
+                test_height = get_new_height(img_path, width) 
+                if test_height != None:
+                    height = test_height
                
                 
                 
@@ -675,7 +680,7 @@ def check_lines(file_path):
     path_to_pdf - path to the pdf file 
     path_to_latex - path to the latex file 
 """
-def simple_greedy(path_to_pdf, path_to_latex):
+def simple_greedy(path_to_pdf, path_to_latex, paper_name):
     reduced = False
     try:
         operators_done = []
@@ -719,7 +724,7 @@ def simple_greedy(path_to_pdf, path_to_latex):
                 dct = pickle.load(dct_file)
 
             # get list of all possible operators to apply on the file
-            res = perform_operators(dct, 0, path_to_latex, path_to_pdf ,"code/~/results/new_files/")
+            res = perform_operators(dct, 0, path_to_latex, path_to_pdf ,"code/~/results/new_files/", paper_name)
             print("total operators:", len(res))
 
             # whether there are no more operators
@@ -741,31 +746,34 @@ def simple_greedy(path_to_pdf, path_to_latex):
 
             latex_after_operator = res[index][1]
             # write the file after operator to file
-            f = open("code/~/results/new_files/after_operator1.tex", "w")
+            after_path = os.path.join("code/~/results/new_files/", paper_name)
+            after_path = os.path.join(after_path, "after_operator1.tex")
+            f = open(after_path, "w")
             f.write(latex_after_operator)
             f.close()
 
             # compile the file
             # cmd_line_act = 'tectonic -X compile ' + "code/~/results/new_files/after_operator1.tex"
-            dir_path = "code/~/results/new_files"
-            base_name = os.path.basename("code/~/results/new_files/after_operator1.tex")
+            dir_path = os.path.join("code/~/results/new_files", paper_name)
+            base_name = os.path.basename(after_path)
             # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
             subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
-            path_to_new_pdf = "code/~/results/new_files/after_operator1.pdf"
-            last_pages_pdf = copy_last_pages(path_to_new_pdf, NUMBER_OF_LAST_PAGES)
+            after_pdf = os.path.join("code/~/results/new_files/", paper_name)
+            after_pdf = os.path.join(after_pdf, "after_operator1.pdf")
+            last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES)
             
             
             # os.system(cmd_line_act)
 
             # check the new current number of lines
             lines, pages = check_lines(last_pages_pdf)
-            fullLines , fullPages = check_lines("code/~/results/new_files/after_operator1.pdf")
+            fullLines , fullPages = check_lines(after_pdf)
             print("current lines:", lines)
             print("current pages:", pages)
 
-            path_to_latex = "code/~/results/new_files/after_operator1.tex"
+            path_to_latex = after_path
 
-            features_single.run_feature_extraction("code/~/results/new_files/after_operator1.tex", 
+            features_single.run_feature_extraction(after_path, 
                     last_pages_pdf, 'code/~/results/bibliography.bib',
                     "code/~/results/dct0", "code/~/results/new_files/dct0", "test", pd.DataFrame())
 
@@ -1087,18 +1095,18 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
                 source_dir = os.path.join("code/greedy_from_machine/files", paper_directory)
                 destination_dir = os.path.join("code/~/results/new_files", paper_directory)       
                 os.makedirs(destination_dir, exist_ok=True)     
-                if not (file.name.lower().endswith(".pdf") or file.name.lower().endswith(".tex")):
-                    source_path = file.path
-                    destination_path = os.path.join(destination_dir, file.name)
-                    shutil.copy(source_path, destination_path)
+                # if not (file.name.lower().endswith(".pdf") or file.name.lower().endswith(".tex")):
+                source_path = file.path
+                destination_path = os.path.join(destination_dir, file.name)
+                shutil.copy(source_path, destination_path)
 
                 # whether you want to run the model-based greedy algorithm
         if models: 
-            iterations, time_taken, reduced, cost = variant_function(last_pages_pdf_path, path_to_latex, models)
+            iterations, time_taken, reduced, cost = variant_function(last_pages_pdf_path, path_to_latex, models, paper_directory)
 
         # whether you want to run other greedy algorithms
         else: 
-            iterations, time_taken, reduced, cost = variant_function(last_pages_pdf_path, path_to_latex)
+            iterations, time_taken, reduced, cost = variant_function(last_pages_pdf_path, path_to_latex, paper_directory)
 
         if iterations != -1:
             results.append((paper_directory, file.name, variant_name, reduced, iterations, time_taken, cost))

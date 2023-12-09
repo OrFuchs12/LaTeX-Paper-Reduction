@@ -121,7 +121,10 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
                     currline = regex.sub('', line)
                     currline=currline.replace("fi", "")
                     # currline=currline.replace("fl", "")
-                    helpline = regex.sub('', lines_to_search[next_line_to_find][1])
+                    if (next_line_to_find < len(tags)):
+                        helpline = regex.sub('', tags[next_line_to_find][0][3])
+                    else: 
+                        helpline = ""
                     helpline=helpline.replace("fi", "")
                     helpline=helpline.replace("fl", "")
                     if current_need_to_be_caption_figure==True: #looking for caption
@@ -184,7 +187,7 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
 
 
 
-                    elif currline.startswith(helpline):
+                    elif currline in helpline:
                             last_obj_caption = []
 
                             # print(helpline)
