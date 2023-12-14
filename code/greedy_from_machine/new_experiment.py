@@ -1109,7 +1109,7 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
             iterations, time_taken, reduced, cost = variant_function(last_pages_pdf_path, path_to_latex, paper_directory)
 
         if iterations != -1:
-            results.append((paper_directory, file.name, variant_name, reduced, iterations, time_taken, cost))
+            results.append(( file.name, variant_name, reduced, iterations, time_taken, cost))
             try:
             # write the results every document finished (just in case)
                 df = pd.DataFrame(results, columns=["Directory", "Name", "Algorithm", "Reduced", "Iterations", "Time", "Cost"])

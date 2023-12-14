@@ -93,7 +93,6 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
 
     # the first row in the page we want to start the extraction from
     first_row_to_begin = find_first_row_in_last_page(pdf_path, latex_path)
-    print(first_row_to_begin)
     # clean the line to make it easier to compare
     clean_line = re.sub(r'[^a-zA-Z0-9]+', '', first_row_to_begin)
     clean_line = clean_line.lower()
@@ -146,9 +145,6 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
                 break
             if(not found_start and clean_line in clean_latex_line_to_compare):
                 print("found the line")
-                print(clean_line)
-                print(clean_latex_line_to_compare)
-                print(clean_next_line)
                 match_started_in_next_line = clean_line in clean_next_line
                 if match_started_in_next_line:
                     rows_list.append('\n')
