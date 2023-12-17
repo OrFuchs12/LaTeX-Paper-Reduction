@@ -31,7 +31,7 @@ def order_page(path,page_num,tables_dict,pictures_dict,frompdf):
             tple[1]=max(k[0][1],tple[1])
             #helper[0]=tuple(tple)
             last_index=tuple(tple)
-            txt=helper+k[1]
+            txt=helper+k[1][0]
             new_left_column_sorted_dict[last_index] = (txt,new_left_column_sorted_dict[last_index][1])
             current_y_end=k[0][1]
             current_y_start=k[0][0]
