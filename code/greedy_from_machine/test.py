@@ -96,7 +96,7 @@ def run(latex_path,pdf_path,bib_path):
             new_lines.append(k)
 
         lines = new_lines
-
+ 
         adi = combining_tex_by_content_comparison_functions.running_from_outside(pdf_path, tags_without_figures_and_tables,
                                                                                  figures, tables, algorithms, lines,
                                                                                  figure_captions_set, table_captions_set)
