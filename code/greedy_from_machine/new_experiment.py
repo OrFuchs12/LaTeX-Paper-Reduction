@@ -21,18 +21,33 @@ from handle_full_paper import copy_last_pages
 from handle_full_paper import remove_comments
 from handle_full_paper import remove_astrik_inside_paranthases
 import cv2
-
+from pdf2image import convert_from_path
+import numpy as np
 NUMBER_OF_LAST_PAGES = 2
 
 
 def get_new_height(img_path, new_width):
-    im = cv2.imread(img_path)
     try:
-        height, width, channel = im.shape
-        new_height = round((height * new_width / width), 2) 
-        return new_height
-    except:
-        return None
+        if img_path.lower().endswith('.pdf'):
+            images = convert_from_path(img_path, first_page=1, last_page=1)
+            if images:
+                image = images[0]
+                # Convert PIL image to OpenCV format
+                im = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+                height, width, channel = im.shape
+                new_height = round((height * new_width / width), 2)
+                return new_height
+        elif img_path.lower().endswith(('.png', '.jpg', '.jpeg')):
+            im = cv2.imread(img_path)
+            if im is not None:
+                height, width, channel = im.shape
+                new_height = round((height * new_width / width), 2)
+                return new_height
+        else:
+            print("Unsupported file format or invalid path.")
+    except Exception as e:
+        print("Error:", e)
+    return None
 
 def take(n, iterable):
     "Return first n items of the iterable as a list"
@@ -442,6 +457,8 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                             else:
                                 number += string_to_edit[running_index]
                                 running_index += 1
+                        if number == '':
+                            number= 1
                         width = float(number)
                         break
                     running_index += 1
@@ -462,6 +479,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                             else:
                                 number += string_to_edit[running_index]
                                 running_index += 1
+                        
                         height = float(number)
                         break
                     running_index += 1
@@ -570,7 +588,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
         str__ = arr_of_places_and_vspace_to_add[i][1]
         latex_clean_lines.insert(chosen_index_to_insert, str__)
         latex_clean_lines = latex_clean_lines  # [1:]
-        latex_string = ''.join(latex_clean_lines)
+        latex_string = ''.join(latex_clean_lines) #todo find why putting all the latexstring
         num_of_object = re.findall('\d+', arr_of_places_and_vspace_to_add[i][4])[0]
         operators_dict.append((arr_of_places_and_vspace_to_add[i][5], latex_string, 1,
                                arr_of_places_and_vspace_to_add[i][6], arr_of_places_and_vspace_to_add[i][2],
