@@ -84,6 +84,10 @@ def order_page(path,page_num,tables_dict,pictures_dict,frompdf):
             for table in tables_p0[key_table]:
                 if table[0]<300:
                     left_column[(table[1],table[3])] = ("TABLETABLE",0)
+                    threshold  = table[3] 
+                    if(table[2] > 300):
+                        # if the table is too wide, we don't want to consider the text on the right of it as a table
+                        right_column = {key: value for key, value in right_column.items() if key[1] > threshold}
                 else:
                     right_column[(table[1],table[3])] =("TABLETABLE",0)
 
@@ -96,10 +100,13 @@ def order_page(path,page_num,tables_dict,pictures_dict,frompdf):
     left_column_items_list = list(left_column_sorted_dict.items())
     for i in range(len(left_column_items_list)):
         if "TABLETABLE" in left_column_items_list[i][1][0]:
+
             if "Figure" in left_column_items_list[i+1][1][0]:
                 left_column_sorted_dict[left_column_items_list[i][0]] = ("FIGUREFIGURE", 0)
                 # if left_column_items_list[i+1][1][1][2] > 300:
                 #     right_column_sorted_dict[left_column_items_list[i][0]] = ("FIGUREFIGURE", 0)
+            
+
     
     right_column_items_list = list(right_column_sorted_dict.items())
     for i in range(len(right_column_items_list)):

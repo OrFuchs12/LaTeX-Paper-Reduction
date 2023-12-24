@@ -364,7 +364,8 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                 if (latex_clean_lines[index_to_go_through].startswith(
                         '\\begin{adjustbox}')):  # finding the line where we can change the scale of the figure
                     found_index = index_to_go_through
-                    flag = True
+                    flag = True                    
+
                 else:
                     index_to_go_through += 1
             if (flag == False):

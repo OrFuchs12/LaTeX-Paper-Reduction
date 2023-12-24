@@ -87,8 +87,10 @@ def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figu
         return text_in_page[0], False, return_index+index, last_iteration
     
 def convert_Latex_to_rows_list(latex_path,pdf_path):
-    remove_comments(latex_path)
+    # add adjust box to tables and figures
+    # remove_comments(latex_path)
     # list of rows to extract from the latex file
+    add_adjust_box(latex_path)
     rows_list = []
 
     # the first row in the page we want to start the extraction from
@@ -148,11 +150,11 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
                 match_started_in_next_line = clean_line in clean_next_line
                 if match_started_in_next_line:
                     rows_list.append('\n')
-                    rows_list.append(next_line)
+                    rows_list.append(next_line.lstrip())
                     found_start = True
                     match_was_in_second_line = True
                 else:
-                    rows_list.append(first_line)
+                    rows_list.append(first_line.lstrip())
                     found_start = True
                 continue                
 
@@ -161,10 +163,10 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
                     rows_list.append('\n')
                     break
                 else:
-                    rows_list.append(first_line)
+                    rows_list.append(first_line.lstrip())   
                     break
             if found_start and line.startswith("\\end{document}"):
-                rows_list.append(line)
+                rows_list.append(line.lstrip())
                 found_end = True
                 break
         rows_list = check_tables_images_last_pages_pdf(pdf_path, rows_list, latex_path, 'Figure')
@@ -380,6 +382,7 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
                     index_counter = 1
                     # index_in_latex = 0
                     for index_in_latex, line in enumerate(lines):
+                        line = line.lstrip()
                         if begin_pattern in line and index_counter == int(index):
                             beginning_index = index_in_latex
                             table_started = True
@@ -461,80 +464,35 @@ def find_first_line(pdf_path,latex_path, return_index):
     return return_index
     
 
+import re
 
-# def find_first_line(pdf_path, latex_path):
-#     with pdfplumber.open(pdf_path) as pdf:
-#         pages = pdf.pages[-NUMBER_OF_LAST_PAGES:]
-#         tables_dict = extract_tables_from_latex(latex_path)
-#         page = pages[0]
-#         left_column = (0, 0, page.width / 2, page.height)
-#         text = page.within_bbox(left_column).extract_text()
-#         text = text.split('\n')
-#         inTable=True
-#         last_table_id=-1
-#         was_in_table = False
-#         i = 0
-#         while inTable:
-#             was_in_table = False
-#             line = text[i]
-#             if line.startswith('Table'):
-#                 line, return_index = remove_caption(text[i:], latex_path, 'Table')
-#                 i+=return_index
-#             clean_pdf_line = re.sub(r'[^a-zA-Z0-9]+', '', line)
-#             clean_pdf_line = clean_pdf_line.lower()
+def wrap_tabular_with_adjustbox(file_path):
+    # Read the content of the LaTeX file
+    with open(file_path, 'r') as file:
+        latex_content = file.read()
 
-#             for table_id, table_lines in tables_dict.items():
-#             # if the table is lower than the last table we found we can skip it because we already checked it
-#                 if table_id < last_table_id:
-#                     continue
-#                 for table_line in table_lines:
-#                     if clean_pdf_line in table_line: 
-#                         inTable=True
-#                         last_table_id= table_id
-#                         was_in_table = True
-#                         return text[i]
-#                         break
-#             if not was_in_table:
-#                 inTable=False
-#                 break
-#             i+=1
-#         return remove_caption(text[i:], latex_path, 'Table')[0]
-           
+    #  find all the tabular environments
+    tabular_pattern = re.compile(r'\\begin{tabular}(.*?)\\end{tabular}', re.DOTALL)
+    tabular_matches = tabular_pattern.findall(latex_content)
 
+    # Iterate through the matches and wrap them with adjustbox
+    for tabular_content in tabular_matches:
+        # Wrap the tabular content with adjustbox
+        wrapped_tabular_content = r'\begin{adjustbox}{}' + '\n' + \
+                                  r'\begin{tabular}' + tabular_content + r'\end{tabular}' + '\n' + \
+                                  r'\end{adjustbox}'
 
-    
-            
-
-import os       
-
+        # Replace the tabular content with the wrapped tabular content
+        latex_content = latex_content.replace(r'\begin{tabular}' + tabular_content + r'\end{tabular}',
+                                              wrapped_tabular_content)
     
 
-#  pdf_ path is the file in code/greedy_from_machine/test_lidor that ends with .pdf
-# for file in os.listdir('code/greedy_from_machine/test_lidor'):
-#     if file.endswith('.pdf'):
-#         pdf_path = os.path.join('code/greedy_from_machine/test_lidor', file)
-#         latex_path = os.path.join('code/greedy_from_machine/test_lidor', file[:-4] + '.tex')
+
+    # Write the modified content back to the file
+    with open(file_path, 'w') as file:
+        file.write(latex_content)
 
 
-
-# lidor = convert_Latex_to_rows_list(latex_path,pdf_path)
-# print(lidor)
-
-
-
-
-
-# def remove_multicolumn(line):
-#     # Define a regular expression pattern to match \multicolumn commands
-#     multicolumn_pattern = re.compile(r'\\multicolumn{[0-9]+}{.*?}{(.*?)}')
-
-#     # Use re.sub to replace all \multicolumn commands with the captured content
-#     cleaned_line = re.sub(multicolumn_pattern, r'{\1}', line)
-
-#     return cleaned_line
-
-# # Example usage:
-# latex_line = "\multicolumn{6}{c|}{$\eta = 0.3$}"
-# cleaned_line = remove_multicolumn(latex_line)
-
-# print(cleaned_line)
+   
+wrap_tabular_with_adjustbox("code/greedy_from_machine/files/AAAI 2022 - Goal Recognition as Reinforcement Learning/main_changed.tex")
+    
