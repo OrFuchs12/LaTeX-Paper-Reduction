@@ -362,7 +362,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                 if (index_to_go_through > len(latex_clean_lines)):
                     break
                 if (latex_clean_lines[index_to_go_through].startswith(
-                        '\\begin{adjustbox}')):  # finding the line where we can change the scale of the figure
+                        '\\begin{adjustbox}')) or latex_clean_lines[index_to_go_through].startswith('\\resizebox'):  # finding the line where we can change the scale of the figure
                     found_index = index_to_go_through
                     flag = True                    
 
@@ -390,6 +390,8 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                             else:
                                 number += string_to_edit[running_index]
                                 running_index += 1
+                        if number == '':
+                            number = 1
                         width = float(number)
                         break
                     running_index += 1
