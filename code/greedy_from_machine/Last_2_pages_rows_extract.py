@@ -22,9 +22,6 @@ def remove_math_patterns(text):
 
     return text
 
-
-
-
 def find_first_row_in_last_page(pdf_file_path, latex_path):
     # Open the PDF file and extract the last page
     with pdfplumber.open(pdf_file_path) as pdf:
@@ -50,11 +47,7 @@ def find_first_row_in_last_page(pdf_file_path, latex_path):
                 iteration+=1
             else:
                 break
-             
-                
-                
         return first_line
-
 
 def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figure = False):
     return_index = 0
@@ -87,12 +80,8 @@ def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figu
         return text_in_page[0], False, return_index+index, last_iteration
     
 def convert_Latex_to_rows_list(latex_path,pdf_path):
-    # add adjust box to tables and figures
-    # remove_comments(latex_path)
-    # list of rows to extract from the latex file
-    add_adjust_box(latex_path)
+    wrap_tabular_with_adjustbox(latex_path)
     rows_list = []
-
     # the first row in the page we want to start the extraction from
     first_row_to_begin = find_first_row_in_last_page(pdf_path, latex_path)
     # clean the line to make it easier to compare
@@ -279,24 +268,7 @@ def remove_caption(text_in_page, latex_path , caption_type):
                     brace_count += lines[index].count('{') - lines[index].count('}')
                 caption_lines.append(temp_line)
             else:
-                caption_lines.append(temp_line)
-    #replace any \emph in the lines
-    # caption_lines = [line.replace(r'\emph', '') for line in caption_lines]
-    # #replace any \textit in the lines
-    # caption_lines = [line.replace(r'\textit', '') for line in caption_lines]
-    # caption_lines = [line.replace(r'\textbf', '') for line in caption_lines]
-    # caption_lines = [line.replace(r'\phi', '') for line in caption_lines]
-    # caption_lines = [line.replace(r'\cdot', '') for line in caption_lines]
-    # caption_lines = [line.replace(r'\em', '') for line in caption_lines]
-    # caption_lines = [line.replace(r'\underline', '') for line in caption_lines]
-    # caption_lines = [remove_math_patterns(line) for line in caption_lines]
-    # #remove \caption from the lines
-    # caption_lines = [line.replace(r'\caption{', '') for line in caption_lines]
-    # #keep only what is before }
-    # caption_lines = [line.rsplit('}', 1)[0] for line in caption_lines]
-    # #leave only numbers and letters in the lines
-    # caption_lines = [re.sub(r'[^a-zA-Z0-9]+', '', line) for line in caption_lines]
-    
+                caption_lines.append(temp_line)    
     for index, line in enumerate(caption_lines):
         line = line.replace(r'\emph', '')
         line = line.replace(r'\textit', '')
@@ -342,9 +314,6 @@ def remove_caption(text_in_page, latex_path , caption_type):
             clean_line = re.sub(r'Figure\s*\d*\s*:', '', line)
         clean_line = re.sub(r'[^a-zA-Z0-9]+', '', clean_line)
         clean_line = clean_line.lower()
-        
-
-        
         if clean_line in clean_caption_line:
             text_in_page[index] = ''
         else:
@@ -355,7 +324,6 @@ def remove_caption(text_in_page, latex_path , caption_type):
     if len(text_in_page) == 0:
         raise Exception("go to next column")
     return text_in_page[0], index
-
 
 def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption_type) :  
     with pdfplumber.open(pdf_path) as pdf:
@@ -408,20 +376,16 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
                     if not found_table:
                         for line in table_latex:
                             rows_list[beginning_index] = line
-                            beginning_index+=1
-                       
+                            beginning_index+=1              
     return rows_list
 
 def extract_tables_from_latex(latex_path):
     with open(latex_path, 'r') as file:
         content = file.read()
-
     # Use a modified pattern to capture both table and table* environments
     table_pattern = re.compile(r'\\begin{table\*?}(.*?)\\end{table\*?}', re.DOTALL)
-
     # Find all matches of the table pattern
     table_matches = table_pattern.findall(content)
-
     # Create a dictionary to store table_id and corresponding content as a list of lines
     tables_dict = {}
     # Iterate through the matches and store them in the dictionary
@@ -440,7 +404,6 @@ def extract_tables_from_latex(latex_path):
             line= line.lower()
             clean_table_lines.append(line)
         tables_dict[table_id] = clean_table_lines
-
     return tables_dict
  
 def find_first_line(pdf_path,latex_path, return_index):
@@ -462,7 +425,6 @@ def find_first_line(pdf_path,latex_path, return_index):
             if clean_pdf_line in table_line: 
                 return  return_index + 1
     return return_index
-    
 
 import re
 
@@ -470,11 +432,9 @@ def wrap_tabular_with_adjustbox(file_path):
     # Read the content of the LaTeX file
     with open(file_path, 'r') as file:
         latex_content = file.read()
-
     #  find all the tabular environments
     tabular_pattern = re.compile(r'\\begin{tabular}(.*?)\\end{tabular}', re.DOTALL)
     tabular_matches = tabular_pattern.findall(latex_content)
-
     # Iterate through the matches and wrap them with adjustbox
     for tabular_content in tabular_matches:
         # Wrap the tabular content with adjustbox
@@ -485,14 +445,9 @@ def wrap_tabular_with_adjustbox(file_path):
         # Replace the tabular content with the wrapped tabular content
         latex_content = latex_content.replace(r'\begin{tabular}' + tabular_content + r'\end{tabular}',
                                               wrapped_tabular_content)
-    
-
-
     # Write the modified content back to the file
     with open(file_path, 'w') as file:
         file.write(latex_content)
 
-
-   
-wrap_tabular_with_adjustbox("code/greedy_from_machine/files/AAAI 2022 - Goal Recognition as Reinforcement Learning/main_changed.tex")
+# wrap_tabular_with_adjustbox("code/greedy_from_machine/files/AAAI 2022 - Goal Recognition as Reinforcement Learning/main_changed.tex")
     
