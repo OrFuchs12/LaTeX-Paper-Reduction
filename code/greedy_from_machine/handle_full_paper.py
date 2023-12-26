@@ -31,9 +31,18 @@ def copy_last_pages(input_pdf_path, NUMBER_OF_LAST_PAGES):
 def remove_comments(latex_path):
     with open(latex_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
-
+    inside_comment = False
     with open(latex_path, 'w', encoding='utf-8') as f:
         for line in lines:
+            #remove all lines that start with \commentout{ until the next }
+            if re.match(r'^\s*\\commentout{', line):
+                if not re.match(r'^\s*}', line):
+                   inside_comment = True
+            if inside_comment and not re.match(r'^\s*}', line):
+                continue
+            if inside_comment and re.match(r'^\s*}', line):
+                inside_comment = False
+                continue
             # Check if the line is a comment    
             if not re.match(r'^\s*%', line):
                 f.write(line)

@@ -213,7 +213,7 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
             rel_text = page.within_bbox(bbox).extract_text()
             rel_text = rel_text.split('\n')
             #check if the first line in the text is not in the table then its the first line
-            if text[return_index]['top'] < first_y_coordinate and text[return_index]['bottom'] < first_y_coordinate and not text[return_index]['text'].startswith('Table'):
+            if text[return_index]['bottom'] + 2 < first_y_coordinate and not text[return_index]['text'].startswith('Table'):
                 first_line = text[return_index]['text']
                 return first_line, is_table, is_figure, return_index, last_iteration
             #the table is first so we need to get the y coordinate of the last line in the table
