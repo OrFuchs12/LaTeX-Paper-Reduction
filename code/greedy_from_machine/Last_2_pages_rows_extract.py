@@ -80,7 +80,7 @@ def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figu
         return text_in_page[0], False, return_index+index, last_iteration
     
 def convert_Latex_to_rows_list(latex_path,pdf_path):
-    wrap_tabular_with_adjustbox(latex_path)
+    find_tables_to_add_adjust_box(latex_path)
     rows_list = []
     # the first row in the page we want to start the extraction from
     first_row_to_begin = find_first_row_in_last_page(pdf_path, latex_path)
@@ -428,7 +428,7 @@ def find_first_line(pdf_path,latex_path, return_index):
 
 import re
 
-def wrap_tabular_with_adjustbox(table_content):
+def wrap_tabular_with_adjustbox(table_content , width):
     
     #  find all the tabular environments
     tabular_pattern = re.compile(r'\\begin{tabular}(.*?)\\end{tabular}', re.DOTALL)
@@ -436,7 +436,8 @@ def wrap_tabular_with_adjustbox(table_content):
     # Iterate through the matches and wrap them with adjustbox
     for tabular_content in tabular_matches:
         # Wrap the tabular content with adjustbox
-        wrapped_tabular_content = r'\begin{adjustbox}{}' + '\n' + \
+
+        wrapped_tabular_content = r'\begin{adjustbox}{width=' + width + '}' + '\n' + \
                                   r'\begin{tabular}' + tabular_content + r'\end{tabular}' + '\n' + \
                                   r'\end{adjustbox}'
 
@@ -454,7 +455,7 @@ def find_tables_to_add_adjust_box(latex_path):
 
     # check if usepackage{adjustbox} is already in the file
     if r'\usepackage{adjustbox}' in content:
-        print('adjustbox already in the file')
+        pass
 
     else:
             # Define the regular expression for finding the documentclass line
@@ -477,14 +478,28 @@ def find_tables_to_add_adjust_box(latex_path):
             # If there's no documentclass line, add \usepackage{adjustbox} at the beginning of the file
             content = '\\usepackage{adjustbox}\n' + content
     # Use a modified pattern to capture both table and table* environments
-    table_pattern = re.compile(r'\\begin{table\*?}(.*?)\\end{table\*?}', re.DOTALL)
+    table_with_astrik_pattern = re.compile(r'\\begin{table\*?}(.*?)\\end{table\*?}', re.DOTALL)
+    table_pattern = re.compile(r'\\begin{table}(.*?)\\end{table}', re.DOTALL)
+
     # Find all matches of the table pattern 
-    table_matches = table_pattern.findall(content)
+    table_with_astrik_pattern_matches = table_with_astrik_pattern.findall(content)
+    table_pattern_matches = table_pattern.findall(content)
     # Iterate through the matches 
-    for table_content in table_matches:
+    for table_content in table_pattern_matches:
+        # check if table* or table
+        width = '1 /columnwidth'
         # check to see if theres an adjustbox or resizebox already, if not add adjustbox using wrap_tabular_with_adjustbox
         if r'\begin{adjustbox}' not in table_content and r'\resizebox' not in table_content:
-            new_table_content = wrap_tabular_with_adjustbox(table_content)
+            new_table_content = wrap_tabular_with_adjustbox(table_content , width)
+            # replace the table content with the wrapped table content
+            content = content.replace(table_content, new_table_content)
+
+    for table_content in table_with_astrik_pattern_matches:
+        # check if table* or table
+        width = '2 /columnwidth'
+        # check to see if theres an adjustbox or resizebox already, if not add adjustbox using wrap_tabular_with_adjustbox
+        if r'\begin{adjustbox}' not in table_content and r'\resizebox' not in table_content:
+            new_table_content = wrap_tabular_with_adjustbox(table_content , width)
             # replace the table content with the wrapped table content
             content = content.replace(table_content, new_table_content)
 

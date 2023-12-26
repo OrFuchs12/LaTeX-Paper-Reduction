@@ -410,7 +410,15 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                 elif (i == 3):
                     heuristic = value['height'] * 0.3333
                 new_width = options[i]
-                new_str = string_to_edit.replace(str(width), str(new_width))
+                if width == 0:
+                    #  in the begin adjust box there is no width. we have begin{adjubox}{}, we need to find the index of the second {
+                    index_of_second_bracket = string_to_edit.find('{', string_to_edit.find('{') + 1)
+                    new_str = string_to_edit[:index_of_second_bracket + 1] + "width=" + str(new_width) + "\columnwidth" + string_to_edit[index_of_second_bracket+1:]
+                else:
+                    if width == 2: 
+                        new_str = string_to_edit.replace(str(width), str(2 * new_width))
+                    else:
+                        new_str = string_to_edit.replace(str(width), str(new_width))
                 copy_list = copy.deepcopy(latex_clean_lines)
                 copy_list[found_index] = new_str
                 table_name_key_new_latex_list_value[key].append(
@@ -1110,7 +1118,7 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
                     file_path = os.path.join(paper_dir.path, file.name)
                     path_to_latex = file_path
                     remove_comments(path_to_latex)
-                    remove_astrik_inside_paranthases(path_to_latex)
+                    # remove_astrik_inside_paranthases(path_to_latex)
                 
                 # move ol files in 'code/greedy_from_machine/files' directory to 'code/~/results/new_files' directory
                 source_dir = os.path.join("code/greedy_from_machine/files", paper_directory)
@@ -1120,6 +1128,18 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
                 source_path = file.path
                 destination_path = os.path.join(destination_dir, file.name)
                 shutil.copy(source_path, destination_path)
+            elif file.is_dir():
+                # move all the directories in 'code/greedy_from_machine/files' directory to 'code/~/results/new_files' directory
+                source_dir = os.path.join("code/greedy_from_machine/files", paper_directory)
+                destination_dir = os.path.join("code/~/results/new_files", paper_directory)
+                os.makedirs(destination_dir, exist_ok=True)
+                source_path = file.path
+                destination_path = os.path.join(destination_dir, file.name)
+                # if directory already exists in destination, do not copy it
+                if not os.path.exists(destination_path):
+                    shutil.copytree(source_path, destination_path)
+                
+
 
                 # whether you want to run the model-based greedy algorithm
         if models: 

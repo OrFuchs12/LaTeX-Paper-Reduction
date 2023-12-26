@@ -113,6 +113,8 @@ def receive_lines_version_1(lines):
 
             if str_line.startswith("\\section") or str_line.startswith("\\subsection") or  str_line.find("\\subsubsection") != -1 :
                 op = str_line.split("{")[0]
+                if op.endswith("*"):
+                    op=op[:-1]
                 if section_stack:
                     obj = section_stack.pop()
                     parsing_tree[obj[1]].append((obj[0], i-1))
