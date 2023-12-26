@@ -451,6 +451,26 @@ def find_tables_to_add_adjust_box(latex_path):
     # find all the tables environments in the latex file
     with open(latex_path, 'r') as file:
         content = file.read()
+
+        # Define the regular expression for finding the documentclass line
+    documentclass_pattern = re.compile(r'\\documentclass(?:\[[^\]]*\])?\{.*?\}')
+
+
+    # Find the documentclass line
+    documentclass_match = documentclass_pattern.search(content)
+
+    if documentclass_match:
+        # Insert \usepackage{adjustbox} after the documentclass line
+        insert_position = documentclass_match.end()
+        content = (
+            content[:insert_position] +
+            '\n\\usepackage{adjustbox}\n' +
+            content[insert_position:]
+        )
+
+    else:
+        # If there's no documentclass line, add \usepackage{adjustbox} at the beginning of the file
+        content = '\\usepackage{adjustbox}\n' + content
     # Use a modified pattern to capture both table and table* environments
     table_pattern = re.compile(r'\\begin{table\*?}(.*?)\\end{table\*?}', re.DOTALL)
     # Find all matches of the table pattern 
