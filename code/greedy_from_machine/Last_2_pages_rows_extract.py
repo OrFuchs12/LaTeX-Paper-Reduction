@@ -487,7 +487,7 @@ def find_tables_to_add_adjust_box(latex_path):
     # Iterate through the matches 
     for table_content in table_pattern_matches:
         # check if table* or table
-        width = '1 /columnwidth'
+        width = '1\\columnwidth'
         # check to see if theres an adjustbox or resizebox already, if not add adjustbox using wrap_tabular_with_adjustbox
         if r'\begin{adjustbox}' not in table_content and r'\resizebox' not in table_content:
             new_table_content = wrap_tabular_with_adjustbox(table_content , width)
@@ -496,7 +496,7 @@ def find_tables_to_add_adjust_box(latex_path):
 
     for table_content in table_with_astrik_pattern_matches:
         # check if table* or table
-        width = '2 /columnwidth'
+        width = '2\\columnwidth'
         # check to see if theres an adjustbox or resizebox already, if not add adjustbox using wrap_tabular_with_adjustbox
         if r'\begin{adjustbox}' not in table_content and r'\resizebox' not in table_content:
             new_table_content = wrap_tabular_with_adjustbox(table_content , width)
@@ -516,4 +516,4 @@ def find_tables_to_add_adjust_box(latex_path):
 
 
 
-find_tables_to_add_adjust_box('code/greedy_from_machine/files/AAAI 2022 - Goal Recognition as Reinforcement Learning/main_changed.tex')    
+# find_tables_to_add_adjust_box('code/greedy_from_machine/files/AAAI 2022 - Goal Recognition as Reinforcement Learning/main_changed.tex')    

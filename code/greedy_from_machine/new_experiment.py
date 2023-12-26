@@ -416,7 +416,9 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                     new_str = string_to_edit[:index_of_second_bracket + 1] + "width=" + str(new_width) + "\columnwidth" + string_to_edit[index_of_second_bracket+1:]
                 else:
                     if width == 2: 
-                        new_str = string_to_edit.replace(str(width), str(2 * new_width))
+                        new_str = string_to_edit.replace(str(int(width)), str(2 * new_width))
+                    elif width == 1:
+                        new_str = string_to_edit.replace(str(int(width)), str(new_width))
                     else:
                         new_str = string_to_edit.replace(str(width), str(new_width))
                 copy_list = copy.deepcopy(latex_clean_lines)
@@ -827,7 +829,7 @@ def simple_greedy(path_to_pdf, path_to_latex, paper_name):
     path_to_pdf - path to the pdf file 
     path_to_latex - path to the latex file 
 """
-def heuristic_greedy(path_to_pdf, path_to_latex):
+def heuristic_greedy(path_to_pdf, path_to_latex, paper_name):
     try:
         operators_done = []
         #perform feature extraction to the file
@@ -860,7 +862,7 @@ def heuristic_greedy(path_to_pdf, path_to_latex):
             with open('code/~/results/dct0', 'rb') as dct_file:
                 dct = pickle.load(dct_file)
             # get list of all possible operators to apply on the file
-            res = perform_operators(dct, 0, path_to_latex, path_to_pdf, "code/~/results/new_files/")
+            res = perform_operators(dct, 0, path_to_latex, path_to_pdf, "code/~/results/new_files/", paper_name)
             print("total operators:", len(res))
 
             # whether there are no more operators
@@ -884,17 +886,20 @@ def heuristic_greedy(path_to_pdf, path_to_latex):
             if res[index][0] >= LINE_WIDTH:
                 latex_after_operator = res[index][1]
                 # write the file after operator to file
-                f = open("code/~/results/new_files/after_operator2.tex", "w")
+                after_path = os.path.join("code/~/results/new_files/", paper_name)
+                after_path = os.path.join(after_path, "after_operator2.tex")
+                f = open(after_path, "w")
                 f.write(latex_after_operator)
                 f.close()
 
                 # compile the file
-                dir_path = "code/~/results/new_files"
-                base_name = os.path.basename("code/~/results/new_files/after_operator2.tex")
+                dir_path = os.path.join("code/~/results/new_files", paper_name)
+                base_name =  os.path.basename(after_path)
                 # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
                 subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
-                path_to_new_pdf = "code/~/results/new_files/after_operator2.pdf"
-                last_pages_pdf = copy_last_pages(path_to_new_pdf, NUMBER_OF_LAST_PAGES)
+                after_pdf = os.path.join("code/~/results/new_files/", paper_name)
+                after_pdf = os.path.join(after_pdf, "after_operator1.pdf")
+                last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES)
 
                 lines_before = lines
                 # check the new current number of lines
@@ -902,7 +907,7 @@ def heuristic_greedy(path_to_pdf, path_to_latex):
                 print("current lines:", lines)
                 print("current pages:", pages)
 
-                path_to_latex = "code/~/results/new_files/after_operator2.tex"
+                path_to_latex = after_path
 
                 features_single.run_feature_extraction("code/~/results/new_files/after_operator2.tex", 
                     last_pages_pdf, 'code/~/results/bibliography.bib',
@@ -959,7 +964,7 @@ def load_models(models_path):
     path_to_latex - path to the latex file 
     models - dict of models (dictionary) 
 """
-def model_greedy(path_to_pdf, path_to_latex, models):
+def model_greedy(path_to_pdf, path_to_latex, models, paper_name):
     try:
         operators_done = []
         lines, pages = check_lines(path_to_pdf) 
@@ -1002,7 +1007,7 @@ def model_greedy(path_to_pdf, path_to_latex, models):
                 dct = pickle.load(dct_file)
 
             # get list of all possible operators to apply on the file
-            res = perform_operators(dct, 0, path_to_latex, path_to_pdf, "code/~/results/new_files/")
+            res = perform_operators(dct, 0, path_to_latex, path_to_pdf, "code/~/results/new_files/", paper_name)
             print("total operators:", len(res))
 
             # whether there are no more operators
@@ -1037,18 +1042,21 @@ def model_greedy(path_to_pdf, path_to_latex, models):
             if prediction > 0 and res[index][0] >= 10:
                 latex_after_operator = res[index][1]
 
-                f = open("code/~/results/new_files/after_operator3.tex", "w")
+                after_path = os.path.join("code/~/results/new_files/", paper_name)
+                after_path = os.path.join(after_path, "after_operator3.tex")
+                f = open(after_path, "w")
                 # write the file after operator to file
                 f.write(latex_after_operator)
                 f.close()
 
                 # compile the file
-                dir_path = "code/~/results/new_files"
-                base_name = os.path.basename("code/~/results/new_files/after_operator3.tex")
+                dir_path =os.path.join("code/~/results/new_files", paper_name)
+                base_name = os.path.basename(after_path)
                 # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
                 subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
-                path_to_new_pdf = "code/~/results/new_files/after_operator3.pdf"
-                last_pages_pdf = copy_last_pages(path_to_new_pdf, NUMBER_OF_LAST_PAGES)
+                after_pdf = os.path.join("code/~/results/new_files/", paper_name)
+                after_pdf = os.path.join(after_pdf, "after_operator3.pdf")
+                last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES)
 
                 lines_before = lines
                 # check the new current number of lines
@@ -1056,7 +1064,7 @@ def model_greedy(path_to_pdf, path_to_latex, models):
                 print("current lines:", lines)
                 print("current pages:", pages)
 
-                path_to_latex = "code/~/results/new_files/after_operator3.tex"
+                path_to_latex = after_path
 
                 df1 = features_single.run_feature_extraction(
                     "code/~/results/new_files/after_operator3.tex",
