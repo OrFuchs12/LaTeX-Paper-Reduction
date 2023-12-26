@@ -26,6 +26,8 @@ def order_page(path,page_num,tables_dict,pictures_dict,frompdf):
     new_left_column_sorted_dict = {}
     for k in left_column_sorted_dict:
         if abs(k[0][0] - current_y_start) < 2 and abs(k[0][1] - current_y_end) < 2:
+            if last_index not in new_left_column_sorted_dict:
+                last_index = list(new_left_column_sorted_dict.keys())[-1]
             helper = new_left_column_sorted_dict[last_index][0]
             tple=list(last_index)
             tple[1]=max(k[0][1],tple[1])
