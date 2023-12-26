@@ -428,13 +428,11 @@ def find_first_line(pdf_path,latex_path, return_index):
 
 import re
 
-def wrap_tabular_with_adjustbox(file_path):
-    # Read the content of the LaTeX file
-    with open(file_path, 'r') as file:
-        latex_content = file.read()
+def wrap_tabular_with_adjustbox(table_content):
+    
     #  find all the tabular environments
     tabular_pattern = re.compile(r'\\begin{tabular}(.*?)\\end{tabular}', re.DOTALL)
-    tabular_matches = tabular_pattern.findall(latex_content)
+    tabular_matches = tabular_pattern.findall(table_content)
     # Iterate through the matches and wrap them with adjustbox
     for tabular_content in tabular_matches:
         # Wrap the tabular content with adjustbox
@@ -443,11 +441,39 @@ def wrap_tabular_with_adjustbox(file_path):
                                   r'\end{adjustbox}'
 
         # Replace the tabular content with the wrapped tabular content
-        latex_content = latex_content.replace(r'\begin{tabular}' + tabular_content + r'\end{tabular}',
+        table_content = table_content.replace(r'\begin{tabular}' + tabular_content + r'\end{tabular}',
                                               wrapped_tabular_content)
-    # Write the modified content back to the file
-    with open(file_path, 'w') as file:
-        file.write(latex_content)
-
-# wrap_tabular_with_adjustbox("code/greedy_from_machine/files/AAAI 2022 - Goal Recognition as Reinforcement Learning/main_changed.tex")
+    return table_content
     
+
+
+def find_tables_to_add_adjust_box(latex_path):
+    # find all the tables environments in the latex file
+    with open(latex_path, 'r') as file:
+        content = file.read()
+    # Use a modified pattern to capture both table and table* environments
+    table_pattern = re.compile(r'\\begin{table\*?}(.*?)\\end{table\*?}', re.DOTALL)
+    # Find all matches of the table pattern 
+    table_matches = table_pattern.findall(content)
+    # Iterate through the matches 
+    for table_content in table_matches:
+        # check to see if theres an adjustbox or resizebox already, if not add adjustbox using wrap_tabular_with_adjustbox
+        if r'\begin{adjustbox}' not in table_content and r'\resizebox' not in table_content:
+            new_table_content = wrap_tabular_with_adjustbox(table_content)
+            # replace the table content with the wrapped table content
+            content = content.replace(table_content, new_table_content)
+
+            
+    # write the content to the file
+    with open(latex_path, 'w') as file:
+        file.write(content)
+            
+            
+    
+
+
+
+
+
+
+find_tables_to_add_adjust_box('code/greedy_from_machine/files/AAAI 2022 - Goal Recognition as Reinforcement Learning/main_changed.tex')    
