@@ -5,6 +5,7 @@ from Last_2_pages_rows_extract import convert_Latex_to_rows_list
 def run(latex_path,pdf_path,bib_path):
     try:
         # lidor = Lidor_part.read_file(latex_path, bib_path)
+        print("starting converting Latex to rows list")
         lidor = convert_Latex_to_rows_list(latex_path, pdf_path)
         print("Finished converting Latex to rows list")
         # lidor = []

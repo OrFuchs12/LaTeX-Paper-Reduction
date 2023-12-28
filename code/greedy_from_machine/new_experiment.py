@@ -711,7 +711,7 @@ def check_lines(file_path):
     path_to_pdf - path to the pdf file 
     path_to_latex - path to the latex file 
 """
-def simple_greedy(path_to_pdf, path_to_latex, paper_name):
+def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
     reduced = False
     try:
         operators_done = []
@@ -795,7 +795,7 @@ def simple_greedy(path_to_pdf, path_to_latex, paper_name):
             
             
             # os.system(cmd_line_act)
-
+            new_number_of_pages = check_lines(after_pdf)[1]
             # check the new current number of lines
             lines, pages = check_lines(last_pages_pdf)
             fullLines , fullPages = check_lines(after_pdf)
@@ -804,17 +804,19 @@ def simple_greedy(path_to_pdf, path_to_latex, paper_name):
 
             path_to_latex = after_path
 
-            features_single.run_feature_extraction(after_path, 
-                    last_pages_pdf, 'code/~/results/bibliography.bib',
-                    "code/~/results/dct0", "code/~/results/new_files/dct0", "test", pd.DataFrame())
+            if (lines <= target or pages < 2 or new_number_of_pages < num_of_pages): # lines > starting_lines is for the case that we get the last 2 pages after we made it shoreter
+                reduced = True
+
+            if not reduced:
+                features_single.run_feature_extraction(after_path, 
+                        last_pages_pdf, 'code/~/results/bibliography.bib',
+                        "code/~/results/dct0", "code/~/results/new_files/dct0", "test", pd.DataFrame())
 
             total_cost += res[index][0]
             index += 1
             iteration += 1
 
             # if we manage to short the paper
-            if (lines <= target or pages < 2 or lines > starting_lines): # lines > starting_lines is for the case that we get the last 2 pages after we made it shoreter
-                reduced = True
 
         end = time.time()
 
@@ -1114,12 +1116,9 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
 
         for file in os.scandir(paper_dir):
             if file.is_file():
-                # uncomment this 2 lines if you don't have the pdfs
-                # cmd_line_act = '"C:\\Users\\user\\tectonic.exe" ' + f"{directory}\\{file.name}"
-                # os.system(cmd_line_act)
-                print(f"file in test {idx}:", file.name)
                 if file.name.lower().endswith("_changed.pdf") :
                     file_path = os.path.join(paper_dir.path, file.name)
+                    num_of_pages = check_lines(file_path)[1]
                     path_to_pdf = file_path
                     last_pages_pdf_path = copy_last_pages(path_to_pdf,NUMBER_OF_LAST_PAGES)
                 if file.name.lower().endswith("_changed.tex") :
@@ -1155,7 +1154,7 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
 
         # whether you want to run other greedy algorithms
         else: 
-            iterations, time_taken, reduced, cost = variant_function(last_pages_pdf_path, path_to_latex, paper_directory)
+            iterations, time_taken, reduced, cost = variant_function(last_pages_pdf_path, path_to_latex,num_of_pages, paper_directory)
 
         if iterations != -1:
             results.append(( file.name, variant_name, reduced, iterations, time_taken, cost))
