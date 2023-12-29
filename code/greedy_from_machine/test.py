@@ -5,7 +5,9 @@ from Last_2_pages_rows_extract import convert_Latex_to_rows_list
 def run(latex_path,pdf_path,bib_path):
     try:
         # lidor = Lidor_part.read_file(latex_path, bib_path)
+        print("starting converting Latex to rows list")
         lidor = convert_Latex_to_rows_list(latex_path, pdf_path)
+        print("Finished converting Latex to rows list")
         # lidor = []
         # with open(latex_path, encoding='UTF-8') as f:
         #     file = f.read()
@@ -29,8 +31,9 @@ def run(latex_path,pdf_path,bib_path):
 
 
 
-
+        print("starting parsing")
         tags, lines = perry.parse(latex_path, lidor)
+        print("finished parsing")
         
         tags_without_figures_and_tables = []
         figures = []
@@ -96,10 +99,12 @@ def run(latex_path,pdf_path,bib_path):
             new_lines.append(k)
 
         lines = new_lines
- 
+
+        print("starting combining")
         adi = combining_tex_by_content_comparison_functions.running_from_outside(pdf_path, tags_without_figures_and_tables,
                                                                                  figures, tables, algorithms, lines,
                                                                                  figure_captions_set, table_captions_set)
+        print("finished combining")
         # for k in adi[:-1]:
         #     print("---")
         #     for key in k:

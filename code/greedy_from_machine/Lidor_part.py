@@ -105,12 +105,12 @@ def remove_unnecessary_stuff(doc): #working insane
 
 
         #to find the labels for each section, we will assume that a label for a section will come in the same declaration line of the section
-        if new_line.startswith("\\section{"):
+        if new_line.startswith("\\section"):
             section_num += 1
             subsection_num = 0
             subsubsection_num = 0
-            if new_line.find("\\label{") != -1:
-                start_index = new_line.find("\\label{")
+            if new_line.find("\\label") != -1:
+                start_index = new_line.find("\\label")
                 for charindex in range(start_index,len(new_line)):
                     if new_line[charindex] == "}":
                         num_of_curly_brackets -= 1
@@ -130,11 +130,11 @@ def remove_unnecessary_stuff(doc): #working insane
             caption = ""
             continue
 
-        if new_line.startswith("\\subsection{"):
+        if new_line.startswith("\\subsection"):
             subsection_num += 1
             subsubsection_num = 0
-            if new_line.find("\\label{") != -1:
-                start_index = new_line.find("\\label{")
+            if new_line.find("\\label") != -1:
+                start_index = new_line.find("\\label")
                 for charindex in range(start_index, len(new_line)):
                     if new_line[charindex] == "}":
                         num_of_curly_brackets -= 1
@@ -154,10 +154,10 @@ def remove_unnecessary_stuff(doc): #working insane
             caption = ""
             continue
 
-        if new_line.startswith("\\subsubsection{"):
+        if new_line.startswith("\\subsubsection"):
             subsubsection_num += 1
             if new_line.find("\\label{") != -1:
-                start_index = new_line.find("\\label{")
+                start_index = new_line.find("\\label")
                 for charindex in range(start_index, len(new_line)):
                     if new_line[charindex] == "}":
                         num_of_curly_brackets -= 1
@@ -177,7 +177,7 @@ def remove_unnecessary_stuff(doc): #working insane
             caption = ""
             continue
 
-        if new_line.startswith("\\begin{table}"): #we will not find comments on lines with \\begin{figure} should be easy to fix
+        if new_line.startswith("\\begin{table"): #we will not find comments on lines with \\begin{figure} should be easy to fix
             found_table = True
             table_num += 1
             new_doc.append(new_line)
@@ -210,14 +210,14 @@ def remove_unnecessary_stuff(doc): #working insane
                         num_of_curly_brackets += 1
                         inside_curly_brackets = True
                         continue
-            if (new_line.startswith("\\end{table}")):
+            if (new_line.startswith("\\end{table")):
                 found_table = False
                 table_ref_id_and_caption_dict[fig_label] = (table_num, caption)
                 all_refs_ids[fig_label] = (table_num, caption)
                 caption = ""
                 fig_label = ""
 
-        if new_line.startswith("\\begin{figure}"):
+        if new_line.startswith("\\begin{figure"):
             found_figure = True
             figure_num += 1
             subfigure_num = 0
@@ -254,7 +254,7 @@ def remove_unnecessary_stuff(doc): #working insane
                             inside_curly_brackets = True
                             continue
 
-                if (new_line.strip().startswith("\\end{subfigure}")):
+                if (new_line.strip().startswith("\\end{subfigure")):
                     found_subfigure = False
                     figure_ref_id_and_caption_dict[fig_label] = (str(figure_num) + chr(ord('`')+subfigure_num), caption,found_caption)
                     all_refs_ids[fig_label] = (str(figure_num) + chr(ord('`')+subfigure_num), caption,found_caption)
@@ -262,7 +262,7 @@ def remove_unnecessary_stuff(doc): #working insane
                     caption = ""
                     fig_label = ""
             else:
-                if(new_line.startswith("\\begin{subfigure}")):
+                if(new_line.startswith("\\begin{subfigure")):
                     found_subfigure = True
                     subfigure_num += 1
                     new_doc.append(new_line)
@@ -295,7 +295,7 @@ def remove_unnecessary_stuff(doc): #working insane
                             inside_curly_brackets = True
                             continue
 
-                if(new_line.startswith("\\end{figure}")):
+                if(new_line.startswith("\\end{figure")):
                     found_figure = False
                     figure_ref_id_and_caption_dict[fig_label] = (figure_num,caption)
                     all_refs_ids[fig_label] = (figure_num,caption)

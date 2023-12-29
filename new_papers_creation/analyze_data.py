@@ -48,7 +48,7 @@ def analyze_latex(tex_file_path):
         content = tex_file.read()
       
         # Count the number of non-commented sections
-        section_pattern = re.compile(r'\\section{')
+        section_pattern = re.compile(r'\\section')
         num_sections = len(section_pattern.findall(content))
         latex_data['num_sections'] = num_sections
         # latex_data['num_sections'] = content.count('\\section{')
@@ -58,16 +58,16 @@ def analyze_latex(tex_file_path):
         latex_data['num_graphs'] = num_graphs
         
         # Count the number of non-commented tables
-        table_pattern = re.compile(r'\\begin{table}')  # Adjust the pattern
+        table_pattern = re.compile(r'\\begin{table')  # Adjust the pattern
         num_tables = len(table_pattern.findall(content))
         latex_data['num_tables'] = num_tables
         
         # Count the number of non-commented algorithms
-        algorithm_pattern = re.compile(r'\\begin{algorithm}')  # Adjust the pattern
+        algorithm_pattern = re.compile(r'\\begin{algorithm')  # Adjust the pattern
         num_algorithms = len(algorithm_pattern.findall(content))
         latex_data['num_algorithms'] = num_algorithms
         
-        latex_data['num_equations'] = content.count('\\begin{equation}')
+        latex_data['num_equations'] = content.count('\\begin{equation')
     
     return latex_data
 

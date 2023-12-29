@@ -22,9 +22,6 @@ def remove_math_patterns(text):
 
     return text
 
-
-
-
 def find_first_row_in_last_page(pdf_file_path, latex_path):
     # Open the PDF file and extract the last page
     with pdfplumber.open(pdf_file_path) as pdf:
@@ -50,11 +47,7 @@ def find_first_row_in_last_page(pdf_file_path, latex_path):
                 iteration+=1
             else:
                 break
-             
-                
-                
         return first_line
-
 
 def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figure = False):
     return_index = 0
@@ -87,12 +80,8 @@ def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figu
         return text_in_page[0], False, return_index+index, last_iteration
     
 def convert_Latex_to_rows_list(latex_path,pdf_path):
-    # add adjust box to tables and figures
-    # remove_comments(latex_path)
-    # list of rows to extract from the latex file
-    add_adjust_box(latex_path)
+    find_tables_to_add_adjust_box(latex_path)
     rows_list = []
-
     # the first row in the page we want to start the extraction from
     first_row_to_begin = find_first_row_in_last_page(pdf_path, latex_path)
     # clean the line to make it easier to compare
@@ -224,7 +213,7 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
             rel_text = page.within_bbox(bbox).extract_text()
             rel_text = rel_text.split('\n')
             #check if the first line in the text is not in the table then its the first line
-            if text[return_index]['top'] < first_y_coordinate and text[return_index]['bottom'] < first_y_coordinate and not text[return_index]['text'].startswith('Table'):
+            if text[return_index]['bottom'] + 2 < first_y_coordinate and not text[return_index]['text'].startswith('Table'):
                 first_line = text[return_index]['text']
                 return first_line, is_table, is_figure, return_index, last_iteration
             #the table is first so we need to get the y coordinate of the last line in the table
@@ -279,24 +268,7 @@ def remove_caption(text_in_page, latex_path , caption_type):
                     brace_count += lines[index].count('{') - lines[index].count('}')
                 caption_lines.append(temp_line)
             else:
-                caption_lines.append(temp_line)
-    #replace any \emph in the lines
-    # caption_lines = [line.replace(r'\emph', '') for line in caption_lines]
-    # #replace any \textit in the lines
-    # caption_lines = [line.replace(r'\textit', '') for line in caption_lines]
-    # caption_lines = [line.replace(r'\textbf', '') for line in caption_lines]
-    # caption_lines = [line.replace(r'\phi', '') for line in caption_lines]
-    # caption_lines = [line.replace(r'\cdot', '') for line in caption_lines]
-    # caption_lines = [line.replace(r'\em', '') for line in caption_lines]
-    # caption_lines = [line.replace(r'\underline', '') for line in caption_lines]
-    # caption_lines = [remove_math_patterns(line) for line in caption_lines]
-    # #remove \caption from the lines
-    # caption_lines = [line.replace(r'\caption{', '') for line in caption_lines]
-    # #keep only what is before }
-    # caption_lines = [line.rsplit('}', 1)[0] for line in caption_lines]
-    # #leave only numbers and letters in the lines
-    # caption_lines = [re.sub(r'[^a-zA-Z0-9]+', '', line) for line in caption_lines]
-    
+                caption_lines.append(temp_line)    
     for index, line in enumerate(caption_lines):
         line = line.replace(r'\emph', '')
         line = line.replace(r'\textit', '')
@@ -342,9 +314,6 @@ def remove_caption(text_in_page, latex_path , caption_type):
             clean_line = re.sub(r'Figure\s*\d*\s*:', '', line)
         clean_line = re.sub(r'[^a-zA-Z0-9]+', '', clean_line)
         clean_line = clean_line.lower()
-        
-
-        
         if clean_line in clean_caption_line:
             text_in_page[index] = ''
         else:
@@ -355,7 +324,6 @@ def remove_caption(text_in_page, latex_path , caption_type):
     if len(text_in_page) == 0:
         raise Exception("go to next column")
     return text_in_page[0], index
-
 
 def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption_type) :  
     with pdfplumber.open(pdf_path) as pdf:
@@ -408,20 +376,16 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
                     if not found_table:
                         for line in table_latex:
                             rows_list[beginning_index] = line
-                            beginning_index+=1
-                       
+                            beginning_index+=1              
     return rows_list
 
 def extract_tables_from_latex(latex_path):
     with open(latex_path, 'r') as file:
         content = file.read()
-
     # Use a modified pattern to capture both table and table* environments
     table_pattern = re.compile(r'\\begin{table\*?}(.*?)\\end{table\*?}', re.DOTALL)
-
     # Find all matches of the table pattern
     table_matches = table_pattern.findall(content)
-
     # Create a dictionary to store table_id and corresponding content as a list of lines
     tables_dict = {}
     # Iterate through the matches and store them in the dictionary
@@ -440,7 +404,6 @@ def extract_tables_from_latex(latex_path):
             line= line.lower()
             clean_table_lines.append(line)
         tables_dict[table_id] = clean_table_lines
-
     return tables_dict
  
 def find_first_line(pdf_path,latex_path, return_index):
@@ -462,37 +425,95 @@ def find_first_line(pdf_path,latex_path, return_index):
             if clean_pdf_line in table_line: 
                 return  return_index + 1
     return return_index
-    
 
 import re
 
-def wrap_tabular_with_adjustbox(file_path):
-    # Read the content of the LaTeX file
-    with open(file_path, 'r') as file:
-        latex_content = file.read()
-
+def wrap_tabular_with_adjustbox(table_content , width):
+    
     #  find all the tabular environments
     tabular_pattern = re.compile(r'\\begin{tabular}(.*?)\\end{tabular}', re.DOTALL)
-    tabular_matches = tabular_pattern.findall(latex_content)
-
+    tabular_matches = tabular_pattern.findall(table_content)
     # Iterate through the matches and wrap them with adjustbox
     for tabular_content in tabular_matches:
         # Wrap the tabular content with adjustbox
-        wrapped_tabular_content = r'\begin{adjustbox}{}' + '\n' + \
+
+        wrapped_tabular_content = r'\begin{adjustbox}{width=' + width + '}' + '\n' + \
                                   r'\begin{tabular}' + tabular_content + r'\end{tabular}' + '\n' + \
                                   r'\end{adjustbox}'
 
         # Replace the tabular content with the wrapped tabular content
-        latex_content = latex_content.replace(r'\begin{tabular}' + tabular_content + r'\end{tabular}',
+        table_content = table_content.replace(r'\begin{tabular}' + tabular_content + r'\end{tabular}',
                                               wrapped_tabular_content)
+    return table_content
     
 
 
-    # Write the modified content back to the file
-    with open(file_path, 'w') as file:
-        file.write(latex_content)
+def find_tables_to_add_adjust_box(latex_path):
+    # find all the tables environments in the latex file
+    with open(latex_path, 'r') as file:
+        content = file.read()
+
+    # check if usepackage{adjustbox} is already in the file
+    if r'\usepackage{adjustbox}' in content:
+        pass
+
+    else:
+            # Define the regular expression for finding the documentclass line
+        documentclass_pattern = re.compile(r'\\documentclass(?:\[[^\]]*\])?\{.*?\}')
 
 
-   
-wrap_tabular_with_adjustbox("code/greedy_from_machine/files/AAAI 2022 - Goal Recognition as Reinforcement Learning/main_changed.tex")
+        # Find the documentclass line
+        documentclass_match = documentclass_pattern.search(content)
+
+        if documentclass_match:
+            # Insert \usepackage{adjustbox} after the documentclass line
+            insert_position = documentclass_match.end()
+            content = (
+                content[:insert_position] +
+                '\n\\usepackage{adjustbox}\n' +
+                content[insert_position:]
+            )
+
+        else:
+            # If there's no documentclass line, add \usepackage{adjustbox} at the beginning of the file
+            content = '\\usepackage{adjustbox}\n' + content
+    # Use a modified pattern to capture both table and table* environments
+    table_with_astrik_pattern = re.compile(r'\\begin{table\*?}(.*?)\\end{table\*?}', re.DOTALL)
+    table_pattern = re.compile(r'\\begin{table}(.*?)\\end{table}', re.DOTALL)
+
+    # Find all matches of the table pattern 
+    table_with_astrik_pattern_matches = table_with_astrik_pattern.findall(content)
+    table_pattern_matches = table_pattern.findall(content)
+    # Iterate through the matches 
+    for table_content in table_pattern_matches:
+        # check if table* or table
+        width = '1\\columnwidth'
+        # check to see if theres an adjustbox or resizebox already, if not add adjustbox using wrap_tabular_with_adjustbox
+        if r'\begin{adjustbox}' not in table_content and r'\resizebox' not in table_content:
+            new_table_content = wrap_tabular_with_adjustbox(table_content , width)
+            # replace the table content with the wrapped table content
+            content = content.replace(table_content, new_table_content)
+
+    for table_content in table_with_astrik_pattern_matches:
+        # check if table* or table
+        width = '2\\columnwidth'
+        # check to see if theres an adjustbox or resizebox already, if not add adjustbox using wrap_tabular_with_adjustbox
+        if r'\begin{adjustbox}' not in table_content and r'\resizebox' not in table_content:
+            new_table_content = wrap_tabular_with_adjustbox(table_content , width)
+            # replace the table content with the wrapped table content
+            content = content.replace(table_content, new_table_content)
+
+            
+    # write the content to the file
+    with open(latex_path, 'w') as file:
+        file.write(content)
+            
+            
     
+
+
+
+
+
+
+# find_tables_to_add_adjust_box('code/greedy_from_machine/files/AAAI 2022 - Goal Recognition as Reinforcement Learning/main_changed.tex')    
