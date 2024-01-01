@@ -498,15 +498,18 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                     running_index += 1
             else: #no height declared in latex, we will find the height using proportion of width 
                 #get image path
-                start_img_path_index = string_to_edit.find('{')
+                start_img_path_index = string_to_edit.find('/images')
                 end_img_path_index = string_to_edit.find('}')
                 img_path = string_to_edit[start_img_path_index+1:end_img_path_index]
                 #add current working directory to the path
-                prefix = os.path.join("code/~/results/new_files/", paper_name)
+                prefix = os.path.join('code/~/results/new_files/', paper_name)
                 img_path = os.path.join(prefix, img_path)
+                if img_path[-1]=='"':
+                    img_path = img_path[:-1]
                 test_height = get_new_height(img_path, width) 
                 if test_height != None:
                     height = test_height
+
                
                 
                 
@@ -787,8 +790,8 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
             # cmd_line_act = 'tectonic -X compile ' + "code/~/results/new_files/after_operator1.tex"
             dir_path = os.path.join("code/~/results/new_files", paper_name)
             base_name = os.path.basename(after_path)
-            # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
-            subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
+            subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+            # subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
             after_pdf = os.path.join("code/~/results/new_files/", paper_name)
             after_pdf = os.path.join(after_pdf, "after_operator1.pdf")
             last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES)
