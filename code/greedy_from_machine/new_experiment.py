@@ -790,8 +790,8 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
             # cmd_line_act = 'tectonic -X compile ' + "code/~/results/new_files/after_operator1.tex"
             dir_path = os.path.join("code/~/results/new_files", paper_name)
             base_name = os.path.basename(after_path)
-            subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
-            # subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
+            # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+            subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
             after_pdf = os.path.join("code/~/results/new_files/", paper_name)
             after_pdf = os.path.join(after_pdf, "after_operator1.pdf")
             last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES)
