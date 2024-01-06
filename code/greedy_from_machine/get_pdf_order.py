@@ -56,8 +56,9 @@ def order_page(path,page_num,tables_dict,pictures_dict,frompdf):
             tple = list(last_index)
             tple[1] = max(k[0][1], tple[1])
             # helper[0]=tuple(tple)
+            tple = tuple(tple)
             txt = helper + k[1][0]
-            new_right_column_sorted_dict[last_index] = (txt, new_right_column_sorted_dict[last_index][1])
+            new_right_column_sorted_dict[tple] = (txt, new_right_column_sorted_dict[last_index][1])
             current_y_end = k[0][1]
             current_y_start = k[0][0]
             last_index = tuple(tple)
