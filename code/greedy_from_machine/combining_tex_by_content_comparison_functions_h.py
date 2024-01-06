@@ -744,11 +744,11 @@ def running_from_outside(pdf_path,tags,figures,tables,algorithms,lines_to_search
         return []
 
 
-if __name__=="__main__":
-    tex_path = "../../pdf-tests/ProjectOverleaf_Tests (22).pdf"
-    pdf_path = "../../pdf-tests/two_pages_with_specific_v6.pdf"
+# if __name__=="__main__":
+#     tex_path = "../../pdf-tests/ProjectOverleaf_Tests (22).pdf"
+#     pdf_path = "../../pdf-tests/two_pages_with_specific_v6.pdf"
 
-    lst= receive_locations_of_file(tex_path,pdf_path)
+#     lst= receive_locations_of_file(tex_path,pdf_path)
 
     # for item in lst:
     #     print(item)
