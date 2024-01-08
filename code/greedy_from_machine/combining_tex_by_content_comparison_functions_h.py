@@ -1,6 +1,7 @@
 import re
 
 from get_pdf_order import order
+from Last_2_pages_rows_extract import remove_math_patterns
 
 regex = re.compile('[^a-zA-Z]')
 regex_1 = re.compile('\bfi\b')
@@ -51,8 +52,6 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
             for i in pdf_extract[k][j]:  # left_column_page_0
                 # print(i)
                 index_line += 1
-                if index_line == 1:
-                    print('here')
                 box, line = i
 
                 if i[1].startswith("TABLETABLE"):  # it's a table
@@ -122,19 +121,34 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
 
                     currline = regex.sub('', line)
                     currline=currline.replace("fi", "")
+                    currline = currline.lower()
                     # currline=currline.replace("fl", "")
                     if (next_line_to_find < len(tags)):
-                        helpline = regex.sub('', tags[next_line_to_find][0][3])
+                        helpline = tags[next_line_to_find][0][3]
+                        helpline = regex.sub('', helpline)
+                        helpline=helpline.replace("fi", "")
+                        helpline=helpline.replace("fl", "")
+                        line = remove_math_patterns(helpline)
+                        latex_command_pattern = re.compile(r'\\[a-zA-Z]+')
+                        line = re.sub(latex_command_pattern, '', line)
+                        line = re.sub(r'[^a-zA-Z0-9]+', '', line)
+                        helpline= line.lower()
+                        # helpline = regex.sub('', tags[next_line_to_find][0][3])
+
                     else: 
                         helpline = ""
-                    helpline=helpline.replace("fi", "")
-                    helpline=helpline.replace("fl", "")
+                    
                     if current_need_to_be_caption_figure==True: #looking for caption
 
                         for cap_index, caption in enumerate(figure_captions_set):
                             helpline = regex.sub('', caption[0][1])
                             helpline = helpline.replace("fi", "")
                             helpline = helpline.replace("fl", "")
+                            line = remove_math_patterns(helpline)
+                            latex_command_pattern = re.compile(r'\\[a-zA-Z]+')
+                            line = re.sub(latex_command_pattern, '', line)
+                            line = re.sub(r'[^a-zA-Z0-9]+', '', line)
+                            helpline= line.lower()
                             if currline.startswith(helpline):
                                 last_obj_caption = ["Figure", cap_index]
                                 current_need_to_be_caption_figure = False
