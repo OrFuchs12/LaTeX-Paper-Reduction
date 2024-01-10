@@ -22,6 +22,31 @@ def remove_math_patterns(text):
 
     return text
 
+def clean_latex_line(helpline):
+    regex = re.compile('[^a-zA-Z]')
+    pattern = r'\\cite\{[^\}]+\}'
+    helpline = re.sub(pattern, '', helpline)
+    pattern = r'\\ref\{[^\}]+\}'
+    helpline = re.sub(pattern, '', helpline)
+    helpline = helpline.replace(r'\emph', '')
+    helpline = helpline.replace(r'\textit', '')
+    helpline = helpline.replace(r'\textbf', '')
+    helpline = helpline.replace(r'\phi', '') 
+    helpline = helpline.replace(r'\cdot', '')
+    helpline = helpline.replace(r'\em', '')
+    helpline = helpline.replace(r'\underline', '')
+    latex_command_pattern = re.compile(r'\\[a-zA-Z]+')
+    helpline = re.sub(latex_command_pattern, '', helpline)
+    helpline = regex.sub(' ', helpline)
+    helpline=helpline.replace("fi", "")
+    helpline=helpline.replace("fl", "")
+    helpline = remove_math_patterns(helpline)
+    
+    helpline = re.sub(r'[^a-zA-Z0-9]+', '', helpline)
+    helpline= helpline.lower()
+
+    return helpline
+
 def find_first_row_in_last_page(pdf_file_path, latex_path):
     # Open the PDF file and extract the last page
     with pdfplumber.open(pdf_file_path) as pdf:

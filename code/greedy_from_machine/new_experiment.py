@@ -1116,7 +1116,6 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
         paper_directory = paper_dir.name
         idx += 1
         done = 1
-
         for file in os.scandir(paper_dir):
             if file.is_file():
                 if file.name.lower().endswith("_changed.pdf") :

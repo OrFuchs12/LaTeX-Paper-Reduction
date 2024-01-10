@@ -1,7 +1,7 @@
 import re
 
 from get_pdf_order import order
-from Last_2_pages_rows_extract import remove_math_patterns
+from Last_2_pages_rows_extract import remove_math_patterns, clean_latex_line
 
 regex = re.compile('[^a-zA-Z]')
 regex_1 = re.compile('\bfi\b')
@@ -52,6 +52,8 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
             for i in pdf_extract[k][j]:  # left_column_page_0
                 # print(i)
                 index_line += 1
+                if index_line == 0:
+                    print("here")
                 box, line = i
 
                 if i[1].startswith("TABLETABLE"):  # it's a table
@@ -117,6 +119,8 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
                     # counter+=1
 
                 else:  # it's a text line or formula
+                    algorithm_pattern = r'^Algorithm\s+\d+:'
+
                     line_number_of_last_next_position =index_line
 
                     currline = regex.sub('', line)
@@ -125,30 +129,19 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
                     # currline=currline.replace("fl", "")
                     if (next_line_to_find < len(tags)):
                         helpline = tags[next_line_to_find][0][3]
-                        helpline = regex.sub('', helpline)
-                        helpline=helpline.replace("fi", "")
-                        helpline=helpline.replace("fl", "")
-                        line = remove_math_patterns(helpline)
-                        latex_command_pattern = re.compile(r'\\[a-zA-Z]+')
-                        line = re.sub(latex_command_pattern, '', line)
-                        line = re.sub(r'[^a-zA-Z0-9]+', '', line)
-                        helpline= line.lower()
+                        helpline = clean_latex_line(helpline)
                         # helpline = regex.sub('', tags[next_line_to_find][0][3])
 
                     else: 
                         helpline = ""
                     
+                    
+                    
                     if current_need_to_be_caption_figure==True: #looking for caption
 
                         for cap_index, caption in enumerate(figure_captions_set):
                             helpline = regex.sub('', caption[0][1])
-                            helpline = helpline.replace("fi", "")
-                            helpline = helpline.replace("fl", "")
-                            line = remove_math_patterns(helpline)
-                            latex_command_pattern = re.compile(r'\\[a-zA-Z]+')
-                            line = re.sub(latex_command_pattern, '', line)
-                            line = re.sub(r'[^a-zA-Z0-9]+', '', line)
-                            helpline= line.lower()
+                            helpline = clean_latex_line(helpline)
                             if currline.startswith(helpline):
                                 last_obj_caption = ["Figure", cap_index]
                                 current_need_to_be_caption_figure = False
@@ -176,8 +169,7 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
                     elif current_need_to_be_caption_table==True:
                         for caption in table_captions_set:
                             helpline = regex.sub('', caption[0][1])
-                            helpline=helpline.replace("fi", "")
-                            helpline=helpline.replace("fl", "")
+                            helpline = clean_latex_line(helpline)
                             if currline.startswith(helpline):
 
                                 current_need_to_be_caption_table = False
@@ -267,11 +259,10 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
                             object_dict_counter += 1
                             last_text_position = len(object_dict)
 
-                    elif currline.startswith("Algorithm"):
-
+                    elif re.match(algorithm_pattern, line):
+                        
                         helpline = regex.sub('', algorithms[algorithms_counter][0][1])
-                        helpline = helpline.replace("fi", "")
-                        helpline = helpline.replace("fl", "")
+                        helpline = clean_latex_line(helpline)
                         if currline.startswith(helpline):
                             # object_dict.append([box, line, index_line, k, j])
                             helper_dict = {"First_line_bbox": box, "Text": line,
@@ -295,15 +286,8 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
                     elif len(last_obj_caption) > 0 and last_obj_caption[0] == "Figure":
                         helpline= list(figure_captions_set)[last_obj_caption[1]]
                         helpline = helpline[0][3]
-                        helpline = helpline.replace(r'\emph', '')
-                        helpline = helpline.replace(r'\textit', '')
-                        helpline = helpline.replace(r'\textbf', '')
-                        helpline = helpline.replace(r'\phi', '') 
-                        helpline = helpline.replace(r'\cdot', '')
-                        helpline = helpline.replace(r'\em', '')
-                        helpline = helpline.replace(r'\underline', '')
-                        helpline = helpline.replace(r'\geq', '')                                    
-                        helpline=  regex.sub('',helpline)
+                        helpline = clean_latex_line(helpline)
+                        # might be a problem here
                         if currline in helpline:
                             new_text = object_dict[-1]["Text"] + line
                             new_bbox = (object_dict[-1]["First_line_bbox"][0], box[1])
