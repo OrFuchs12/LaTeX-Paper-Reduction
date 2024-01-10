@@ -2,6 +2,7 @@ import re
 
 from get_pdf_order import order
 from Last_2_pages_rows_extract import remove_math_patterns, clean_latex_line
+import traceback
 
 regex = re.compile('[^a-zA-Z]')
 regex_1 = re.compile('\bfi\b')
@@ -52,8 +53,6 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
             for i in pdf_extract[k][j]:  # left_column_page_0
                 # print(i)
                 index_line += 1
-                if index_line == 0:
-                    print("here")
                 box, line = i
 
                 if i[1].startswith("TABLETABLE"):  # it's a table
@@ -195,7 +194,7 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
 
 
 
-                    elif currline in helpline:
+                    elif currline in helpline and len(currline) > 0 and currline !='x':
                             last_obj_caption = []
 
                             # print(helpline)
@@ -260,7 +259,6 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
                             last_text_position = len(object_dict)
 
                     elif re.match(algorithm_pattern, line):
-                        
                         helpline = regex.sub('', algorithms[algorithms_counter][0][1])
                         helpline = clean_latex_line(helpline)
                         if currline.startswith(helpline):
