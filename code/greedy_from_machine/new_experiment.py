@@ -375,6 +375,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
             string_to_edit = latex_clean_lines[
                 found_index]  # the line that we need to edit in order to change the scale
             # we will look for width and if it exists we will change it
+            empty_number = False
             start_index = string_to_edit.find('width')
             running_index = 0
             if (start_index != -1):  # find the number for width
@@ -392,6 +393,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                                 running_index += 1
                         if number == '':
                             number = 1
+                            empty_number = True
                         width = float(number)
                         break
                     running_index += 1
@@ -415,10 +417,13 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                     index_of_second_bracket = string_to_edit.find('{', string_to_edit.find('{') + 1)
                     new_str = string_to_edit[:index_of_second_bracket + 1] + "width=" + str(new_width) + "\columnwidth" + string_to_edit[index_of_second_bracket+1:]
                 else:
-                    if width == 2: 
+                    if empty_number:
+                       #add the new_width after =
+                        new_str = string_to_edit.replace('=', '=' + str(new_width)) 
+                    elif width == 2: 
                         new_str = string_to_edit.replace(str(int(width)), str(2 * new_width))
                     elif width == 1:
-                        new_str = string_to_edit.replace(str(int(width)), str(new_width))
+                        new_str = string_to_edit.replace(str(int(width)), str(new_width))                        
                     else:
                         new_str = string_to_edit.replace(str(width), str(new_width))
                 copy_list = copy.deepcopy(latex_clean_lines)
