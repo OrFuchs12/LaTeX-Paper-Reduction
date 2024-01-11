@@ -518,18 +518,6 @@ def find_tables_to_add_adjust_box(latex_path):
             new_table_content = wrap_tabular_with_adjustbox(table_content , width)
             # replace the table content with the wrapped table content
             content = content.replace(table_content, new_table_content)
-        elif r'\resizebox' in table_content:
-            # find the width of the table
-            resizebox_pattern = re.compile(r'\\resizebox\s*{([^}]*)}')
-            resizebox_matches = resizebox_pattern.findall(table_content)
-            width = resizebox_matches[0]
-            if 'width='  not in width:
-                #add width= inside {}
-                new_width = 'width=' + width
-                #write the new width inside the resizebox
-                new_table_content = table_content.replace(width, new_width)
-                content = content.replace(table_content, new_table_content)
-            
 
     for table_content in table_with_astrik_pattern_matches:
         # check if table* or table
@@ -539,17 +527,6 @@ def find_tables_to_add_adjust_box(latex_path):
             new_table_content = wrap_tabular_with_adjustbox(table_content , width)
             # replace the table content with the wrapped table content
             content = content.replace(table_content, new_table_content)
-        elif r'\resizebox' in table_content:
-            # find the width of the table
-            resizebox_pattern = re.compile(r'\\resizebox\s*{([^}]*)}')
-            resizebox_matches = resizebox_pattern.findall(table_content)
-            width = resizebox_matches[0]
-            if 'width='  not in width:
-                #add width= inside {}
-                new_width = 'width=' + width
-                #write the new width inside the resizebox
-                new_table_content = table_content.replace(width, new_width)
-                content = content.replace(table_content, new_table_content)
 
             
     # write the content to the file
