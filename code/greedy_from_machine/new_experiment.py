@@ -82,9 +82,39 @@ def is_par(lst, index):
 
 
 def combine_two_paragraphs(lst, index_1, index_2):
-    lst[index_1] = lst[index_1].replace("\n", " ") + lst.pop(index_2)
+    # lst[index_1] = lst[index_1].replace("\n", " ") + lst.pop(index_2)
+    # return lst
+    # Start removing newlines from index_2 backward until a non-newline is found above it
+    orig_2 = index_2
+    while index_2 > index_1 + 1 and lst[index_2 - 1] == '\n':
+        del lst[index_2 - 1]
+        index_2 -= 1
+    #remove \n from lst[index_2 - 1]
+    lst[index_2 - 1] = lst[index_2 - 1].replace("\n", " ")
+    
+    # Combine the paragraphs by replacing the newline with a space
+    lst[index_2 - 1] += " " + lst.pop(index_2)
+    
     return lst
 
+def extract_resizebox_width(latex_command):
+    empty_resizebox = False
+    missing_number_index = None
+    # Regular expression pattern to match the width value in the LaTeX command
+    pattern = r'\\resizebox{([0-9.]*)\\+[a-zA-Z]+}'
+    match = re.search(pattern, latex_command)
+    if match:
+        width_value = match.group(1)
+        if width_value == '':
+            width_value = 1
+            empty_resizebox = True
+            missing_number_index = match.start(1)
+        try:
+            return float(width_value), empty_resizebox, missing_number_index
+        except ValueError:
+            return None, None, None
+    else:
+        return None, None, None
 
 def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, paper_name):  # ,path_to_file):
 
@@ -374,11 +404,12 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
             # we will first find the places and then add the values based on the scale
             string_to_edit = latex_clean_lines[
                 found_index]  # the line that we need to edit in order to change the scale
+            width, empty_resizebox, resize_index = extract_resizebox_width(string_to_edit)
             # we will look for width and if it exists we will change it
             empty_number = False
             start_index = string_to_edit.find('width')
             running_index = 0
-            if (start_index != -1):  # find the number for width
+            if (start_index != -1) and width == None:  # find the number for width
                 running_index = start_index
                 while (running_index < len(string_to_edit)):
                     if (string_to_edit[running_index] == '='):
@@ -420,6 +451,9 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                     if empty_number:
                        #add the new_width after =
                         new_str = string_to_edit.replace('=', '=' + str(new_width)) 
+                    elif empty_resizebox:
+                        #add the new_width to the resize_index
+                        new_str = string_to_edit[:resize_index] + str(new_width) + string_to_edit[resize_index:]
                     elif width == 2: 
                         new_str = string_to_edit.replace(str(int(width)), str(2 * new_width))
                     elif width == 1:
