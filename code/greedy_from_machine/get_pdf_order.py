@@ -88,7 +88,7 @@ def order_page(path,page_num,tables_dict,pictures_dict,frompdf):
                 if table[0]<300:
                     left_column[(table[1],table[3])] = ("TABLETABLE",0)
                     threshold  = table[3] 
-                    if(table[2] > 300):
+                    if(table[2] > 310):
                         # if the table is too wide, we don't want to consider the text on the right of it as a table
                         right_column = {key: value for key, value in right_column.items() if key[1] > threshold}
                 else:

@@ -1,6 +1,7 @@
 import perry
 import combining_tex_by_content_comparison_functions_h as combining_tex_by_content_comparison_functions
 from Last_2_pages_rows_extract import convert_Latex_to_rows_list
+import traceback
 
 def run(latex_path,pdf_path,bib_path):
     try:
@@ -111,6 +112,7 @@ def run(latex_path,pdf_path,bib_path):
         #         print(f"{key}[]{k[key]}")
         return adi
     except Exception as e:
+        traceback.print_exc()
         print(e)
         return []
 
