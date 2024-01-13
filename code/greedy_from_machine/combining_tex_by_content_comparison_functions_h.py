@@ -53,6 +53,8 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
             for i in pdf_extract[k][j]:  # left_column_page_0
                 # print(i)
                 index_line += 1
+                if index_line == 12:
+                    print("here")
                 box, line = i
 
                 if i[1].startswith("TABLETABLE"):  # it's a table
@@ -123,9 +125,7 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
                     line_number_of_last_next_position =index_line
 
                     currline = regex.sub('', line)
-                    currline=currline.replace("fi", "")
                     currline = currline.lower()
-                    # currline=currline.replace("fl", "")
                     if (next_line_to_find < len(tags)):
                         helpline = tags[next_line_to_find][0][3]
                         helpline = clean_latex_line(helpline)
