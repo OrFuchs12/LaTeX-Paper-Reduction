@@ -107,9 +107,10 @@ def receive_lines_version_1(lines):
             if str_line.find(f"\\end") != -1:
                 op = str_line.split("}")[0] + "}"
                 if op in operators:
-                    obj = stack.pop()
-                    parsing_tree[op].append((obj[0],i))
-                    new_dict[obj[0]]=(i,op)
+                    if stack:
+                        obj = stack.pop()
+                        parsing_tree[op].append((obj[0],i))
+                        new_dict[obj[0]]=(i,op)
 
             if str_line.startswith("\\section") or str_line.startswith("\\subsection") or  str_line.find("\\subsubsection") != -1 :
                 op = str_line.split("{")[0]

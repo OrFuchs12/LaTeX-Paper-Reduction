@@ -22,6 +22,28 @@ def remove_math_patterns(text):
 
     return text
 
+def clean_latex_line(helpline):
+    regex = re.compile('[^a-zA-Z]')
+    pattern = r'\\cite\{[^\}]+\}'
+    helpline = re.sub(pattern, '', helpline)
+    pattern = r'\\ref\{[^\}]+\}'
+    helpline = re.sub(pattern, '', helpline)
+    helpline = helpline.replace(r'\emph', '')
+    helpline = helpline.replace(r'\textit', '')
+    helpline = helpline.replace(r'\textbf', '')
+    helpline = helpline.replace(r'\phi', '') 
+    helpline = helpline.replace(r'\cdot', '')
+    helpline = helpline.replace(r'\em', '')
+    helpline = helpline.replace(r'\underline', '')
+    latex_command_pattern = re.compile(r'\\[a-zA-Z]+')
+    helpline = re.sub(latex_command_pattern, '', helpline)
+    helpline = regex.sub(' ', helpline)
+    helpline = remove_math_patterns(helpline)
+    helpline = re.sub(r'[^a-zA-Z0-9]+', '', helpline)
+    helpline= helpline.lower()
+
+    return helpline
+
 def find_first_row_in_last_page(pdf_file_path, latex_path):
     # Open the PDF file and extract the last page
     with pdfplumber.open(pdf_file_path) as pdf:
@@ -80,7 +102,7 @@ def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figu
         return text_in_page[0], False, return_index+index, last_iteration
     
 def convert_Latex_to_rows_list(latex_path,pdf_path):
-    find_tables_to_add_adjust_box(latex_path)
+    find_tables_to_add_adjust_box(latex_path, pdf_path)
     rows_list = []
     # the first row in the page we want to start the extraction from
     first_row_to_begin = find_first_row_in_last_page(pdf_path, latex_path)
@@ -448,7 +470,13 @@ def wrap_tabular_with_adjustbox(table_content , width):
     
 
 
-def find_tables_to_add_adjust_box(latex_path):
+def find_tables_to_add_adjust_box(latex_path, pdf_path):
+    with pdfplumber.open(pdf_path) as pdf:
+        # extract tables from the pdf
+        page = pdf.pages[0]
+        pdf_tables = page.find_tables()            
+
+    
     # find all the tables environments in the latex file
     with open(latex_path, 'r') as file:
         content = file.read()
@@ -479,24 +507,33 @@ def find_tables_to_add_adjust_box(latex_path):
             content = '\\usepackage{adjustbox}\n' + content
     # Use a modified pattern to capture both table and table* environments
     table_with_astrik_pattern = re.compile(r'\\begin{table\*?}(.*?)\\end{table\*?}', re.DOTALL)
-    table_pattern = re.compile(r'\\begin{table}(.*?)\\end{table}', re.DOTALL)
+    # table_pattern = re.compile(r'\\begin{table}(.*?)\\end{table}', re.DOTALL)
 
     # Find all matches of the table pattern 
     table_with_astrik_pattern_matches = table_with_astrik_pattern.findall(content)
-    table_pattern_matches = table_pattern.findall(content)
+    # table_pattern_matches = table_pattern.findall(content)
     # Iterate through the matches 
-    for table_content in table_pattern_matches:
-        # check if table* or table
-        width = '1\\columnwidth'
-        # check to see if theres an adjustbox or resizebox already, if not add adjustbox using wrap_tabular_with_adjustbox
-        if r'\begin{adjustbox}' not in table_content and r'\resizebox' not in table_content:
-            new_table_content = wrap_tabular_with_adjustbox(table_content , width)
-            # replace the table content with the wrapped table content
-            content = content.replace(table_content, new_table_content)
+    # for table_content in table_pattern_matches:
+    #     # check if table* or table
+    #     width = '1\\columnwidth'
+    #     # check to see if theres an adjustbox or resizebox already, if not add adjustbox using wrap_tabular_with_adjustbox
+    #     if r'\begin{adjustbox}' not in table_content and r'\resizebox' not in table_content:
+    #         new_table_content = wrap_tabular_with_adjustbox(table_content , width)
+    #         # replace the table content with the wrapped table content
+    #         content = content.replace(table_content, new_table_content)
 
-    for table_content in table_with_astrik_pattern_matches:
-        # check if table* or table
-        width = '2\\columnwidth'
+    # reverse the order of the tables
+    pdf_tables = list(reversed(pdf_tables))  
+    
+    counter = len(pdf_tables)
+    for index, table_content in enumerate(reversed(table_with_astrik_pattern_matches)):
+        if counter == 0:
+            break
+        table = pdf_tables[index]
+        counter -= 1
+        table_width = table.bbox[2] - table.bbox[0]
+        width = round(table_width / 300, 2)
+        width = str(width) + '\\columnwidth'
         # check to see if theres an adjustbox or resizebox already, if not add adjustbox using wrap_tabular_with_adjustbox
         if r'\begin{adjustbox}' not in table_content and r'\resizebox' not in table_content:
             new_table_content = wrap_tabular_with_adjustbox(table_content , width)
