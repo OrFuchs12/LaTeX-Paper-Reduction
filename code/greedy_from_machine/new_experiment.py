@@ -534,18 +534,8 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                         break
                     running_index += 1
             else: #no height declared in latex, we will find the height using proportion of width 
-                #get image path
-                start_img_path_index = string_to_edit.find('/images')
-                end_img_path_index = string_to_edit.find('}')
-                img_path = string_to_edit[start_img_path_index+1:end_img_path_index]
-                #add current working directory to the path
-                prefix = os.path.join('code/~/results/new_files/', paper_name)
-                img_path = os.path.join(prefix, img_path)
-                if img_path[-1]=='"':
-                    img_path = img_path[:-1]
-                test_height = get_new_height(img_path, width) 
-                if test_height != None:
-                    height = test_height
+                #get height in point and convert to inches
+                height = round(value['height']/72, 2)
 
                
                 
@@ -557,7 +547,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
             string_to_edit = latex_clean_lines[found_index]  # the string to edit
             if not given_height:
                 index_for_height = string_to_edit.find(']')
-                string_to_edit = string_to_edit[:index_for_height] + ",height=" + str(height) + "\columnwidth" + string_to_edit[index_for_height:]
+                string_to_edit = string_to_edit[:index_for_height] + ",height=" + str(height) +"in "+ string_to_edit[index_for_height:]
             heuristic = 0
             for i in range(5):
                 if (i == 0):
