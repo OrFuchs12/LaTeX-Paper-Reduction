@@ -116,10 +116,8 @@ def extract_resizebox_width(latex_command):
     else:
         return None, None, None
 
-def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, paper_name):  # ,path_to_file):
+def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, paper_name,lidor):  # ,path_to_file):
 
-    lidor = convert_Latex_to_rows_list(latex_path, pdf_path)
-    # lidor = []
     latex_clean_lines = []
     with open(latex_path, encoding='UTF-8') as f:
         file = f.read()
@@ -763,7 +761,7 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
             
         # new_path= "new.pdf"
         # copy_last_pages(path_to_pdf, new_path, 2)
-        features_single.run_feature_extraction(path_to_latex, path_to_pdf, '/code/greedy_from_machine/bibliography.bib',
+        df, lidor = features_single.run_feature_extraction(path_to_latex, path_to_pdf, '/code/greedy_from_machine/bibliography.bib',
                                                     "code/~/results/dct0",
                                                     "code/~/results/new_files/dct0", "test", pd.DataFrame())
         lines, pages = check_lines(path_to_pdf)
@@ -797,7 +795,7 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
                 dct = pickle.load(dct_file)
 
             # get list of all possible operators to apply on the file
-            res = perform_operators(dct, 0, path_to_latex, path_to_pdf ,"code/~/results/new_files/", paper_name)
+            res = perform_operators(dct, 0, path_to_latex, path_to_pdf ,"code/~/results/new_files/", paper_name,lidor)
             print("total operators:", len(res))
 
             # whether there are no more operators
@@ -850,7 +848,7 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
                 reduced = True
 
             if not reduced:
-                features_single.run_feature_extraction(after_path, 
+                df, lidor = features_single.run_feature_extraction(after_path, 
                         last_pages_pdf, 'code/~/results/bibliography.bib',
                         "code/~/results/dct0", "code/~/results/new_files/dct0", "test", pd.DataFrame())
 
@@ -877,7 +875,7 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
     try:
         operators_done = []
         #perform feature extraction to the file
-        features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
+        df, lidor = features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
                                                     "code/~/results/dct0",
                                                     "code/~/results/new_files/dct0", "test", pd.DataFrame())
         lines, pages = check_lines(path_to_pdf)
@@ -902,11 +900,12 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
         start = time.time()
         while (not reduced):
             print("index:", index)
+            
             # get the dictionary of the file
             with open('code/~/results/dct0', 'rb') as dct_file:
                 dct = pickle.load(dct_file)
             # get list of all possible operators to apply on the file
-            res = perform_operators(dct, 0, path_to_latex, path_to_pdf, "code/~/results/new_files/", paper_name)
+            res = perform_operators(dct, 0, path_to_latex, path_to_pdf, "code/~/results/new_files/", paper_name, lidor)
             print("total operators:", len(res))
 
             # whether there are no more operators
@@ -960,7 +959,7 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
                     reduced = True
 
                 if not reduced:
-                    features_single.run_feature_extraction(path_to_latex, 
+                    df , lidor = features_single.run_feature_extraction(path_to_latex, 
                     last_pages_pdf, 'code/~/results/bibliography.bib',
                     "code/~/results/dct0", "code/~/results/new_files/dct0", "test", pd.DataFrame())
 
@@ -1024,7 +1023,7 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
             return -1, -1, False, -1
 
         #perform feature extraction to the file
-        df1 = features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
+        df1,lidor = features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
                                                         "code/~/results/dct0",
                                                         "code/~/results/new_files/dct0", "test",
                                                         pd.DataFrame())
@@ -1053,7 +1052,7 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
                 dct = pickle.load(dct_file)
 
             # get list of all possible operators to apply on the file
-            res = perform_operators(dct, 0, path_to_latex, path_to_pdf, "code/~/results/new_files/", paper_name)
+            res = perform_operators(dct, 0, path_to_latex, path_to_pdf, "code/~/results/new_files/", paper_name, lidor)
             print("total operators:", len(res))
 
             # whether there are no more operators
@@ -1118,7 +1117,7 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
                 
                 if not reduced:
 
-                    df1 = features_single.run_feature_extraction(
+                    df1, lidor = features_single.run_feature_extraction(
                         path_to_latex,
                         last_pages_pdf, 'code/~/results/bibliography.bib',
                         "code/~/results/dct0", "code/~/results/new_files/dct0", "test",
@@ -1159,6 +1158,7 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
     results = []
     idx = 0
     for paper_dir in os.scandir(directory):
+        print("paper_dir:", paper_dir.name)
         names = []
         paper_directory = paper_dir.name
         idx += 1

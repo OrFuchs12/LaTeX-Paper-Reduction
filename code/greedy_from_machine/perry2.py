@@ -487,7 +487,8 @@ def parse2_lidor(path, lines= None):
     else:
         file = read_file(path)
 
-    file.insert(0,"\\section{demo}")
+    if (file[0] != "\\section{demo}"):
+        file.insert(0,"\\section{demo}")
     order = receive_lines_version_1(file)
     latex, tree, lines = latex_parsing_perry.parse(lines)
 

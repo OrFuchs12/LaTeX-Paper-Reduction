@@ -195,7 +195,7 @@ def run_feature_extraction(latex_path, pdf_path, bib_path, path_to_save_lidor_dc
     max_height = 0
 
     for file_index in range(1):
-        res = test.run(latex_path, pdf_path, bib_path)
+        res, lidor = test.run(latex_path, pdf_path, bib_path)
         #print(res)
         
         # try:
@@ -1231,7 +1231,8 @@ def run_feature_extraction(latex_path, pdf_path, bib_path, path_to_save_lidor_dc
     # print(df)
     # print(df.T)
     # df2 = df.T
-    return df
+    return df, lidor
+
     # return df,files_created
     # df2.to_csv('example.csv')
 
@@ -1437,6 +1438,7 @@ if __name__ == "__main__":
             x.to_csv(excel_path, mode='a', index=True, header=False)
         else:
             x.to_csv(excel_path, index=True, header=True)
+        
 
     # with pd.ExcelWriter(excel_path, mode='a') as writer:
     #    df.to_excel(writer, sheet_name="Sheet1", startrow=line_num, header=False)

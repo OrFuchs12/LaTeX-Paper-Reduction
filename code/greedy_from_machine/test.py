@@ -110,7 +110,7 @@ def run(latex_path,pdf_path,bib_path):
         #     print("---")
         #     for key in k:
         #         print(f"{key}[]{k[key]}")
-        return adi
+        return adi, lidor
     except Exception as e:
         traceback.print_exc()
         print(e)
