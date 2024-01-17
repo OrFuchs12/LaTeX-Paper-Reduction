@@ -20,11 +20,17 @@ def remove_math_patterns(text):
         replacement = re.sub(r'_\{.*?\}', '_', replacement)
         text = text.replace(original_match, replacement, 1)  # Replace only the first occurrence
 
+
+    frac_pattern = re.compile(r'\\frac\{(\w+)\}\{(\d+)\} ([^\s]+) (\d+)')
+    # Replace the pattern with the desired format
+    text = re.sub(frac_pattern, r'{\1} \3 \4', text)
     return text
 
 def clean_latex_line(helpline):
     regex = re.compile('[^a-zA-Z]')
     pattern = r'\\cite\{[^\}]+\}'
+    helpline = re.sub(pattern, '', helpline)
+    pattern = r'\\citet\{[^\}]+\}'
     helpline = re.sub(pattern, '', helpline)
     pattern = r'\\ref\{[^\}]+\}'
     helpline = re.sub(pattern, '', helpline)
@@ -121,7 +127,6 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
         # flag to know if we found the line we want to end the extraction from
         found_end = False
         # clean the line to make it easier to compare
-        pattern = r'\\[a-zA-Z]+(?:\[[^\]]\])?(?:\{[^\}]\})?'
         match_was_in_second_line = False
         for i in range(len(lines)):
             if match_was_in_second_line:
@@ -134,24 +139,10 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
                 line = first_line + next_line
             else:
                 line = lines[i]
-            line = remove_math_patterns(line)
-            frac_pattern = re.compile(r'\\frac\{(\w+)\}\{(\d+)\} ([^\s]+) (\d+)')
-            # Replace the pattern with the desired format
-            clean_line_latex = re.sub(frac_pattern, r'{\1} \3 \4', line)
-            clean_line_latex = re.sub(r'\\phi', '', clean_line_latex)
-            clean_line_latex = re.sub(pattern, '', clean_line_latex)
-            clean_latex_line_to_compare = re.sub(r'[^a-zA-Z0-9]+', '', clean_line_latex)
-            
-            clean_next_line = remove_math_patterns(next_line)
-            clean_next_line = re.sub(frac_pattern, r'{\1} \3 \4', clean_next_line)
-            clean_next_line = re.sub(pattern, '', clean_next_line)
-            clean_next_line = re.sub(r'[^a-zA-Z0-9]+', '', clean_next_line)
-            clean_next_line = clean_next_line.lower()
-            
-            clean_line = clean_line.lower()
-            clean_latex_line_to_compare = clean_latex_line_to_compare.lower()
-            clean_next_line = clean_next_line.lower()
-            
+
+            clean_latex_line_to_compare = clean_latex_line(line)
+            clean_next_line = clean_latex_line(next_line)
+
             while(not found_start and clean_line not in clean_latex_line_to_compare):
                 lines_before_the_line += 1
                 rows_list.append('\n')
@@ -419,11 +410,7 @@ def extract_tables_from_latex(latex_path):
         for line in table_lines:
             multicolumn_pattern = re.compile(r'\\multicolumn{[0-9]+}{.*?}{(.*?)}')
             line = re.sub(multicolumn_pattern, r'{\1}', line)
-            line = remove_math_patterns(line)
-            latex_command_pattern = re.compile(r'\\[a-zA-Z]+')
-            line = re.sub(latex_command_pattern, '', line)
-            line = re.sub(r'[^a-zA-Z0-9]+', '', line)
-            line= line.lower()
+            line = clean_latex_line(line)
             clean_table_lines.append(line)
         tables_dict[table_id] = clean_table_lines
     return tables_dict
