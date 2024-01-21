@@ -45,7 +45,7 @@ def clean_latex_line(helpline):
     helpline = re.sub(latex_command_pattern, '', helpline)
     helpline = regex.sub(' ', helpline)
     helpline = remove_math_patterns(helpline)
-    helpline = re.sub(r'[^a-zA-Z0-9]+', '', helpline)
+    helpline = re.sub(r'[^a-zA-Z]+', '', helpline)
     helpline= helpline.lower()
 
     return helpline
@@ -113,7 +113,7 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
     # the first row in the page we want to start the extraction from
     first_row_to_begin = find_first_row_in_last_page(pdf_path, latex_path)
     # clean the line to make it easier to compare
-    clean_line = re.sub(r'[^a-zA-Z0-9]+', '', first_row_to_begin)
+    clean_line = re.sub(r'[^a-zA-Z]+', '', first_row_to_begin)
     clean_line = clean_line.lower()
     # search the line in  the latex file
     try:

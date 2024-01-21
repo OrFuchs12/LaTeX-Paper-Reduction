@@ -862,6 +862,7 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
     path_to_latex - path to the latex file 
 """
 def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
+    reduced = False
     try:
         operators_done = []
         #perform feature extraction to the file
@@ -1000,6 +1001,7 @@ def load_models(models_path):
     models - dict of models (dictionary) 
 """
 def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
+    reduced = False
     try:
         operators_done = []
         lines, pages = check_lines(path_to_pdf) 
