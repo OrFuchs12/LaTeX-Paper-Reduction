@@ -1,0 +1,69 @@
+\section{Adaptive Primal-Dual Accelerated Gradient Descent (APDAGD)}
+% \label{sec:apdagd}
+
+\subsection{Dual Formulation and Algorithmic Design}
+Following a similar formulation to \citep[Section 3.1]{Dvurechensky-2018-Computational}, we have the following primal problem with entropic regularization
+\begin{align}
+    \label{prob:entropic}
+    \min_{\vx \geq \zeros} \left\{ f(\vx) \defeq \inner{\vd}{\vx} + \gamma \inner{\vx }{\log \vx} \right\} ~~ \text{s.t.} ~~  \vA \vx = \vb,
+\end{align}
+%Given a simple closed convex set $Q$ in a finite-dimensional real vector space $E$; $H$ is another finite-dimensional real vector space with an element $\vb$; $\vA$ is a given linear operator from $E$ to $H$. Consider
+% \begin{equation} \label{general_problem}
+%     \min_{\vx \in Q \subseteq E} f(\vx) \quad \text{s.t. }  \vA \vx = \vb,
+% \end{equation}
+%where $f(\vx)$ is a $\mu_f$-strongly convex function on $Q$ with respect to some chosen norm $\norm{\cdot}_E$ on $E$. 
+%(If $\gamma = 0$, we recover Problem \eqref{main_problem})
+where $\vA \vx = \vb$ is encoded as explained in Equation \eqref{main_problem}. Since problem \eqref{prob:entropic} is a linearly constrained convex optimization problem, strong duality holds.
+\begin{lemma}
+    With a dual variable $\pmb{\lambda} \in H^{*} = \RR^{2n+1}$, the dual of \eqref{prob:entropic} is given by
+        $$\min_{\pmb{\lambda} \in H^{*}} \left\{ \varphi(\pmb{\lambda}) \defeq \inner{\pmb{\lambda}}{\vb} + \max_{\vx \in Q} \left\{ - f(\vx) - \inner{\vx}{\vA^\top \pmb{\lambda}}\right\} \right\},$$
+    or equivalently
+    \begin{align}
+    \label{entropic_regularized}
+        \begin{split}
+        &\min_{\vy, \vz, t} \left\{- ts - \inner{\vy}{\vr} - \inner{\vz}{\vc}  \right. \\
+        &\left. - \gamma \sum_{i, j=1}^{n} e^{-(C_{i, j} + y_i + z_j + t)/{\gamma}-1} + e^{-y_i / \gamma - 1} +  e^{-z_j/ \gamma - 1}  \right\},
+        \end{split}
+\end{align}
+     where $\vy, \vz, t$ are dual variables corresponding the POT constraints in \eqref{prob:pot_with_pq} as $\pmb{\lambda} = (\vy^\top, \vz^\top, t)^\top$ (which we simply refer as $(\vy, \vz, t)$ from now on).
+\end{lemma}
+The detailed dual formulation of Equation \eqref{prob:entropic} is found in subsection Dual Formulation for Entropic POT in the Appendix.
+
+More details on the properties (strong convexity, smoothness, etc) of the primal and dual objectives are in Properties of Entropic POT section in Appendix. The APDAGD procedure is described in Algorithm \ref{alg:APDAGD} in Appendix. So as to approximate POT, we incorporate our novel rounding algorithm with a similar procedure to \citep[Algorithm 2]{lin2019efficient}, in Algorithm \ref{alg:ApproxOT_APDAGD}.
+\begin{algorithm}
+\caption{Approximating POT by APDAGD} \label{alg:ApproxOT_APDAGD}
+\begin{algorithmic}[1]
+    \REQUIRE{ marginals $\vr, \vc$; cost matrix $\vC$}.
+    \STATE $\gamma = \varepsilon / (4\log(n)), \widetilde{\varepsilon}= \varepsilon / (8\|\vC\|_{\max})$
+    \IF{$\| \vr \|_1 > 1$}
+        \STATE \(\widetilde{\varepsilon} = \min\left\{\widetilde{\varepsilon}, 8 (\|\vr\|_1-s) / (\|\vr\|_1-1) \right\} \)
+    \ENDIF
+    \IF{$\| \vc \|_1 > 1$}
+        \STATE \(\widetilde{\varepsilon} = \min\left\{\widetilde{\varepsilon}, 8 (\|\vc\|_1-s) / (\|\vc\|_1-1) \right\} \)
+    \ENDIF
+    \STATE $\widetilde{\vr} = \left(1 - \widetilde{\varepsilon}/ 8\right)\vr + \widetilde{\varepsilon} \ones_n / (8n)$
+    \STATE $\widetilde{\vc} = \left(1 - \widetilde{\varepsilon}/ 8\right)\vr + \widetilde{\varepsilon} \ones_n / (8n)$
+    \STATE $\widetilde{\vX} = \textsc{Apdagd}(\vC, \gamma, \widetilde{\vr}, \widetilde{\vc}, \widetilde{\varepsilon}/2)$
+    \STATE $\bar{\vX} = \textsc{Round-POT}(\widetilde{\vX}, \widetilde{\vr}, \widetilde{\vc}, s)$
+    \ENSURE{$\bar{\vX}$}.  
+\end{algorithmic}
+\end{algorithm}
+\subsection{Computational Complexity}
+Now, we provide the computational complexity of APDAGD (Theorem \ref{APDAGD_complexity}) and its proof sketch. The detailed proof of this result will be presented in Complexity of APDAGD for POT Detailed Proof subsection in Appendix.
+\begin{theorem} \label{APDAGD_complexity} (Complexity of APDAGD)
+    The APDAGD algorithm returns $\varepsilon$-approximation POT solution $\widehat{\vX} \in \mathcal{U}(\vr, \vc, s)$ in $\mathcal{\widetilde{O}}\left(n^{5/2} \norm{\vC}_{\max} / \varepsilon \right)$. 
+\end{theorem}
+\begin{proof}[Proof sketch] \textbf{Step 1}: we present the reparameterization $\vu = - \vy / \gamma - \ones, \vv = - \vz / \gamma - \ones$ and $w = -t / \gamma + 1$ for the dual (\ref{entropic_regularized}), leading to the equivalent dual form 
+\begin{align*} 
+        \min_{\vu, \vv, w} &\sum_{i, j=1}^{n} \exp \left(- C_{i, j} / \gamma + u_i + v_j + w \right) + \sum_{i=1}^{n} \exp(u_i) \\
+        &+ \sum_{j=1}^{n} \exp(v_j) - \inner{\vu}{\vr} - \inner{\vv}{\vc} - ws.
+\end{align*}
+This transformation will facilitate the bounding of the dual variables in later steps. 
+
+\textbf{Step 2}: we proceed to bound the $\ell_\infty$-norm of the transformed optimal dual variables $\|(\vu^\ast, \vv^\ast, w^\ast)\|_\infty$.  Conventional analyses for OT such as \citep{lin2019efficient} are inapplicable to the case of POT due to the addition of the third dual variable $w$ and more intricate dependencies of the dual variables $\vu, \vv$. To this end, our novel proof technique establishes the tight bound of $\|(\vu^\ast, \vv^\ast, w^\ast)\|_\infty = \mathcal{\widetilde{O}}\left( \norm{\vC}_{\max} \right)$, which consequently translates to the final bound for original dual variables $\norm{(\vy^\ast, \vz^\ast, t^\ast)}_2 = \mathcal{\widetilde{O}}\left(\sqrt{n} \norm{\vC}_{\max} \right)$ in Lemma \ref{Bounds_for_(u,v)}. Bounding the $\ell_2$-norm (i.e. bounding $\bar{R}$) is crucial because it contributes to the APDAGD guarantees (Theorem \ref{theorem:APDAGD_guarantees}) and the final complexity.
+% Here, we use a \textit{novel} technique that incorporates the primal optimal value to evaluate the third dual variable $w$ (refer to equation \ref{h*}). In prior OT analyses, there are only two dual variables to be bounded, so this new technique to bound the dual variable $w$ has not appeared in any other $R$-bounding analyses for OT such as \citep{lin2019efficient}. we now bound $\bar{R}$, i.e. bound $\norm{(\vy^\ast, \vz^\ast, t^\ast)}_2$. $\bar{R}$ is an important component of the analysis because it is part of theoretical guarantees of APDAGD (Theorem \ref{theorem:APDAGD_guarantees}). That is, the primal gap and other quantities for convergence are bounded by terms involving $\bar{R}$. Our bound is the \textit{first} one for $\bar{R}$ in the POT scenario. 
+
+\textbf{Step 3}: 
+%we plug the $\bar{R}$ bound from \textbf{Step 2} into the result from \citep[Proposition 4.10]{lin2019efficient} and combine with our obtain the final computational complexity of APDAGD. \textcolor{red}{Explain why we need to do rounding here + why do we need to apply $1-\varepsilon/8$ rounding}.
+Combining the $\bar{R}$ bound from \textbf{Step 2} in view of \citep[Proposition 4.10]{lin2019efficient} and the theoretical guarantees of \textsc{Round-POT} (Theorem \ref{prop:rounding}), we conclude the final computational complexity of APDAGD of $\widetilde{\mathcal{O}}(n^{2.5} / \varepsilon)$.
+\end{proof}

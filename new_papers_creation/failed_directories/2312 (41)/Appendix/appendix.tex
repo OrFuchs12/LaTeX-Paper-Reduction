@@ -1,0 +1,1032 @@
+\section{Additional Related Literature}
+%To complement the literature review in the main text, we will discuss other related literature in this section.
+Another alternative to OT for unbalanced measures, Unbalanced Optimal Transport (UOT) regularizes the objective by penalizing the marginal constraints via some given divergences \citep{UOT_complexity, Liero_Optimal_2018} including Kullback-Leiber \citep{chizat2017scaling} or squared $\ell_2$ norm \citep{Blondel-2018-Smooth}. Several works have studied UOT both in terms of computational complexity \citep{UOT_complexity, gem-uot} and applications \citep{Janati_Wasserstein_2019, balaji2020robust, Yang_Scalable_2019}. In practical applications, the structure of UOT and recent results in the approximation of OT with UOT \citep{gem-uot} suggest that UOT is best used in the time-varying regimes %\citep{Schiebinger_Optimal_2019} 
+or strict control of mass is not required. For these reasons, UOT and POT cannot be directly compared to each other, and each serves separate purposes in different ML settings. The relaxation of the marginal constraints---which are strictly imposed by the standard OT and UOT---and the control over the total mass transported have granted POT immense flexibility compared to UOT. 
+
+Similar to OT, POT or entropic regularized POT problems belong to the class of minimization problems with linear constraints. Given the structure of linear constraints and the property of strong duality, the prevalent method is to next formulate the Lagrange dual problem. It is then intuitive to solve the dual problem with first-order methods like Quasi-Newton \citep{dennis1977quasi} or Conjugate Gradient \citep{polyak1969conjugate}. Indeed, previous works \citep{cuturi2016smoothed, blondel2018smooth} utilized L-BFGS method to find the OT dual Lagrange problem. Based on the Accelerated Gradient Descent %\citep{nesterov2003introductory}
+method with primal-dual updates, APDAGD  \citep{Dvurechensky-2018-Computational} gives better computational complexity and practicality compared to L-BFGS and other previous first-order methods applied to OT such as Quasi-Newton or Conjugate Gradient. With these APDAGD's theoretical and practical performances, we naturally want to develop a first-order framework based on AGDAGD to solve the POT problem. Nevertheless, there is ample room to further extend this first-order framework. For instance, one may look to develop a stochastic solver to handle stochastic gradient computations \cite{hoang_nonlinear_sa} or extend this method to decentralized settings such as \cite{lan2021graph}.
+
+%\textcolor{red}{Discuss optimization algorithms and gaps in literature. Comment on DE here.}
+
+\section{Extra Algorithms}
+\subsection{Sinkhorn}
+% \label{Sinkhorn}
+\begin{algorithm}
+    \caption{Sinkhorn for POT}
+    \label{alg:Sinkhorn}
+    \begin{algorithmic}[1]
+        \REQUIRE{cost matrix $\vC$, marginals $\vr, \vc$, regularization term $\gamma$, transported mass $s$.}
+        \STATE $\vC \gets \widetilde{\vC}, \vr \gets \widetilde{\vr}, \vq \gets \widetilde{\vq}$ (Updates follow the discussion in Revisiting Sinkhorn section) %\COMMENT{Extend cost matrix and marginals}
+        \STATE $\widetilde{\vX} \gets \textsc{Sinkhorn}(\widetilde{\vC}, \widetilde{\vr}, \widetilde{\vc}, \gamma)$
+        \STATE $\bar{\vX} \gets \textsc{Round}(\widetilde{\vX}, \mathcal{U}(\widetilde{\vr}, \widetilde{\vc}))$ \citep[Algorithm 2]{altschuler2017near}
+        \ENSURE $\bar{\vX}[1:n,1:n]$
+    \end{algorithmic}
+\end{algorithm}
+\subsection{APDAGD}
+% \label{APDAGD}
+\begin{algorithm}
+    \caption{Adaptive Primal-Dual Accelerated Gradient Descent (APDAGD) \citep[Algorithm 3]{Dvurechensky-2018-Computational}}
+    \label{alg:APDAGD}
+    \begin{algorithmic}[1]
+        \REQUIRE accuracy $\varepsilon_f, \varepsilon_{eq} > 0$; initial estimate $L_0$ such that $0 < L_0 < 2L$; initialize $M_{-1} = L_0$, $i_0 = k = \alpha_0 = \beta_0 = 0$, $\pmb{\eta}_0 = \pmb{\zeta}_0 = \pmb{\lambda}_0 = \zeros$. 
+        \WHILE{$f(\hat{\vx}_{k+1})+\varphi(\pmb{\eta}_{k+1}) \leq \varepsilon_f, \norm{\vA \hat{\vx}_{k+1} -\vb}_2 \leq \varepsilon_{eq}$}
+            \WHILE{$\varphi(\pmb{\eta}_{k+1}) \leq \varphi(\pmb{\lambda}_{k+1}) + \inner{\nabla \varphi(\pmb{\lambda}_{k+1})}{\pmb{\eta}_{k+1} - \pmb{\lambda}_{k+1}} + \dfrac{M_k}{2}\norm{\pmb{\eta}_{k+1} - \pmb{\lambda}_{k+1}}_2^2$}
+                \STATE \( M_k = 2^{i_k-1} M_k\) \\
+                find $\alpha_{k+1}$ such that $\beta_{k+1} \defeq \beta_{k} + \alpha_{k+1} = M_k \alpha_{k+1}^2$
+                \STATE \( \tau_k = \dfrac{\alpha_{k+1}}{\beta_{k+1}} \) 
+                \STATE \( \pmb{\lambda}_{k+1} = \tau_k \pmb{\zeta}_k + (1-\tau_k)\pmb{\eta}_k  \) 
+                \STATE \( \pmb{\zeta}_{k+1} = \pmb{\zeta}_{k} - \alpha _{k+1} \nabla \varphi(\pmb{\lambda}_{k+1})\)
+                \STATE \( \pmb{\eta}_{k+1} = \tau_k \pmb{\zeta}_{k+1} + (1-\tau_k) \pmb{\eta}_k \)
+            \ENDWHILE 
+            \STATE \( \hat{\vx}_{k+1} = \tau_k \vx (\pmb{\lambda}_{k+1}) + (1-\tau_k)\hat{\vx}_k \)
+            \STATE \( i_{k+1} = 0, k = k+1\)
+        \ENDWHILE
+        \ENSURE \(\hat{\vx}_{k+1}, \pmb{\eta}_{k+1}\).
+    \end{algorithmic}
+\end{algorithm}
+
+\subsection{General Dual Extrapolation}
+% \label{General_Dual_Extrapolation}
+\begin{algorithm}
+    \caption{General Dual Extrapolation}
+    \label{alg:General_Dual_Extrapolation}
+    \begin{algorithmic}[1]
+    \REQUIRE initial state $\vs_0 = \zeros$; area-convexity coefficient $\kappa$; gradient operator $g$; number of iterations $T$; regularizer $r$ with minimizer $\Bar{\vz}$.
+        \FOR{$t = 0,1,2,\ldots, T-1$} 
+            \STATE $\vz^t = \mathtt{prox}^r_{\Bar{\vz}}(\vs^t)$\\
+            \STATE $\vw^t = \mathtt{prox}^r_{\Bar{\vz}}(\vs^t + \dfrac{1}{\kappa} g(\vz^t) )$\\
+            \STATE $\vs^{t+1} = \vs^t + \dfrac{1}{2 \kappa} g(\vw^t)$
+            \STATE $t = t+1$\\
+        \ENDFOR
+    \ENSURE $\Bar{\vw} \defeq \dfrac{1}{T-1}
+    \sum_{t=0}^T \vw^t$.
+    \end{algorithmic}
+\end{algorithm}
+In this context of this work, we can define the Bregman divergence as follows
+\begin{definition}[Bregman divergence]
+    For differentiable convex function $h(\cdot)$ and $\vx, \vy$ in its domain, the Bregman divergence from $\vx$ to $\vy$ is $V^h_\vx(\vy) \defeq h(\vy) - h(\vx) - \inner{\nabla h(\vx)}{\vy - \vx}$.
+\end{definition}
+%Note that in our first algorithm PDASMD, $h(\cdot)$ is chosen to be $w(\cdot)$ that is 1-strongly convex and $\sigma$-smooth with respect to $\norm{\cdot}_H$, while in our second algorithm Dual Extrapolation, 
+In our context, $h(\cdot)$ is chosen to be $r(\cdot)$, which is area-convex \citep[Definition 1.2]{Sherman-2017-Area}. Similar to \citep[Definition 2.5]{Jambulapati-2019-Direct}, we can define the proximal operator 
+in Dual Extrapolation as follow 
+\begin{definition}[Proximal operator]
+    For differentiable (regularizer) $h(\cdot)$ with $\vx, \vy$ in its domain, and $g$ in the dual space, the proximal operator is $\mathtt{prox}^h_{\vx}(g) \defeq \argmin_\vy \{ \inner{g}{\vy} + V^h_\vx(\vy)\}$.
+\end{definition}
+
+\subsection{Alternating Minimization}
+% \label{alternating}
+\begin{algorithm}
+    \caption{Alternating minimization for \eqref{General_AM}  ($\mathtt{AM}$ ($M$, $\vv$, $\vu$))}
+    \label{alg:alternating_minimization}
+    \begin{algorithmic}[1]
+    \REQUIRE number of iterations \(M\); vectors $\vv, \vu$; initialize $\vx = \dfrac{1}{n^2+2n} \ones_{n^2+2n}$; $\vy= \zeros_{2n+1}$.
+    \FOR{$t=0,1,2,\ldots,M-1$}
+        \STATE \(\pmb{\zeta} = \dfrac{1}{20 \norm{\vd}_\infty} \vv + \dfrac{1}{10} \vA^\top (\vy^{t})^2\)
+        \STATE \(
+        \vx^{t+1} = \dfrac{\exp(-\pmb{\zeta})}{\sum_{j=1}^{n^2+2n}[\exp(-\pmb{\zeta})]_j}\)
+        \STATE \( \vy^{t+1} = \min \left( \ones, \max \left(-\ones, \dfrac{-\vu}{4 \norm{\vd}_\infty \vA \vx^{t+1}} \right) \right)\) \\
+        (All operations are element-wise) 
+    \ENDFOR
+    \ENSURE \( \vx^{t+1}, \vy^{t+1} \).
+    \end{algorithmic}
+\end{algorithm}
+
+% \section{Space Complexity of APDAGD and DE}
+% \textcolor{red}{Explain the space complexity of the algorithms}
+
+% Though matrix $\vA \in \mathbb{R}^{(n^2+2n)\times(2n+1)}$, the implementations of both our algorithms make use of the fact that $\vA$ is an augmented bipartite incidence matrix with $\mathcal{O}(n^2)$ non-zero entries. Specifically, operations in the form of $\vA \vx$ (line 1 of APDAGD Algorithm \ref{alg:APDAGD}, lines 10, 13 of Dual Extrapolation Algorithm \ref{alg:Dual_Extrapolation_POT}) or $\vA^\top \vx$ (lines 9, 12 of Dual Extrapolation Algorithm \ref{alg:Dual_Extrapolation_POT} and lines 1, 4 of Alternating Algorithm \ref{alg:alternating_minimization}) are all implemented implicitly in $\mathcal{O}(n^2)$ utilizing the structure of $\vA$.
+
+\section{Revisiting Sinkhorn for POT}
+\subsection{Proof of Theorem \ref{contraint_violation}}
+% \label{violation_of_constraint}
+
+\begin{proof}[\unskip \nopunct]
+    From the augmentation of the marginals \citep{Chapel-nips2020} and the guarantees of the rounding algorithm \citep[Algorithm 2]{altschuler2017near}, we have 
+    \begin{align*}
+        &\widetilde{\vX} \ones = \norm{\vr}_1 + \norm{\vc}_1 - s,  \widetilde{\vX}^\top \ones = \norm{\vr}_1 + \norm{\vc}_1 - s\\
+        &\ones^\top \Bar{\vX} \ones + \norm{\widetilde{\vp}}_1 = \norm{\vr}_1,  \norm{\widetilde{\vq}}_1 + \widetilde{X}_{n+1,n+1} = \norm{\vc}_1 - s\\
+        &\ones^\top \Bar{\vX} \ones + \norm{\widetilde{\vq}}_1 = \norm{\vc}_1, \norm{\widetilde{\vp}}_1 + \widetilde{X}_{n+1,n+1} = \norm{\vr}_1 - s.
+    \end{align*}
+    Hence we can make a quick substitution 
+    \begin{align*}
+        \norm{\widetilde{\vp}}_1 + \widetilde{X}_{n+1,n+1} = \norm{\vr}_1 - s = \ones^\top \Bar{\vX} \ones + \norm{\widetilde{\vp}}_1 - s,
+    \end{align*}
+    which implies the constraint violation $V$
+    \begin{align*}
+        V = \ones^\top \Bar{\vX} \ones- s = \widetilde{X}_{n+1,n+1}.
+    \end{align*}
+    Hence, we now proceed to bound $\widetilde{X}_{n+1,n+1}$.
+    we thus proceed to lower-bound $\tilde{X}_{n+1,n+1}$. Note that the reformulated OT problem that Sinkhorn solves 
+    \begin{equation*}
+        \min_{\mathbf{\tilde{X}} \geq 0} \langle \mathbf{\tilde{X}},\mathbf{\tilde{C}} \rangle \quad \text{s.t. } \quad \: \mathbf{X} \mathbf{1} = \mathbf{\tilde{r}}, \: \mathbf{X}^\top \mathbf{1} = \mathbf{\tilde{c}}.
+    \end{equation*}
+    With a well known dual formulation for entropic OT \citep{lin2019efficient}, we can minimize the Lagrangian w.r.t. $\mathbf{\tilde{X}}$ and obtain
+    \begin{equation*}
+        \mathbf{\tilde{X}} = \exp \left( - \dfrac{\mathbf{\tilde{C}}}{\gamma} + \mathbf{u} \mathbf{1}^\top + \mathbf{1} \mathbf{v}^\top\right), 
+    \end{equation*}
+where $\mathbf{u}, \mathbf{v}$ are the dual variable associated with each constraints. Now consider only the $\tilde{X}_{n+1,n+1}$ element, we can deduce
+\begin{equation*}
+   \tilde{X}_{n+1,n+1} = \exp \left(-\frac{\tilde{C}_{n+1,n+1}}{\gamma} - u_{n+1} -  v_{n+1}\right) \geq \exp \left( - \dfrac{A}{\gamma} - \|\mathbf{u}\|_\infty - \|\mathbf{v}\|_\infty\right).
+\end{equation*}
+Similar to our Lemma \ref{lem:inf_norm_dual} for POT, a similar bound for the infinity norm of OT dual variables \citep[Lemma 3.2]{nhatho-mmpot} shows that $$\| \mathbf{u} \|_\infty, \| \mathbf{v} \|_\infty \leq R,$$ where $$R =  \dfrac{A}{\gamma} + \log(n) - 2 \log\left({\min_{1\leq i, j\leq n}\{r_i, c_j\}}\right).$$ With $\gamma = \varepsilon / (4 \log{n})$ set by Sinkhorn, we obtain a lower bound of  the constraint violation $\tilde{X}_{n+1,n+1}$
+\begin{equation*}
+   \tilde{X}_{n+1,n+1} \geq \exp\left(-\dfrac{12A \log{n}}{\varepsilon} - \mathcal{O}(\log{n})\right ). 
+\end{equation*}
+Next, we establish an upper bound for the violation. We consider a feasible transportation matrix $\mathbf{\hat{X}}$ in the form $\hat{X}_{i,j} = s / n^2$ for $i,j\in[n]$ and $\hat{X}_{i,j} = 0$ otherwise. As $\mathbf{\tilde{X}}$ is a Sinkhorn $\varepsilon$-approximate solution of POT, we have 
+\begin{align*}
+    \langle \mathbf{\tilde{C}}, \mathbf{\tilde{X}} \rangle - \gamma H(\mathbf{\tilde{X}}) &\leq \langle \mathbf{\tilde{C}}, \mathbf{\hat{X}} \rangle - \gamma H(\mathbf{\hat{X}}) + \varepsilon\\
+    &= \frac{s}{n^2} \sum^{n}_{i,j} C_{ij} - \gamma s \log\frac{s}{n^2} + \varepsilon \\
+    &\leq s \|\mathbf{C}\|_\infty - \gamma s \log\frac{s}{n^2} + \varepsilon.
+\end{align*}
+On the other hand, we also have 
+\begin{align*}
+    \langle \mathbf{\tilde{C}}, \mathbf{\tilde{X}} \rangle - \gamma H(\mathbf{\tilde{X}}) &\geq A \tilde{X}_{n+1,n+1} + \gamma \sum^{n+1}_{i,j} \tilde{X}_{ij} \log(\tilde{X}_{ij}) \\
+    &\geq A \tilde{X}_{n+1,n+1} + \gamma \left(\sum^{n+1}_{i,j} \tilde{X}_{ij}\right) \log \left( \frac{1}{n+1} \sum^{n+1}_{i,j} \tilde{X}_{ij} \right)\\
+    &= A \tilde{X}_{n+1,n+1} + \gamma \left(\sum^{n+1}_{i,j} \tilde{X}_{ij}\right) \log \left(\sum^{n+1}_{i,j} \tilde{X}_{ij} \right) - \gamma \left(\sum^{n+1}_{i,j} \tilde{X}_{ij}\right) \log \left( n+1\right)\\
+    &\geq (A + \gamma - \gamma \log(n+1))\tilde{X}_{n+1,n+1} + \gamma \left( \sum^{n}_{i,j} \tilde{X}_{ij} - 1 \right) \\
+    &- \gamma \left(\sum^{n}_{i,j} \tilde{X}_{ij}\right) \log \left( n+1\right),
+\end{align*}
+where the second steps follows from Jensen's inequality, and the last step follows from the fact that $y\log{y} \leq y-1 \: \forall \: y > 0$. Combining the above two inequalities we deduce
+\begin{align*}
+    \begin{split}
+        \tilde{X}_{n+1,n+1} &\leq \frac{1}{A - \gamma (\log(n+1)-1)} \left( s \|\mathbf{C}\|_\infty - \gamma s \log\frac{s}{n^2} + \varepsilon \right. \\
+        &\left.+ \gamma \left( \sum^{n}_{i,j} \tilde{X}_{ij} - 1 \right) - \gamma \left(\sum^{n}_{i,j} \tilde{X}_{ij}\right) \log \left( n+1\right) \right) \\
+        &=\mathcal{O}\left(\frac{\|\mathbf{C}\|_\infty}{A}\right).
+    \end{split}
+\end{align*}
+\end{proof}
+
+\subsection{Proof of Theorem \ref{them:revised_sinkhorn_complexity}}
+% \label{revised_sinkhorn_complexity}
+\begin{proof}[\nopunct]
+From Theorem \ref{contraint_violation}, we have the constraint violation $V$ or $\tilde{X}_{n+1,n+1}$ satifying
+\begin{align*}
+    \mathcal{O}\left(\frac{\|\mathbf{C}\|_\infty}{A}\right) \leq  \tilde{X}_{n+1,n+1}.
+\end{align*}
+Hence, in order to achieve the $\varepsilon$ tolerance we need
+\begin{align*}
+    \mathcal{O}\left(\frac{\|\mathbf{C}\|_\infty}{A}\right) \leq \varepsilon,
+\end{align*}
+yielding the sufficient size of A to be
+\begin{align*}
+   A = \mathcal{O}\left(\frac{\|\mathbf{C}\|_\infty}{\varepsilon}\right).
+\end{align*}
+The computational complexity of (Infeasible) Sikhorn for POT \citep{nhatho-mmpot} is 
+\begin{align*}
+    \tilde{\mathcal{O}}\left(\frac{n^2 \|\mathbf{\tilde{C}}\|_\infty^2}{\varepsilon^2}\right) = \tilde{\mathcal{O}}\left(\frac{n^2 A^2}{\varepsilon^2}\right).
+\end{align*}
+Plugging our derived sufficient value of A into the Sinkhorn complexity, we obtain the revised complexity for Feasible Sinkhorn to be
+\begin{align*}
+    \tilde{\mathcal{O}}\left(\frac{n^2 \|\mathbf{C}\|_\infty^2}{\varepsilon^4}\right).
+\end{align*}
+\end{proof}
+\section{Rounding Algorithm} 
+\subsection{Proof of Lemma \ref{Guarantees_for_EP} (Guarantees for the Enforcing Procedure)}
+% \label{Gua_for_EP}
+\begin{proof}[\unskip \nopunct]
+    In the first case, we have $\alpha = \dfrac{\norm{\vr}_1-s}{\norm{\vp'}_1} (\geq 0)$, implying
+    \begin{align*}
+        \norm{\bar{\vp}}_1 = \norm{\vp''}_1 = \alpha \norm{\vp'}_1 = \frac{\norm{\vr}_1-s}{\norm{\vp'}_1} \norm{\vp'}_1 = \norm{\vr}_1-s.
+    \end{align*}
+    Also, consider 
+    \begin{align*}
+        &\bar{\vp} = \vp'' = \alpha \vp' \geq 0 \\
+        &\bar{\vp} = \vp'' = \alpha \vp' \leq \vp' \leq \vr.
+    \end{align*}
+    So we have the guarantees as desired in the first scenario. For the second case, we obtain $\alpha = 1$, implying $\vp'' = \vp'$. Firstly we want to show the while loop will always stop. This is because the while condition $\norm{\vr}_1 - s \geq \norm{\vp''}_1 $ will be eventually violated:
+    \begin{align*}
+        \sum_{i=1}^n (r_i - p''_i) = \norm{\vr}_1 - \norm{\vp''}_1 \geq \norm{\vr}_1 - s - \norm{\vp''}_1. 
+    \end{align*}
+    During the updates, for some index $1 \leq j \leq i$, $p''_j = r_j$, while the rest remain the same. Therefore, we still have $\zeros \leq \vp'' \leq \vr$ after the running the while loop. For the last updated index $i$, we check that $0 \leq p''_i \leq r_i$, and the second inequality is obvious. The first inequality holds because we have $r_i \geq r_i - p'_i \geq \norm{\vp''}_1 - \norm{\vr}_1 +s$ as $p'_i = p''_i$ before the update inside the while loop. After the while loop, by updating $ p''_i = p''_i - (\norm{\vp''}_1 - \norm{\vr}_1 +s)$, we now have  $\norm{\vp''}_1 = \norm{\vr}_1 - s$ as desired.
+\end{proof}
+
+\subsection{Proof of Theorem \ref{prop:rounding} (Guarantees for the Rounding Algorithm)}
+% \label{appn:proof_rounding}
+\begin{proof}[\unskip \nopunct]
+    First, we show that $\vA \Bar{\vx} = \vb$. Note that $\norm{\ve_1}_1 = \norm{\ve_2}_1 = s - \ones^\top \vX' \ones$. From step 10, we have
+    \begin{align*}
+        &\Bar{\vX} \ones + \bar{\vp} = \left(\vX' + \dfrac{1}{\norm{\ve_1}_1} \ve_1 \ve_2^\top \right) \ones + \bar{\vp} = \vX' \ones + \ve_1 + \bar{\vp}= \vr, \\
+        &\Bar{\vX}^\top \ones + \bar{\vq}= \left(\vX' + \dfrac{1}{\norm{\ve_1}_1} \ve_1 \ve_2^\top \right)^\top \ones + \bar{\vq}= \vX'^\top \ones + \ve_2 + \bar{\vq}= \vc,
+    \end{align*}
+    this implies
+    \begin{equation*}
+        \ones^\top \Bar{\vX} \ones = \ones^\top (\vr - \bar{\vp}) = \norm{\vr}_1 - \norm{\bar{\vp}}_1 = s.
+    \end{equation*}
+
+Next, we endeavor to bound $\norm{\vx - \bar{\vx}}_1$. Considering from the given information $\delta \geq \norm{\vA \vx - \vb}_1$, we obtain 
+\begin{align*}
+    \delta &\geq \norm{\vA \vx - \vb}_1 \\
+    &= \norm{\vX \ones + \vp - \vr}_1 + \norm{\vX^\top \ones + \vq - \vc}_1 + |\ones^\top \vX \ones - s| \\
+    &\geq \norm{\vX \ones + \vp - \vr}_1 + \norm{\vX^\top \ones + \vq - \vc}_1. 
+\end{align*}
+Since steps 7 through 10 have similar structure to \citep[Algorithm 2]{altschuler2017near} with changes in the marginals, by \citep[Lemma 7]{altschuler2017near}, we have 
+\begin{align*}
+    \norm{\vecflatten(\vX) - \vecflatten(\bar{\vX})}_1 &\leq 2 \left( \norm{\vX \ones + (\bar{\vp} - \vr)}_1 + \norm{\vX^\top \ones + (\bar{\vq} - \vc)}_1 \right) \\
+    &\leq 2 \left( \norm{\vX \ones + \vp - \vr}_1 + \norm{\bar{\vp} - \vp}_1 + \norm{\vX^\top \ones + \vq - \vc}_1 + \norm{\bar{\vq} - \vq}_1\right) \\
+    &\leq 2 (\delta + \norm{\bar{\vp} - \vp}_1 + \norm{\bar{\vq} - \vq}_1).
+\end{align*}
+Hence,
+\begin{align}
+    \norm{\vx - \bar{\vx}}_1 &= \norm{\vecflatten(\vX) - \vecflatten(\bar{\vX})}_1 + \norm{\bar{\vp} - \vp}_1 + \norm{\bar{\vq} - \vq}_1 \\
+    &\leq 2 \delta + 3 (\norm{\bar{\vp} - \vp}_1 + \norm{\bar{\vq} - \vq}_1) \label{bound for x_bar}. 
+\end{align}
+Note that 
+\begin{equation*}
+    \norm{\bar{\vp} - \vp}_1 \leq \norm{\vp - \vp'}_1 + \norm{\vp' - \vp''}_1 + \norm{\vp'' - \bar{\vp}}_1. 
+\end{equation*}
+For bounding $\norm{\vp - \vp'}_1$, consider
+\begin{equation*}
+    \norm{\vp - \vp'}_1 = \sum_{i=1}^n \left(p_i - \min\{p_i, r_i\}\right) = \sum_{i=1}^n \nu_i,
+\end{equation*}
+where 
+\begin{align*}
+    \nu_i = \begin{cases}
+        0 & p_i \leq r_i \\
+        p_i - r_i & p_i > r_i
+    \end{cases}.
+\end{align*}
+If $p_i > r_i$, then obviously $(X1)_i + p_i > r_i$ as $(X1)_i > 0$. Hence we obtain
+\begin{align*}
+    \norm{\vp - \vp'}_1 = \sum_{i=1}^n \nu_i = \sum_{i: p_i > r_i}^n \nu_i \leq \sum_{i: p_i > r_i}^n \left((X1)_i + p_i - r_i\right) \leq \norm{\vX \ones + \vp - \vr}_ 1.
+\end{align*}
+Next, consider 
+\begin{align*}
+    \norm{\vp' - \vp''}_1 &= \sum_{i=1}^n p'_i | 1- \alpha | \\
+    &= \norm{\vp'}_1 - \min \{\norm{\vp'}_1,  \norm{\vr}_1 - s\} \\
+    &= \norm{\vp'}_1 - \frac{1}{2}(\norm{\vp'}_1+ \norm{\vr}_1 - s - |\norm{\vp'}_1 - \norm{\vr}_1 + s|),
+\end{align*}
+Further simplifying the RHS, we have
+\begin{align*}
+    \norm{\vp' - \vp''}_1 &= \frac{1}{2} \left( \norm{\vp'}_1 - \norm{\vr}_1 + s + |\norm{\vp'}_1 - \norm{\vr}_1 + s| \right) \\
+    &\leq |\norm{\vp'}_1 - \norm{\vr}_1 + s| \\
+    &\leq |\norm{\vp}_1 - \norm{\vr}_1 + s| + \norm{\vp}_1 - \norm{\vp'}_1 \\
+    &= |\norm{\vp}_1 - \norm{\vr}_1 + s| + \norm{\vp - \vp'}_1 \\
+    &\leq |\norm{\vp}_1 - \norm{\vr}_1 + s| + \norm{\vX \ones + \vp - \vr}_1.
+\end{align*}
+Finally, we bound for  $\norm{\vp'' - \bar{\vp}}_1$. Note that 
+\begin{align*}
+    \norm{\vp'' - \bar{\vp}}_1 &= \norm{\vr}_1 - s - \norm{\vp''}_1  \\
+    &= \norm{\vr}_1 - s - \norm{\vp}_1 + (\norm{\vp}_1 - \norm{\vp''}_1) \\
+    &= \norm{\vr}_1 - s - \norm{\vp}_1 + \norm{\vp - \vp''}_1,
+\end{align*}
+yielding
+\begin{align*}
+    \norm{\vp'' - \bar{\vp}}_1 &\leq |\norm{\vp}_1 - \norm{\vr}_1 + s| + \norm{\vp - \vp'}_1 + \norm{\vp' - \vp''}_1 \\
+    &\leq 2 |\norm{\vp}_1 - \norm{\vr}_1 + s| + 2 \norm{\vX \ones + \vp - \vr}_1.
+\end{align*}
+Combining the bounds for $\norm{\vp - \vp'}_1, \norm{\vp' - \vp''}_1, \norm{\vp'' - \bar{\vp}}_1$, we obtain
+\begin{align*}
+    \norm{\bar{\vp} - \vp}_1 \leq 3 |\norm{\vp}_1 - \norm{\vr}_1 + s| + 4 \norm{\vX \ones + \vp - \vr}_1.
+\end{align*}
+Similarly, we can obtain the bound for $\norm{\bar{\vq} - \vp}_1$
+\begin{align*}
+    \norm{\bar{\vq} - \vq}_1 \leq 3 |\norm{\vq}_1 - \norm{\vc}_1 + s| + 4 \norm{\vX^\top \ones + \vq - \vc}_1.
+\end{align*}
+Next, note that
+\begin{align*}
+    &\delta + |\ones^\top \vX \ones - s| \\
+    &\geq \norm{\vX \ones + \vp - \vr}_1 + \norm{\vX^\top \ones + \vq - \vc}_1 + 2 |\ones^\top \vX \ones - s| \\
+    &= |\ones^\top \vX \ones + \|\vp\|_1 - \|\vr\|_1| + |\ones^\top \vX \ones - s| + |\ones^\top \vX \ones + \|\vq\|_1 - \|\vc\|_1| + |\ones^\top \vX \ones - s| \\ 
+    &\geq |\|\vp\|_1 - \|\vr\|_1 + s| + |\|\vq\|_1 - \|\vc\|_1 + s|.
+\end{align*}
+Hence we obtain
+\begin{align*}
+    &\norm{\bar{\vp} - \vp}_1 + \norm{\bar{\vq} - \vq}_1\\
+    &\leq 3 (|\|\vp\|_1 - \|\vr\|_1 + s| + |\|\vq\|_1 - \|\vc\|_1 + s|) + 4 (\norm{\vX \ones + \vp - \vr}_1 +\norm{\vX^\top \ones + \vq - \vc}_1) \\
+    &\leq 3 \delta + 3|\ones^\top \vX \ones - s| +  4 (\norm{\vX \ones + \vp - \vr}_1 +\norm{\vX^\top \ones + \vq - \vc}_1) \\
+    &= 3 \delta + 3 \norm{\vA \vx -\vb}_1 + \norm{\vX \ones + \vp - \vr}_1 +\norm{\vX^\top \ones + \vq - \vc}_1 \\
+    &\leq 7 \delta
+\end{align*}
+Therefore, from \eqref{bound for x_bar}, we conclude 
+\begin{align*}
+    \norm{\vx - \bar{\vx}}_1 \leq 23 \delta.
+\end{align*}
+\end{proof}
+\section{Properties of Entropic POT}
+%\subsection{General Setup for Equation \ref{prob:entropic}}
+The term $\inner{\vx}{\log \vx}$ is  the negative entropic regularizer for every $\vx \geq \zeros$, with the convention that $\zeros \log \zeros = \zeros$, and the parameter $\gamma > 0$ controls the strength of regularization. It is well-known that the objective $\varphi(\pmb{\lambda})$ is $L$-smooth with $L \leq \norm{\vA}^2_{1 \rightarrow 2} / \mu_f$ \citep{nesterov2005smooth}, since $f$ is $\mu_f$-strongly convex w.r.t. $\norm{\cdot}_1$, where $\mu_f = \gamma / (\| \vr \|_1 + \| \vc \|_1 - s)$ (Lemma \ref{lemma:strongly_convex}). Instead of this loose estimate, APDAGD uses line search to find and adapt the local Lipschitz value \citep{Dvurechensky-2018-Computational}. Further, the gradient of $\varphi$ is $\nabla\varphi(\pmb{\lambda}) = \vb - \vA \vx(\pmb{\lambda})$ where $\vx(\pmb{\lambda}) \defeq \argmax_{\vx \in Q} \left\{ - f(\vx) - \inner{\vx}{\vA^\top \pmb{\lambda}} \right\}$. 
+\subsection{Strong Convexity}
+% \label{strongly_convex}
+%Under the formulation of standard OT where $\vx$ would have lied in the probability simplex \citep{Dvurechensky-2018-Computational}, the negative entropy  $\inner{\vx}{\log \vx}$ is known to be $1$-strongly convex w.r.t. the $\ell_1$-norm.
+% Traditional OT literature makes use of this technique because the negative entropy function is $1$-strongly convex w.r.t. the $\ell_1$-norm because $\vx$ is in probability simplex. Although this assumption no longer holds for POT as the marginals do not have to be probability vectors, we present the following result the guarantees the strong convexity property of $f$.
+% and the total transported mass does not have to be $1$
+\begin{lemma}
+    \label{lemma:strongly_convex}
+    For convenience, denote $\| \vr \|_1 + \| \vc \|_1 - s$ as $D$. Let $Q = \{\vx \in \RR^{n^2+2n} | \vx > \zeros,  \|\vx\|_{1} \leq D \}$. The entropic regularized objective function $f(\vx)= \sum_{i=1}^{n^2+2n} \gamma x_i log(x_i) + d_i x_i$ is $\dfrac{\gamma}{D}$-strongly-convex with respect to $\ell_1$ norm over $Q$. 
+\end{lemma}
+\begin{proof}
+    To prove the Lemma, we first consider the following
+    Observation \ref{strongconvex2_obs1}:
+    \begin{observation}
+    \label{strongconvex2_obs1}
+        $f(\vx)$ is $\dfrac{\gamma}{D}$-strongly-convex with respect to $\ell_1$ norm over $Q$ if for all $\vx,\vy \in Q$,
+        \begin{align}
+        \label{strongconvex_alternative1}
+            \langle \nabla f(\vx) - \nabla f(\vy), \vx-\vy \rangle \geq \frac{\gamma}{D} \|\vx-\vy \|_1^2.
+        \end{align}
+    \end{observation}
+    \begin{proof}[Proof of Observation \ref{strongconvex2_obs1}]
+            Consider $\vx \neq \vy$. For $\lambda \in [0, 1]$, we define  $h_1(\lambda)= f(\vy+\lambda(\vx-\vy)) - \lambda \langle \nabla f(\vy) , \vx-\vy \rangle$ and $h_2(\lambda) = \dfrac{\lambda^2 \gamma}{2D} \|\vx-\vy \|_1^2$, and further obtain:
+    \begin{align*}
+        h_1'(\lambda) &=  \langle \nabla f(\vy+\lambda(\vx-\vy)) , \vx-\vy \rangle-  \langle \nabla f(\vy), \vx-\vy \rangle \\
+        &= \langle \nabla f(\vy+\lambda(\vx-\vy)) - \nabla f(\vy)  , \vx-\vy \rangle \\
+        h_2'(\lambda) &= \frac{\lambda \gamma}{D} \|\vx-\vy\|_1^2. 
+    \end{align*} 
+    By given information from \eqref{strongconvex_alternative1}, we have:
+    \begin{align*}
+        \lambda h_1'(\lambda)&= \langle \nabla f(\vy+\lambda(\vx-\vy)) - \nabla f(\vy)  , [\vy+\lambda (\vx-\vy)] - \vy \rangle \\
+        &\geq \frac{\gamma}{D} \| [\vy+\lambda (\vx-\vy)] - \vy \|_1^2 = \lambda h_2'(\lambda)  \\
+        \therefore h_1'(\lambda) &\geq h_2'(\lambda).
+    \end{align*}
+By Cauchy's mean value theorem, there exists $c\in (0,1)$ such that: 
+\begin{align}
+    &h_1(1) - h_1(0) = \frac{h_1'(c)}{h_2'(c)}
+    (h_2(1) - h_2(0)) \geq h_2(1) - h_2(0)\\
+    \therefore \: &f(\vx) \geq f(\vy) + \langle \nabla f(\vy), \vx-\vy \rangle + \frac{\gamma}{2D} \| \vx-\vy\|_1^2. \label{strongconv1}
+\end{align}
+Hence, we have the desired conclusion for any $\vx \neq \vy$. We also have \eqref{strongconv1} to hold trivially for $\vx=\vy$.
+    \end{proof}
+Back to our main proof of Lemma \ref{lemma:strongly_convex}, we proceed to prove that for all $\vx,\vy \in Q$, the inequality \eqref{strongconvex_alternative1} holds. We consider $\vx \neq \vy$, while for $\vx = \vy$ \eqref{strongconvex_alternative1} trivially holds.
+Since $\dfrac{\partial f(\vx)}{\partial x_i} = \gamma log(x_i) +\gamma + d_i$, we rewrite
+\eqref{strongconvex_alternative1} as: 
+\begin{align*}
+    \sum_{i=1}^{k} \gamma (x_i-y_i) (log(x_i) - log(y_i)) \geq \frac{\gamma}{D} \|\vx-\vy \|_1^2.
+\end{align*}
+For $\lambda \in [0, 1]$, we define $s_1(\lambda) = \sum_{i=1}^{k} (x_i-y_i) log(y_i + \lambda (x_i - y_i)) $ and $s_2(\lambda) = \lambda \|\vx-\vy\|_1^2$, and further obtain:
+\begin{align*}
+    s_1'(\lambda) &= \sum_{i=1}^{k} \frac{(x_i-y_i)^2}{y_i + \lambda (x_i-y_i)} \\
+    s_2'(\lambda) &= \|\vx-\vy\|_1^2.
+\end{align*}
+
+Using $\sum_{i=1}^{k} [y_i + \lambda (x_i-y_i)]= \sum_{i=1}^{k} [ \lambda x_i +(1-\lambda)y_i ] \leq \lambda D +(1-\lambda) D =D$, we have: 
+\begin{align*}
+    D \cdot s_1'(\lambda) &\geq \sum_{i=1}^{k} [ y_i + \lambda (x_i-y_i)] \cdot   \sum_{i=1}^{k} \frac{(x_i-y_i)^2}{y_i + \lambda (x_i-y_i)} \\
+    &\geq (\sum_{i=1}^{k} |x_i-y_i|)^2 = \|\vx-\vy\|_1^2 \text{  (by Cauchy-Schwarz inequality)} \\
+    &\geq s_2'(\lambda).
+\end{align*}
+By Cauchy's mean value theorem, there exists $c\in (0,1)$ such that: 
+ \begin{align*}
+ D(s_1(1) - s_1(0)) &= \frac{D\cdot s_1'(c)}{s_2'(c)} (s_2(1) - s_2(0)) \geq s_2(1) - s_2(0).
+ \end{align*}
+Since $s_1(1) - s_1(0)=\sum_{i=1}^{k} (x_i-y_i) (log(x_i) - log(y_i))$ and $s_2(1) - s_2(0)= \|\vx-\vy\|_1^2 $, we get:  
+\begin{align*}
+     \sum_{i=1}^{k} (x_i-y_i) (log(x_i) - log(y_i)) \geq \frac{1}{D} \|\vx-\vy\|_1^2
+ \end{align*}
+The condition \eqref{strongconvex_alternative1} thus follows for all $\vx,\vy \in Q$. By Observation \ref{strongconvex2_obs1}, $f(\vx)$ is $\dfrac{\gamma}{\| \vr \|_1 + \| \vc \|_1 - s}$-strongly-convex with respect to $\ell_1$ norm over $Q$.
+\end{proof}
+
+\subsection{Dual Formulation for Entropic POT}
+% \label{Dual_formulation}
+First we note the general form of Equation (\ref{prob:entropic}). Given a simple closed convex set $Q$ in a finite-dimensional real vector space $E$; $H$ is another finite-dimensional real vector space with an element $\vb$; $H^\ast$ is the dual space of $H$. $\vA$ is a given linear operator from $E$ to $H$. Consider
+\begin{equation} \label{general_problem}
+    \min_{\vx \in Q \subseteq E} f(\vx) \quad \text{s.t. }  \vA \vx = \vb,
+\end{equation}
+where $f(\vx)$ is a $\mu_f$-strongly convex function on $Q$ with respect to some chosen norm $\norm{\cdot}_E$ on $E$. If $\gamma = 0$, we recover Problem \eqref{main_problem}. 
+
+Let $\vy \in \RR^n,\vz \in \RR^n$ and $t \in \RR$ be the dual variables corresponding to the three equality constraints. The Lagrangian is
+\begin{align*}
+    \mathcal{L} & = \inner{\vC}{\vX} + \gamma (\inner{\vX}{\log \vX} + \inner{\vp}{\log \vp} + \inner{\vq}{\log \vq}) + \\
+    &\inner{\vy}{\vX \ones +\vp - \vr} + \inner{\vz}{\vX^\top \ones +\vq - \vc} + t (\ones^\top \vX \ones - s),
+\end{align*}
+Hence, we have the dual problem:
+\begin{align} \label{original_dual}
+    \begin{split}
+        \max_{\vy, \vz, t} & \left\{ - \inner{\vy}{\vr} - \inner{\vz}{\vc} - ts + \min_{X_{i, j} \geq 0} \sum_{i, j=1}^{n} X_{i, j}(C_{i, j} + \gamma \log X_{i, j} + y_i + z_j + t)\right. \\ 
+        & \left. \quad + \min_{p_i \geq 0} \sum_{i=1}^{n} p_i (\gamma \log{p_i} + y_i) + \min_{q_j \geq 0}\sum_{j=1}^{n} q_j (\gamma \log{q_j} + z_j)\right\}.
+    \end{split}
+\end{align} 
+Next, we minimize the Lagrangian w.r.t. $\vX$, $\vp$ and $\vq$ according to the first order condition, which gives
+\begin{equation*}
+    %\label{eq:apdagd:first_order_conds}
+    X_{i, j} = \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + y_i + z_j + t \right) - 1 \right), p_i = \exp \left( - \frac{y_i}{\gamma} - 1 \right), q_j = \exp \left( - \frac{z_j}{\gamma} - 1 \right).
+\end{equation*}
+Plugging this back to the dual problem \eqref{original_dual}, we have
+\begin{align*}
+    \begin{split}
+        \max_{\vy, \vz, t} & \left\{ - \inner{\vy}{\vr} - \inner{\vz}{\vc} - ts  - \gamma \sum_{i, j=1}^{n} \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + y_i + z_j + t \right) - 1 \right) \right. \\ 
+        & \left. \quad - \gamma \sum_{i=1}^{n} \exp \left( - \frac{y_i}{\gamma} - 1 \right) - \gamma \sum_{j=1}^{n} \exp \left( - \frac{z_j}{\gamma} - 1 \right) \right\},
+    \end{split}
+\end{align*}
+as desired.
+Plugging this back into the dual problem, suppressing all additive constants and diving the objective by $- \gamma$, we obtain the following new dual problem:
+\begin{equation} \label{entropic_regularized_problem}
+    \min_{\vu, \vv, w} \; h(\vu,\vv,w) \coloneqq \sum_{i, j=1}^{n} e^{w} e^{u_i} e^{- C_{i, j} / \gamma} e^{v_j} + \sum_{i=1}^{n} e^{u_i} + \sum_{j=1}^{n} e^{v_j} -  \inner{\vu}{\vr} - \inner{\vv}{\vc} - ws.
+\end{equation}
+
+\section{APDAGD}
+\subsection{APDAGD Theoretical Guarantees}
+We have the following guarantees for APDAGD , similar to \citep[Theorem 3]{Dvurechensky-2018-Computational}.
+\begin{theorem}
+    \label{theorem:APDAGD_guarantees}
+    Let $\vx^\ast$ and $f^\ast$ be the optimal solution and optimal value of \eqref{prob:entropic}, respectively. Suppose that $\norm{\pmb{\lambda}^\ast}_2 \leq \bar{R}$, the outputs $\hat{\vx}_k$ and $\pmb{\eta}_k$ from Algorithm $\ref{alg:APDAGD}$ satisfy
+    \begin{align*}
+        f(\hat{\vx}_k) - f^\ast &\leq f(\hat{\vx}_k) + \varphi(\pmb{\eta}_k) \leq  \frac{16 \norm{\vA}^2_{1 \rightarrow 2} \bar{R}^2}{\mu_f k^2}, \\
+        \norm{\vA \hat{\vx}_k - \vb}_2 &\leq \frac{16 \bar{R} \norm{\vA}^2_{1 \rightarrow 2}}{\mu_f k^2}, \\
+        \norm{\hat{\vx}_k - \vx^\ast}_1 &   \leq \frac{8 \bar{R}\norm{\vA}_{1 \rightarrow 2}}{\mu_f k}. 
+    \end{align*}
+\end{theorem}
+
+\subsection{Complexity of APDAGD for POT (Theorem \ref{APDAGD_complexity}) Detailed Proof}
+% \label{proof:Bounds_for_(u,v)}
+
+\subsubsection{Step 1: Change of Dual Variables}
+\label{step 1}
+For the sake of convenience, we introduce the change of variables $\vu, \vv \in \RR^n$ and $\vw \in \RR$ such that $u_i = - y_i / \gamma - 1, v_j = - z_j / \gamma - 1$ and $w = -t / \gamma + 1$. After suppressing all additive constants and diving the objective by $- \gamma$, we obtain the equivalent dual problem:
+\begin{align} \label{entropic_regularized_problem_transformed}
+        \min_{\vu, \vv, w} \; h(\vu,\vv,w) &\defeq \sum_{i, j=1}^{n} \exp \left(- \frac{C_{i, j}}{\gamma} + u_i + v_j + w \right) + \sum_{i=1}^{n} \exp(u_i) + \\
+        &\sum_{j=1}^{n} \exp(v_j) -  \inner{\vu}{\vr} - \inner{\vv}{\vc} - ws.
+\end{align}
+Let $\vu^\ast, \vv^\ast, w^\ast$ be the optimal solutions of the entropic regularized problem \eqref{entropic_regularized_problem_transformed}. Denote $u^\ast_{max} = \max_{1 \leq i \leq n} u^\ast_i, u^\ast_{min} = \min_{1 \leq i \leq n} u^\ast_i$ and similarly for $v^\ast_{max}$ and $v^\ast_{min}.$ Notice that $\forall \: 1 \leq i \leq n, \: \exp (u^\ast_i) = p_i \leq r_i.$ This implies $\forall \: 1 \leq i \leq n, \: u^\ast_i \leq \log{r_i} \leq \log{1} = 0.$ So, $u^\ast_{max} \leq 0$. Similarly, $ v^\ast_{max} \leq 0$. 
+
+
+\subsubsection{Step 2: Bound for Infinity Norm of Transformed Dual Variables}
+\label{step 2}
+\begin{lemma}
+    \label{lem:inf_norm_dual}
+    The upper bound for $\norm{(\vu^\ast,\vv^\ast,w^\ast)}_\infty$ is
+    \begin{align*}
+        \norm{(\vu^\ast,\vv^\ast, w^\ast)}_\infty \leq \frac{\norm{\vC}_{\max} \max(\norm{\vr}_1, \norm{\vc}_1)}{\gamma (\max(\norm{\vr}_1, \norm{\vc}_1)-s)} - \log{ \left( \min_{1 \leq i,j \leq n} (r_i, c_j) \right)}.
+    \end{align*}
+\end{lemma}
+\begin{proof} 
+    % We attempt to find $\bar{R}$ by bounding the infinity norm of the transformed dual variables $\vu,\vv, w$, and then transform the bound back for dual variables $\vy,\vz, t$. 
+    First we lower bound $w^\ast$, note that 
+    \begin{equation*}
+        s = \sum_{i,j = 1}^{n} \exp \left(\frac{- C_{i, j}}{\gamma} + u^\ast_i + v^\ast_j + w^\ast \right) \leq n^2 \exp \left( u^\ast_{max} + v^\ast_{max} + w^\ast \right).
+    \end{equation*}
+    Taking logs on both sides, we have
+    \begin{equation*} 
+        \log{s} \leq 2\log{n} + u^\ast_{max} + v^\ast_{max} + w^\ast.
+    \end{equation*}
+    Since $u^\ast_{max}, v^\ast_{max} \leq 0$, we obtain the desired lower bound
+    \begin{equation*}
+        w^\ast \geq \log{s} - 2\log{n} - u^\ast_{max} - v^\ast_{max} \geq \log{s} - 2\log{n}.
+    \end{equation*}
+    For the upper bound, note that if we let $h^\ast$ be the optimal objective value of $h(\vu,\vv,w)$ in the transformed dual problem \eqref{entropic_regularized_problem_transformed}, then by accounting for the additive constants the optimal value of the original dual problem \eqref{entropic_regularized_problem} will be 
+    \begin{equation} \label{h*}
+        - \gamma h^\ast + \gamma (\norm{\vr}_1 + \norm{\vc}_1 - s).
+    \end{equation}
+    Accompanying $\eqref{h*}$ with the fact that the primal objective $\eqref{prob:entropic}$ optimal value is equal to the dual objective optimal $\eqref{entropic_regularized_problem}$ value by strong duality, we have that
+    \begin{equation*} 
+         - \gamma h^\ast + \gamma (\norm{\vr}_1 + \norm{\vc}_1 - s) \geq 0,
+    \end{equation*}
+    which yields
+    \begin{equation} \label{h*_bound}
+        h^\ast \leq \norm{\vr}_1 + \norm{\vc}_1 - s.
+    \end{equation}
+    On the other hand, consider 
+    \begin{align*}
+        s + \sum_{i=1}^{n} e^{u^\ast_i} = \sum_{i,j = 1}^{n} \exp \left(\frac{- C_{i, j}}{\gamma} + u^\ast_i + v^\ast_j + w^\ast \right) + \sum_{i=1}^{n} e^{u^\ast_i} &= \sum_{i,j = 1}^{n} X_{i,j} + \sum_{i=1}^{n} p_i = \norm{\vr}_1, \\
+        s + \sum_{j=1}^{n} e^{v^\ast_j} = \sum_{i,j = 1}^{n} \exp \left(\frac{- C_{i, j}}{\gamma} + u^\ast_i + v^\ast_j + w^\ast \right) + \sum_{j=1}^{n} e^{v^\ast_j} &= \sum_{i,j = 1}^{n} X_{i,j} + \sum_{j=1}^{n} p_j = \norm{\vc}_1.
+    \end{align*}
+    This leads to
+    \begin{equation*}
+        h^\ast = h(\vu^\ast, \vv^\ast, w^\ast) = -s + \norm{\vr}_1 + \norm{\vc}_1 - \inner{\vu^\ast}{r} - \inner{\vv^\ast}{c} - w^\ast s.
+    \end{equation*}
+    Together with the inequality \eqref{h*_bound}, 
+    \begin{equation*}
+        - \inner{\vu^\ast}{r} - \inner{\vv^\ast}{c} - w^\ast s \leq 0.
+    \end{equation*}
+    This implies
+    \begin{equation*}
+        - w^\ast s \leq \inner{\vu^\ast}{\vr} + \inner{\vv^\ast}{\vc} \leq u^\ast_{\max} \norm{\vr}_1 + v^\ast_{\max} \norm{\vc}_1 \leq (u^\ast_{\max} + v^\ast_{\max}) \max(\norm{\vr}_1, \norm{\vc}_1),
+    \end{equation*}
+    which implies 
+    \begin{equation*}
+        u^\ast_{\max} + v^\ast_{\max} \geq \frac{- w^\ast s}{\max(\norm{\vr}_1, \norm{\vc}_1)}.
+    \end{equation*}
+    We also know that 
+    \begin{equation*}
+        u^\ast_i + v^\ast_j + w^\ast - \frac{C_{ij}}{\gamma} \leq 0 \: \: \forall i,j.
+    \end{equation*}
+    Hence, combining the two results above, we obtain
+    \begin{equation*}
+        \frac{\norm{\vC}_{\max}}{\gamma} \geq  u^\ast_{\max} + v^\ast_{\max} + w^\ast \geq \frac{- w^\ast s}{\max(\norm{\vr}_1, \norm{\vc}_1)} + w^\ast,
+    \end{equation*}
+    yielding the desire upper bound 
+    \begin{equation*}
+        w^\ast \leq \frac{\norm{\vC}_{\max} \max(\norm{\vr}_1, \norm{\vc}_1)}{\gamma (\max(\norm{\vr}_1, \norm{\vc}_1)-s)}.
+    \end{equation*}
+    Note that $\forall \: 1 \leq j \leq n,$ we have
+    \begin{align*}
+        \left( \sum^n_{j=1} \exp \left( v^\ast_j \right) \right) \exp \left( u^\ast_i + w^\ast \right) &\geq \sum^n_{j=1} \exp \left( - \frac{C_{i,j}}{\gamma} + u^\ast_i + v^\ast_j + w^\ast \right) \\
+        &= \sum^n_{j=1} X_{i,j} \\
+        &= r_i \\
+        &\geq \min_{1 \leq i,j \leq n} (r_i, c_j).
+    \end{align*}
+    Taking log on both sides, we get
+    \begin{equation*}
+        \log \left( \sum^n_{j=1} \exp \left( v^\ast_j \right) \right) + u^\ast_i + w^\ast \geq \log{ \left( \min_{1 \leq i,j \leq n} (r_i, c_j) \right)},
+    \end{equation*}
+    which implies
+    \begin{align*}
+        u^\ast_i &\geq \log{ \left( \min_{1 \leq i,j \leq n} (r_i, c_j) \right)} - \log \left( \sum^n_{j=1} \exp \left( v^\ast_j \right) \right) - w^\ast \\
+        &\geq \log{ \left( \min_{1 \leq i,j \leq n} (r_i, c_j) \right)} - \frac{\norm{\vC}_{\max} \max(\norm{\vr}_1, \norm{\vc}_1)}{\gamma (\max(\norm{\vr}_1, \norm{\vc}_1)-s)}.
+    \end{align*}
+    Similarly, we also obtain the same lower bound for $v^\ast_j, 
+    \: \forall 1 \leq i \leq n$. And as $\forall 1 \leq i,j \leq n, \: u^\ast_i, v^\ast_j \leq 0 $, we obtain 
+    \begin{align*}
+        \norm{(\vu^\ast,\vv^\ast)}_\infty &\leq \left| \log{ \left( \min_{1 \leq i,j \leq n} (r_i, c_j) \right)} - \frac{\norm{\vC}_{\max} \max(\norm{\vr}_1, \norm{\vc}_1)}{\gamma (\max(\norm{\vr}_1, \norm{\vc}_1)-s)} \right| \\
+        &= - \log{ \left( \min_{1 \leq i,j \leq n} (r_i, c_j) \right)} + \frac{\norm{\vC}_{\max} \max(\norm{\vr}_1, \norm{\vc}_1)}{\gamma (\max(\norm{\vr}_1, \norm{\vc}_1)-s)}.
+    \end{align*}
+    Combining this with the bounds for $w^\ast$, we have 
+    \begin{align*}
+        \norm{(\vu^\ast,\vv^\ast, w^\ast)}_\infty \leq \frac{\norm{\vC}_{\max} \max(\norm{\vr}_1, \norm{\vc}_1)}{\gamma (\max(\norm{\vr}_1, \norm{\vc}_1)-s)} - \log{ \left( \min_{1 \leq i,j \leq n} (r_i, c_j) \right)}.
+    \end{align*}
+\end{proof}
+% \norm{(\vy^\ast,\vz^\ast,t^\ast)}_2 &\leq \sqrt{n} \norm{(\vy^\ast,\vz^\ast,t^\ast)}_\infty \\
+%         &= \sqrt{n} \gamma \norm{(\vu^\ast + \ones,\vv^\ast + \ones, w^\ast - 1)}_\infty \\
+%         &\leq \sqrt{n} \gamma \left( \norm{(\vu^\ast,\vv^\ast, w^\ast)}_\infty + 1 \right) \\
+%         &\leq \frac{\sqrt{n} \norm{\vC}_{\max} \max(\norm{\vr}_1, \norm{\vc}_1)}{ \max(\norm{\vr}_1, \norm{\vc}_1)-s} + \sqrt{n} \gamma \\
+%         &= \mathcal{O}\left(\sqrt{n} \norm{\vC}_{\max} \right).
+\begin{corollary} \label{Bounds_for_(u,v)}
+    The upper bound for $\norm{(\vy^\ast,\vz^\ast,t^\ast)}_\infty$ is
+    \begin{equation} \label{infty_bounds}
+        \frac{\norm{\vC}_{\max} \max\left\{\norm{\vr}_1, \norm{\vc}_1\right\}}{\max\left\{\norm{\vr}_1, \norm{\vc}_1\right\}-s} - \gamma \log{ \left( \min_{1 \leq i,j \leq n} (r_i, c_j) \right)} + \gamma.
+    \end{equation}
+\end{corollary}
+\begin{proof}
+    We have
+    \begin{align*} 
+        \norm{(\vy^\ast,\vz^\ast,t^\ast)}_\infty &=  \gamma \norm{(\vu^\ast + \ones,\vv^\ast + \ones, w^\ast - 1)}_\infty \\
+        &\leq \gamma \left( \norm{(\vu^\ast,\vv^\ast, w^\ast)}_\infty + 1 \right) \\
+        &\leq \frac{ \norm{\vC}_{\max} \max(\norm{\vr}_1, \norm{\vc}_1)}{ \max(\norm{\vr}_1, \norm{\vc}_1)-s} -\gamma \log{ \left( \min_{1 \leq i,j \leq n} (r_i, c_j) \right)} + \gamma, 
+    \end{align*}
+    where the last inequality comes as a result of Step 2.
+\end{proof}
+Note that $\norm{(\vy^\ast,\vz^\ast,t^\ast)}_2 \leq \sqrt{n} \norm{(\vy^\ast,\vz^\ast,t^\ast)}_\infty$, so we obtain $\Bar{R} = \mathcal{\widetilde{O}}\left(\sqrt{n} \norm{\vC}_{\max} \right)$.
+\subsubsection{Step 3: Derive the Final APDAGD Computational Complexity (Theorem \ref{APDAGD_complexity})}
+\label{step 3}
+%\textcolor{red}{ First, prove properties of $\widetilde{\vc}$ and $\widetilde{\vr}$ including: $\| \widetilde{\vr}\|_1 \geq s; \| \widetilde{b} -b\|_1 \leq \varepsilon'/2 $. Explain that now $(y, z, t)$ under our consideration is the dual variable to the problem $\min f(x)$ s.t $A x = \widetilde{b}$. Then invoke Lemma \ref{Bounds_for_(u,v)} but NOTE  that Lemma \ref{Bounds_for_(u,v)}, aka \eqref{dumb1}, is now w.r.t $\widetilde{\vc}$ and $\widetilde{\vr}$. Since $ \log{ \left( \min_{1 \leq i,j \leq n} ( \widetilde{r}_i, \widetilde{c}_j) \right)} = \widetilde{O}(\log(n/\varepsilon))$, we now can conclude $\Bar{R} = \mathcal{\widetilde{O}}\left(\sqrt{n} \norm{\vC}_{\max} \right)$}
+\begin{proof} [\unskip\nopunct]
+    With the introduction of $\widetilde{\vr}$ and $\widetilde{\vc}$ in Algorithm \ref{alg:ApproxOT_APDAGD}, our POT constraints now becomes $
+    \vA \vx = \widetilde{\vb}$, where $\widetilde{\vb} = (\widetilde{\vr}^\top, \widetilde{\vc}^\top, s)^\top$. We can still ensure that $\| \widetilde{\vr} \|_1 \geq s$ as follow 
+    \begin{align*}
+        \| \widetilde{\vr} \|_1 &= \left(1 - \dfrac{\widetilde{\varepsilon}}{8}\right)\|\vr\|_1 + \dfrac{\widetilde{\varepsilon}}{8} \\
+        &= \dfrac{\widetilde{\varepsilon}}{8}\left(1 - \|\vr\|_1 \right) + \|\vr\|_1.
+    \end{align*}
+    If $\|\vr\|_1 \leq 1$, we obtain $\| \widetilde{\vr} \|_1 \geq \|\vr\|_1 \geq s$. And if $\|\vr\|_1 > 1$, note that as $\widetilde{\varepsilon} \leq \dfrac{8 (\|\vr\|_1-s)}{\|\vr\|_1-1}$, we have $\| \widetilde{\vr} \|_1 \geq s - \|\vr\|_1 + \|\vr\|_1 = s$. Similarly, we can ensure $\| \widetilde{\vc} \|_1 \geq s$. With these changes to $\widetilde{\vr}$ and $\widetilde{\vc}$, we obtain from Corollary \ref{Bounds_for_(u,v)}
+    \begin{align}
+        \norm{(\vy^\ast,\vz^\ast,t^\ast)}_\infty \leq \frac{ \norm{\vC}_{\max} \max(\norm{\widetilde{\vr}}_1, \norm{\widetilde{\vc}}_1)}{ \max(\norm{\widetilde{\vr}}_1, \norm{\widetilde{\vc}}_1)-s} -\gamma \log{ \left( \min_{1 \leq i,j \leq n} (\widetilde{r}_i, \widetilde{c}_j) \right)} + \gamma,
+        \label{norm_infinity_bounds}
+    \end{align}
+    implying $\norm{(\vy^\ast,\vz^\ast,t^\ast)}_\infty = \mathcal{\widetilde{O}}\left( \norm{\vC}_{\max} \right)$ since $ \log{ \left( \min_{1 \leq i,j \leq n} ( \widetilde{r}_i, \widetilde{c}_j) \right)} = \widetilde{O}(\log(n/\varepsilon))$.
+
+    From Proposition 4.10 from \citep{lin2019efficient}, the number of iterations for APDAGD Algorithm required to reach the tolerance $\varepsilon$ is
+    \begin{equation} \label{iteration_bound}
+        t \leq \max \Biggl\{ \mathcal{O}\left( \min \Biggl\{ \frac{n^{1/4}\sqrt{\Bar{R}\norm{C}_{max} \log{n}}}{\varepsilon}, \frac{\Bar{R}\norm{C}_{max} \log{n}}{\varepsilon^2} \Biggl\} \right), \mathcal{O} \left( \frac{\Bar{R}\log{n}}{\varepsilon} \right) \Biggl\}
+    \end{equation}
+    From the bound \eqref{norm_infinity_bounds} and the fact that $\norm{(\vy^\ast,\vz^\ast,t^\ast)}_2 \leq \sqrt{n} \norm{(\vy^\ast,\vz^\ast,t^\ast)}_\infty$, we obtain $\Bar{R} = \mathcal{\widetilde{O}}\left(\sqrt{n} \norm{\vC}_{\max} \right)$. Therefore, from \eqref{iteration_bound}, the total iteration complexity is $\mathcal{O}\left(n^{1/2}\norm{\vC}_{\max} \sqrt{\log{n}} / \varepsilon \right)$. Since each iteration of APDAGD algorithm requires $\mathcal{O}(n^2)$ arithmetic operations, and the rounding algorithm also requires $\mathcal{O}(n^2)$ arithmetic operations, we have the total number of arithmetic operations is the desired $\mathcal{O}\left(n^{5/2}\norm{\vC}_{\max} \sqrt{\log{n}} / \varepsilon \right)$. 
+\end{proof}
+
+% \subsection{Finite Sum Decomposition}
+% \label{Finite_sum}
+% We aim to write the dual of \eqref{primal} as a finite sum. First we consider the dual \eqref{original_dual} after applying the first order conditions. Changing its form from $\max$ to $\min$, we have the dual
+% \begin{equation}
+%     \min_{\vy, \vz, t} \inner{\vy}{\vr} + \inner{\vz}{\vc} + ts + \gamma \sum_{i,j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + y_i + z_j + t \right) - 1 \right) +  \gamma \sum_{i=1}^n \exp \left( \frac{-y_i}{\gamma} - 1 \right) + \gamma \sum_{j=1}^n \exp \left( \frac{-z_j}{\gamma} - 1 \right).
+% \end{equation}
+    
+% Using similar methods to \citep{Xie-PDASGD}, we now consider the so-called semi-dual. For fixed $\vz, t$, we solve for $\vy$ by the optimality condition
+% \begin{equation}
+%     y_i = -\gamma \log r_i - \gamma + \gamma \log \left( 1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right) \right).
+% \end{equation}
+% Plugging back to the dual, we can write the semi-dual as a function of $(\vz, t)$
+% \begin{align} 
+%     G(\vz, t) &= \sum_{i=1}^n r_i \left( -\gamma \log r_i - \gamma + \gamma \log \left( 1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right) \right) \right) + \inner{\vz}{\vc} + ts + \gamma \norm{r}_1 + \gamma \sum_{j=1}^n \exp \left( \frac{-z_j}{\gamma} - 1 \right) \\
+%     &= -\sum_{i=1}^n r_i \gamma \log r_i + \sum_{i=1}^n \gamma \log \left( 1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right) \right) + \inner{\vz}{\vc} + ts + \gamma \sum_{j=1}^n \exp \left( \frac{-z_j}{\gamma} - 1 \right) \\
+%     &= \frac{1}{n} \sum_{i=1}^n \left( -n \gamma r_i \log r_i + n \gamma r_i \log \left( 1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right) \right) + n z_i c_i + ts + \gamma \sum_{j=1}^n \exp \left( \frac{-z_j}{\gamma} - 1 \right) \right)
+% \end{align}    
+
+% \subsection{Proof of $G_i$'s Lipschitz continuity and convexity}
+% \label{proof:Lipschitz_continuity}
+% \begin{proof} [\unskip\nopunct]
+% We consider 
+% \begin{equation}
+%     \nabla_t G_i(\vz, t) = s - n r_i \frac{\sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)\right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right)},
+% \end{equation}
+% and $\forall 1 \leq k \leq n$, we also have 
+% \begin{equation}
+%     \nabla_{z_k} G_i(\vz, t) = n c_k - n \exp \left( \frac{-z_k}{\gamma} -1 \right) - r_i \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z_k +t) \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right)},
+% \end{equation}
+% In order to show that $G_i(\vz,t)$ is $\frac{14 n r_i + n c_i}{\gamma}$-Lipschitz continuous with respect to the infinity norm, we need 
+% \begin{equation}
+%     \norm{\nabla G_i(\vz,t) - \nabla G_i(\vz',t')}_1 \leq \frac{14 n r_i + n c_i}{\gamma} \norm{ (\vz ,t) - (\vz' ,t')}_\infty = \frac{14 n r_i + n c_i}{\gamma} \norm{ (\Delta \vz,\Delta t)}_\infty,
+% \end{equation}
+% where $\Delta \vz = \vz - \vz'$ and $\Delta t = t - t'$. Next, consider $|\nabla_{z_k} G_i(\vz, t) - \nabla_{z'_k} G_i(\vz', t')|$ as the following 
+% \begin{align}
+%      &\left| \left( \exp \left( \frac{-z'_k}{\gamma} -1 \right) - \exp \left( \frac{-z_k}{\gamma} -1 \right)  \right) - n r_i \left( \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z'_k +t') \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} - \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z_k +t) \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right)} \right) \right| \\
+%      &\leq \left| \exp \left( \frac{-z'_k}{\gamma} -1 \right) - \exp \left( \frac{-z_k}{\gamma} -1 \right)  \right| + n r_i \left| \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z'_k +t') \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} - \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z_k +t) \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right)} \right|. 
+% \end{align}
+% Note that 
+% \begin{align}
+%     &\sum_{k = 1}^n n r_i \left| \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z'_k +t') \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} - \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z_k +t) \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right)} \right| \\
+%     &= \sum_{k = 1}^n  n r_i \left| \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z'_k +t') \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} - \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z'_k + \Delta z_k + t' + \Delta t) \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + \Delta z_j + t' + \Delta t \right)  \right)} \right| \\
+%     &= n r_i \norm{\frac{ \left( \exp \left(\frac{-1}{\gamma} (C_{i,k} + z'_k +t') \right) \right)_{1 \leq k \leq n} }{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} - \frac{ \left( \exp \left( \frac{-1}{\gamma} (\Delta z_k + \Delta t) \right) \exp \left(\frac{-1}{\gamma} (C_{i,k} + z'_k + t') \right) \right)_{1 \leq k \leq n}}{1 + \sum_{j=1}^n \exp \left( \frac{-1}{\gamma} (\Delta z_j + \Delta t) \right) \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)}}_1 \\
+%     &= n r_i \norm{\frac{\ve}{1+\norm{\ve}_1} - \frac{\exp(\vf) \odot \ve}{1+\norm{\exp(\vf) \odot \ve}_1}}_1,
+% \end{align}
+% where $\ve = \left( \exp \left(\frac{-1}{\gamma} (C_{i,k} + z'_k +t') \right) \right)_{1 \leq k \leq n}$ and $\vf = \frac{-1}{\gamma} (\Delta \vz + \Delta t \cdot \ones)$. 
+% We will show that 
+% \begin{equation}
+%     n r_i \norm{\frac{\ve}{1+\norm{\ve}_1} - \frac{\exp(\vf) \odot \ve}{1+\norm{\exp(\vf) \odot \ve}_1}}_1 \leq 6 n r_i \norm{\vf}_\infty  \leq \frac{12 n r_i}{\gamma} \norm{ (\Delta \vz,\Delta t)}_\infty
+% \end{equation}
+% Note that 
+% \begin{align}
+%     \norm{\frac{\ve}{1+\norm{\ve}_1} - \frac{\exp(\vf) \odot \ve}{1+\norm{\exp(\vf) \odot \ve}_1}}_1  \leq \frac{\norm{\ve}_1}{1+\norm{\ve}_1} + \frac{
+%     \norm{\exp(\vf) \odot \ve}_1}{1+\norm{\exp(\vf) \odot \ve}_1} \leq 1 + 1 = 2.
+% \end{align}
+% If $\norm{\vf}_\infty > 0.5$, it is obvious the claim holds. It is left for us to show the claim when $\norm{\vf}_\infty \leq 0.5$. Consider further that
+% \begin{align}
+%      \norm{\frac{\ve}{1+\norm{\ve}_1} - \frac{\exp(\vf) \odot \ve}{1+\norm{\exp(\vf) \odot \ve}_1}}_1 &= \frac{\sum_{i = 1}^n \left| e_i + \sum_{j=1}^n e_i \exp (f_j) e_j - e_i \exp(f_i) - \sum_{j=1}^n e_i \exp(f_i) e_j \right| }{(1+\norm{\ve}_1)(1+\norm{\exp(\vf) \odot \ve}_1)} \\
+%      &\leq \frac{\sum_{i = 1}^n \sum_{j=1}^n e_i e_j |\exp(f_j)-\exp(f_i)|}{(1+\norm{\ve}_1)(1+\norm{\exp(\vf) \odot \ve}_1)} + \frac{\sum_{i = 1}^n e_i |1- \exp(f_i)|}{(1+\norm{\ve}_1)(1+\norm{\exp(\vf) \odot \ve}_1)} \\
+%      &\leq \frac{\sum_{i = 1}^n \sum_{j=1}^n e_i e_j (|\exp(f_j)- 1| + |\exp(f_i)-1|)}{\norm{\ve}_1 \norm{\exp(\vf) \odot \ve}_1} + \frac{\sum_{i = 1}^n e_i |1- \exp(f_i)|}{\norm{\ve}_1} \\
+%      &\leq \frac{\sum_{i = 1}^n \sum_{j=1}^n e_i e_j 2(\exp(0.5)-1) (|f_j| + |f_i|)}{\norm{\ve}_1\norm{\exp(\vf) \odot \ve}_1} + \frac{\sum_{i = 1}^n e_i 2(\exp(0.5)-1) |f_i|}{\norm{\ve}_1} \\
+%      &\leq \frac{2(\exp(0.5)-1) \sum_{i = 1}^n \sum_{j=1}^n e_i e_j 2 \norm{\vf}_\infty}{\norm{\ve}_1\norm{\ve}_1 \exp(-0.5)} + \frac{2(\exp(0.5)-1) \sum_{i = 1}^n e_i \norm{\vf}_\infty}{\norm{\ve}_1} \\
+%      &= \left( \frac{4(\exp(0.5)-1)}{\exp(-0.5)} + 2(\exp(0.5)-1) \right) \norm{\vf}_\infty \\
+%      &< 6 \norm{\vf}_\infty.
+% \end{align}
+% Note that we used the Taylor expansion to upper bound expressions in the form $|\exp(x) - 1|$ for $x$ such that $|x| \leq 0.5$. More specifically,
+% \begin{align}
+%     |\exp(x) - 1| = |x| \left| 1 + \frac{x}{2} + \frac{x^2}{6} + ... \right| \leq |x| \left( 1 + \frac{0.5}{2} + \frac{0.5^2}{6} + ... \right) = 2 |x| (\exp(0.5) - 1).
+% \end{align}
+% Next, for all feasible $\vz^\ast$, we note that for $1 \leq i \leq n$
+% \begin{align}
+%     \exp \left( \frac{-z^\ast_i}{\gamma} -1 \right) = q_i \leq c_i,
+% \end{align}
+% which implies
+% \begin{equation}
+%     z^\ast_i \geq  \gamma (-1-\log c_i).
+% \end{equation}
+% Let $\mathcal{Z}$ be this feasible region for $\vz$. With the mean value  theorem applied to any $z'_k, z_k \in \mathcal{Z}$ we have 
+% \begin{align}
+%     \sum_{k=1}^n \left| \exp \left( \frac{-z'_k}{\gamma} -1 \right) - \exp \left( \frac{-z_k}{\gamma} -1 \right)  \right| &= \sum_{k=1}^n \frac{1}{\gamma} \exp \left( \frac{-\bar{z_k}}{\gamma} -1 \right) |z'_k - z_k| \\
+%     &\leq \sum_{k=1}^n \frac{1}{\gamma} c_i \norm{\Delta z}_\infty \\
+%     &\leq \frac{n c_i}{\gamma} \norm{(\Delta z,\Delta t)}_\infty.
+% \end{align}
+% Hence we obtain
+% \begin{align}
+%     \norm{\nabla_{
+%     \vz} G_i(\vz, t) - \nabla_{\vz'} G_i(\vz', t')}_1 \leq \frac{12 n r_i}{\gamma} \norm{ (\Delta \vz,\Delta t)}_\infty + \frac{n c_i}{\gamma} \norm{(\Delta z,\Delta t)}_\infty = \frac{12 n r_i + n c_i}{\gamma} \norm{ (\Delta \vz,\Delta t)}_\infty.
+% \end{align}
+% On the other hand, 
+% \begin{align}
+%     \norm{\nabla_{
+%     t} G_i(\vz, t) - \nabla_{t} G_i(\vz', t')}_1 &= n r_i \left| \frac{\sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)\right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} - \frac{\sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)\right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right)} \right| \\
+%     &= n r_i \frac{\left| \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)\right) - \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)\right) \right|}{\left( 1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right) \right)\left( 1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right) \right)} \\
+%     &\leq n r_i \frac{\left| \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)\right) \left( 1- \exp \left( -\frac{1}{\gamma} (\Delta z_j +\Delta t) \right) \right) \right|}{ \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} \\ 
+%     &\leq n r_i \frac{\left| \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)\right) \left( - \frac{1}{\gamma}(\Delta z_j +\Delta t) \right) \right|}{ \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} \\
+%     &\leq n r_i \frac{\sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)\right) \left| \frac{1}{\gamma}(\Delta z_j +\Delta t) \right|}{ \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} \\
+%     &\leq n r_i \frac{\sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)\right) \frac{2}{\gamma} \norm{ (\Delta \vz,\Delta t)}_\infty}{ \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} \\
+%     &= \frac{2 n r_i}{\gamma} \norm{ (\Delta \vz,\Delta t)}_\infty.
+% \end{align}
+% Hence, we obtain 
+% \begin{equation}
+%     \norm{\nabla G_i(\vz, t) - \nabla G_i(\vz', t')}_1 \leq \frac{12 n r_i + n c_i}{\gamma} \norm{ (\Delta \vz,\Delta t)}_\infty + \frac{2 n r_i}{\gamma} \norm{ (\Delta \vz,\Delta t)}_\infty = \frac{14 n r_i + n c_i}{\gamma} \norm{ (\Delta \vz,\Delta t)}_\infty.
+% \end{equation}
+% In other words, $G_i(\vz,t)$ is $\frac{14 n r_i + n c_i}{\gamma}$-Lipschitz continuous. 
+% For convexity, it is straightforwards that $G_i$ is a sum of convex functions in $(\vz, t)$, $\vz$, and $t$ with some constants.
+% \end{proof}
+
+\section{Dual Extrapolation}
+\subsection{Second Order Characterization of Area Convexity}
+In our context, the second order characterization of area-convexity, which was proven in \citep[Theorem 1.6]{Sherman-2017-Area} and restated in \citep[Theorem 3.2]{Jambulapati-2019-Direct}, is quite useful
+\begin{theorem} \label{theorem:2nd_order_area_convex}
+    For bilinear minimax objective and twice-differentiable regularizer r, if for all $\vz$ in the domain
+    \begin{equation*}
+        \left(
+        \begin{array}{cc}
+        \kappa \nabla^2 r(\vz) & -J \\
+        J & \kappa \nabla^2 r(\vz)
+        \end{array} \right) \succeq 0,
+    \end{equation*}
+    where $J$ is the Jacobian of the gradient operator g, then r is $3 \kappa$-area-convex with respect to g. 
+\end{theorem} 
+\subsection{$\ell1$ Penalization}
+
+\begin{lemma}
+    \label{lem:l1_regression}
+    The $\ell_1$ penalized POT objective,
+    \begin{equation} \label{l1_penalized}
+        \min_{\vx \in \Delta_{n^2+2n}} \vd^\top \vx + 23 \norm{\vd}_\infty \norm{\vA \vx - \vb}_1,
+    \end{equation}
+    has an equal optimal value to that of the POT formulation \eqref{POT_areaconvex}. Moreover, any $\varepsilon$-approximate minimizer $\widetilde{\vx}$ of the $\ell_1$ penalized objective \eqref{l1_penalized} yields in $\mathcal{O}(n^2)$ time an $\varepsilon$-approximate transport plan $\bar{\vx}$ for the POT formulation \eqref{POT_areaconvex} (after applied the Rounding Algorithm \ref{alg:rounding}).
+\end{lemma}
+\begin{proof}
+    %the $\ell_1$ penalized objective value is equal to that of the formulation \eqref{POT_areaconvex}, let $\vd^\ast = \min_{\vA\vx = \vb} \vd^\top \vx$
+    Note that, intuitively, multiplicative constant $23$ comes from the guarantees of  $\textsc{Round-POT}$ (Theorem \ref{prop:rounding}). 
+    
+    Let $\tilde{\vx} \in$ $\argmin_{\vx \in \Delta_{n^2+2n}} \vd^\top \vx + 23 \norm{\vd}_\infty \norm{\vA \vx - \vb}_1$. Following the approach from \citep[Lemma 1]{Jambulapati-2019-Direct}, we claim there is some $\tilde{\vx}$ satisfying $\vA\tilde{\vx} = \vb$. Suppose otherwise, let $\norm{\vA\tilde{\vx} - \vb}_1 = \delta > 0$. Then, let $\bar{\vx}$ be the output after rounding $\tilde{\vx}$ with Algorithm \ref{alg:rounding}, so that $\vA\bar{\vx} = \vb, \norm{\tilde{\vx} - \bar{\vx}}_1 \leq 23\delta$ (Theorem \ref{prop:rounding}). Consider
+	\begin{equation*}
+	\vd^\top \bar{\vx} + 23 \norm{\vd}_\infty \norm{\vA\bar{\vx} - \vb}_1 = \vd^\top(\bar{\vx} - \tilde{\vx}) + \vd^\top \tilde{\vx} \leq \norm{\vd}_\infty \norm{\bar{\vx} - \tilde{\vx}}_1 + \vd^\top \tilde{\vx} \leq 23\norm{\vd}_\infty\delta + \vd^\top \tilde{\vx}.
+	\end{equation*}
+	The $\ell_1$ penalized objective value of $\bar{\vx}$ is smaller than that of $\tilde{\vx}$, hence this implies contradiction. From this claim, it is evident that 
+	\begin{equation*}
+	    \min_{\vx \in \Delta_{n^2+2n}} \vd^\top \vx + 23 \norm{\vd}_\infty \norm{\vA \vx - \vb}_1 = \vd^\top \tilde{\vx} + 23 \norm{\vd}_\infty \norm{\vA \tilde{\vx} - \vb}_1 = \vd^\top \tilde{\vx}. %= \min_{\vx \in \Delta_{n^2+2n}} \vd^\top \vx. 
+	\end{equation*}
+	Let $\hat{\vx} \in$ $\argmin_{\vA \vx = \vb} \vd^\top \vx$. If we consider the objective \eqref{l1_penalized} for $\hat{\vx}$, we have
+	\begin{align*}
+	     \min_{\vA \vx = \vb} \vd^\top \vx &= \vd^\top \hat{\vx}\\ 
+	     &= \vd^\top \hat{\vx} + 23 \norm{\vd}_\infty \norm{\vA \hat{\vx} - \vb}_1 \\
+	     &\geq \min_{\vx \in \Delta_{n^2+2n}} \vd^\top \vx + 23 \norm{\vd}_\infty \norm{\vA \vx - \vb}_1 \\
+	     &= \vd^\top \tilde{\vx}.
+	\end{align*}
+	Enforcing equality sign, we obtain the first claim that problems (\ref{POT_areaconvex}) and (\ref{l1_penalized}) have the same optimal value. Therefore, we can take any approximate minimizer to \eqref{l1_penalized} and round it to a transport plan $\bar{\vx}$ without increasing the POT objective.
+\end{proof}
+\subsection{Proof of Lemma \ref{9_area_convex}}
+% \label{proof:9_area_convex}
+\begin{proof} [\unskip\nopunct]
+    With the second order condition for area convexity (Theorem \ref{theorem:2nd_order_area_convex}) it suffices to show that for any z in the domain
+    \begin{equation*}
+        \xi = \left(
+        \begin{array}{cc}
+        3 \nabla^2 r(\vz) & -J \\
+        J & 3 \nabla^2 r(\vz)
+        \end{array} \right) \succeq 0,
+    \end{equation*}
+    where $J$ is the Jacobian of the operator $g$. 
+    
+    First, note that we can scale down both $J$ and $\nabla^2 r(\vz)$ with a common factor of $2 \norm{\vd}_\infty$ and still maintain the positive-semidefiniteness of the matrix $\xi.$ By straightforward differentiation, we obtain $J = \vA^\top$ and 
+    \begin{equation*}
+        \nabla^2 r(z) = \left(
+        \begin{array}{cc}
+        10 \: \diag(\frac{1}{x_j}) & 2 \: \vA^\top \diag(y_i)\\
+        2 \: \diag(y_i) \vA & 2 \: \diag(\vA_i^\top \vx)
+        \end{array} \right). 
+    \end{equation*}
+    Hence we get
+    \begin{equation*}
+        \xi = \left(
+        \begin{array}{cccc}
+        30 \: \diag(\frac{1}{x_j}) & 6 \: \vA^\top \diag(y_i) & \zeros & -\vA^\top \\
+        6 \: \diag(y_i) \vA & 6 \: \diag(\vA_i^\top \vx) & \vA & \zeros \\ 
+        \zeros & \vA^\top & 30 \: \diag(\frac{1}{x_j}) & 6 \: \vA^\top \diag(y_i) \\
+        - \vA & \zeros &  6 \: \diag(y_i) \vA & 6 \: \diag(\vA_i^\top \vx)
+        \end{array} \right). 
+    \end{equation*}
+    As the linear operator $\vA$ has the structure \eqref{matrix_A}, we obtain $\norm{\vA_{:j}}_1 \leq 3$.
+    Given any arbitrary vector $(\va \: \vb \: \vc \: \vd)^\top,$ since $x_j \geq 0 \: \forall \: j$, we note that 
+    \begin{align*}
+        \va \xi \va^\top &= \sum_{j} \frac{30 a_j^2}{x_j} \geq \sum_{j} \norm{\vA_{:j}}_1  \frac{10 a_j^2}{x_j} = \sum_{i,j} A_{i,j} \frac{10 a_j^2}{x_j}, \\
+        \vc \xi \vc^\top &= \sum_{j} \frac{30 c_j^2}{x_j} \geq \sum_{j} \norm{\vA_{:j}}_1  \frac{10 c_j^2}{x_j} = \sum_{i,j} A_{i,j} \frac{10 c_j^2}{x_j}.
+    \end{align*}
+    Therefore expand the terms and simplify $(\va \: \vb \: \vc \: \vd) \: \xi \: (\va \: \vb \: \vc \: \vd)^\top$ as follows
+    \begin{align*}
+        &(\va \: \vb \: \vc \: \vd) \: \xi \: (\va \: \vb \: \vc \: \vd)^\top \\ 
+        &\geq \sum_{i,j} A_{ij} \left(\frac{10a_j^2}{x_j} + 6b_i^2x_j + \frac{10c_j^2}{x_j} + 6 d_i^2x_j + 12 a_j b_i y_i + 12 c_j d_i y_i - 2a_j d_i + 2c_j b_i \right).
+    \end{align*}
+    Note that as $y_i \in [-1,1],$ we have
+    \begin{equation*}
+        \frac{9a_j^2}{x_j} + 12 a_j b_i y_i + 4 b_i^2x_j \geq 0,\: \frac{9c_j^2}{x_j} + 12 c_j d_i y_i + 4 d_i^2x_j \geq 0.
+    \end{equation*}
+    So we obtain
+    \begin{align*}
+        &(\va \: \vb \: \vc \: \vd) \: \xi \: (\va \: \vb \: \vc \: \vd)^\top \\
+        &\geq \sum_{i,j} A_{ij} \left(\frac{a_j^2}{x_j} + 2 b_i^2x_j + \frac{c_j^2}{x_j} + 2 d_i^2x_j - 2a_j d_i + 2c_j b_i \right) \\
+        &= \sum_{i,j} A_{ij} \left( \left(\frac{a_j^2}{x_j} + d_i^2x_j - 2a_j d_i \right) + \left(b_i^2x_j + \frac{c_j^2}{x_j} + 2c_j b_i\right) + b_i^2x_j + d_i^2x_j \right) \\
+        &\geq 0,
+    \end{align*}
+    since $x_j \geq 0$. Hence $\xi \succeq 0$ as desired. 
+\end{proof} 
+
+\subsection{Proof of Lemma \ref{T}}
+% \label{proof:Bounds_for_regularizer}
+By \citep[Lemma 2]{Jambulapati-2019-Direct}, we can evaluate the proposed algorithm with output $(\bar{\vx}, \bar{\vy}) \in \mathcal{X} \times \mathcal{Y}$ by the duality gap 
+\begin{equation} \label{duality_gap}
+    \max_{\vy \in \mathcal{Y}} F(\bar{\vx},\vy) - \min_{\vx \in \mathcal{X}} F(\vx, \bar{\vy}) \leq \varepsilon. 
+\end{equation}
+As we want to obtain the convergence guarantees in terms of duality gap \eqref{duality_gap}, we consider the following lemma which has been stated and proven in \citep[Corollary 1]{Jambulapati-2019-Direct}:
+\begin{lemma} \label{regret_bound}
+    Suppose that the proximal steps in General Dual Extrapolation Algorithm \ref{alg:General_Dual_Extrapolation} have an additive error $\varepsilon'$ during implementation and the regularizer $r$ is $\kappa$-area-convex with respect to the gradient operator $g$. Suppose for some $\vu \in \mathcal{Z}, \Theta \geq r(\vu) - r(\Bar{\vz})$. Then the output $\Bar{\vw}$ of Algorithm 
+    \ref{alg:General_Dual_Extrapolation} satisfies
+    \begin{equation*}
+        \inner{g(\Bar{\vw})}{\Bar{\vw}-\vu} \leq \frac{2 \kappa \Theta}{T} + \varepsilon'.
+    \end{equation*}
+\end{lemma}
+From this lemma, with a chosen additive error $\varepsilon' = \dfrac{\varepsilon}{2}$, if the aim is $\inner{g(\Bar{\vw})}{\Bar{\vw}-\vu} \leq \varepsilon$, then we want to have $\dfrac{2 \kappa \Theta}{T} \leq \dfrac{\varepsilon}{2}$. So $T$ is required to be $\left\lceil \dfrac{4 \kappa \Theta}{\varepsilon} \right\rceil$. Next, we look for a suitable $\Theta$.
+\begin{lemma} \label{T}
+    Lemma \ref{regret_bound} will apply to $\forall \: \vu \in \mathcal{Z}$ if $\Theta = 60 \norm{\vd}_\infty \log (n) + 6 \norm{\vd}_\infty$.
+\end{lemma}
+\begin{proof}
+    Note that it is obvious that we want to choose
+    \begin{equation*}
+        \Theta \geq \sup_{\vz \in \mathcal{Z}} r(\vz) - \inf_{\vz \in \mathcal{Z}} r(\vz).
+    \end{equation*}
+    Denote the negative entropy as $h(\vx)$, it is well-known that
+    \begin{align*}
+        \max_{\vx \in \Delta_{d}} h(\vx) - \min_{\vx \in \Delta_{d}} h(\vx) = \log d.
+    \end{align*}
+    Next, we consider
+    \begin{align*}
+        \vx^\top \vA^\top (\vy^2) &= \inner{\vx}{\vA^\top (\vy^2)} \\
+        &\leq \norm{\vx}_1 \norm{\vA^\top(\vy^2)}_\infty \\
+        &= \norm{\vA^\top(\vy^2)}_\infty\\
+        &\leq \norm{\vA^\top \ones_{2n+1}}_\infty \\
+        &= \norm{\vA^\top}_\infty \\
+        &= 3.
+    \end{align*}
+    On the other hand, it is obvious that $\vx^\top \vA^\top (\vy^2) \geq 0$. Combining the previous few inequalities, we have the following bound for the range of regularizer $r(\vx, \vy)$
+    \begin{equation*}
+        \sup_{\vz \in \mathcal{Z}} r(\vz) - \inf_{\vz \in \mathcal{Z}} r(\vz) \leq 2 \norm{\vd}_\infty \left( 10\log (n^2+2n) + 3 \right) = 20 \norm{\vd}_\infty \log (n^2+2n) + 6 \norm{\vd}_\infty.
+    \end{equation*}
+    It is noteworthy that with $n \geq 2, n^{3} = n \cdot n^2 \geq n \cdot (n+2) = n^2 + 2n$. Hence, we choose 
+    \begin{equation*}
+        \Theta = 60 \norm{\vd}_\infty \log (n) + 6 \norm{\vd}_\infty \geq 20 \norm{\vd}_\infty \log (n^2+2n) + 6 \norm{\vd}_\infty \geq \sup_{\vz \in \mathcal{Z}} r(\vz) - \inf_{\vz \in \mathcal{Z}} r(\vz).
+    \end{equation*}
+\end{proof}
+\subsection{Proof of Theorem \ref{Complexity_for_AM}}
+% \label{proof: Complexity_for_Dual_Extrapolution}
+\begin{proof} [\unskip\nopunct]
+    By \citep[Lemma 7, 8]{Jambulapati-2019-Direct}, the suboptimality gap can be reduced by a factor of $1/24$. There are two proximal step, and the second one deals with $\vs^t + \frac{1}{\kappa} g(\vz^t)$ which is bigger than $\vs^t$ in the first step. Hence, we endeavor to bound the number of iterations for the second bigger proximal step of $\vs^t + \frac{1}{\kappa} g(\vz^t)$. We have the proximal objective
+    \begin{align*}
+        prox^r_{\Bar{\vz}}(\vs^t + \frac{1}{\kappa} g(\vz^t)) &= \underset{\vz \in \mathcal{Z}} \argmin \inner{\vs^t + \frac{1}{\kappa} g(\vz^t)}{\vz} + V_{\Bar{\vz}}^r (\vz) \\
+        &= \underset{\vz \in \mathcal{Z}} \argmin \inner{\vs^t + \frac{1}{\kappa} g(\vz^t)}{\vz} + r(\vz) - r(\Bar{\vz}) - \inner{\nabla r(\Bar{\vz})}{\vz - \Bar{\vz}} \\
+        &= \underset{\vz \in \mathcal{Z}} \argmin \inner{\vs^t + \frac{1}{\kappa} g(\vz^t)-\nabla r(\Bar{\vz})}{\vz} + r(\vz).
+    \end{align*}
+    Let $\vz = (\vx,\vy)$, $\bar{\vz} = (\bar{\vx},\bar{\vy})$, $g(\vz) = (g_\vx(\vz),g_\vy(\vz))$, and $\vs^t = (\vs_\vx^t,\vs_\vy^t)$, we obtain
+    \begin{align*}
+        prox^r_{\Bar{\vz}}\left(\vs^t + \frac{1}{\kappa} g(\vz^t) \right) = &\underset{\vx \in \mathcal{X}, \vy \in \mathcal{Y}} \argmin \inner{\vs^t_\vx -\nabla_\vx r(\bar{\vx}, \bar{\vy}) + \frac{1}{\kappa} g_\vx(\vz^t)}{\vx} + \\
+        &\inner{\vs^t_\vy -\nabla_\vy r(\bar{\vx}, \bar{\vy}) + \frac{1}{\kappa} g_\vy(\vz^t)}{\vy} + r(\vx,\vy).
+    \end{align*}
+    Note that $\nabla_\vy r(\bar{\vx}, \bar{\vy}) = \zeros$. Let $\vx^\ast$ and $\vy^\ast$ be the minimizer of the proximal objective, while $\vx_0$ and $\vy_0$ are the initializations, the suboptimality gap is 
+    \begin{equation*}
+        \delta = \inner{\vs^t_\vx -\nabla_\vx r(\bar{\vx}, \bar{\vy})+ \frac{1}{\kappa} g_\vx(\vz^t)}{\vx_0-\vx^\ast} + \inner{\vs^t_\vy + \frac{1}{\kappa} g_\vy(\vz^t)}{\vy_0-\vy^\ast} + r(\vx_0,\vy_0) - r(\vx^\ast,\vy^\ast).
+    \end{equation*}
+    Now the goal is to bound this suboptimality gap. By Lemma \ref{T}, as proximal steps are implemented with $\varepsilon/2$ accuracy, we get that $T = \lceil 36 \Theta / \varepsilon \rceil$ iterations would suffice. We can bound $\vs_\vx^t$ and $\vs_\vy^t$ as follows
+    \begin{align*}
+        \norm{\vs_\vx^t}_\infty &\leq T \frac{1}{2\kappa}  \norm{g_\vx(\vz)}_\infty \leq \frac{2 \Theta}{\varepsilon} \norm{\vd + 23 \norm{\vd}_\infty \vA^\top \vy}_\infty \leq \frac{2 \Theta}{\varepsilon} \left(\norm{\vd}_\infty + 23 \norm{\vd}_\infty \norm{\vA^\top \vy}_\infty \right) \\
+        &\leq \frac{140 \Theta \norm{\vd}_\infty}{\varepsilon}, \\
+        \norm{\vs_\vy^t}_1 &\leq T \frac{1}{2\kappa} \norm{g_\vy(\vz)}_1 \leq \frac{2 \Theta}{\varepsilon} \norm{-23 \norm{\vd}_\infty (\vA \vx -\vb)}_1 \leq \frac{46 \Theta \norm{\vd}_\infty}{\varepsilon} (\norm{\vA \vx}_1 + \norm{\vb}_1) \\
+        &\leq \frac{276 \Theta \norm{\vd}_\infty}{\varepsilon}.
+    \end{align*}
+    Similarly, we have 
+    \begin{align*}
+        &\frac{1}{\kappa}  \norm{g_\vx(\vz)}_\infty \leq \frac{1 }{9} \norm{\vd + 23 \norm{\vd}_\infty \vA^\top \vy}_\infty \leq \frac{1}{9} \left(\norm{\vd}_\infty + 23 \norm{\vd}_\infty \norm{\vA^\top \vy}_\infty \right) \leq \frac{70 \norm{\vd}_\infty}{9}, \\
+        &\frac{1}{\kappa} \norm{g_\vy(\vz)}_1 \leq \frac{1}{9} \norm{-23 \norm{\vd}_\infty (\vA \vx -\vb)}_1 \leq \frac{23 \norm{\vd}_\infty}{9} (\norm{\vA \vx}_1 + \norm{\vb}_1) \leq \frac{46 \norm{\vd}_\infty}{3}.
+    \end{align*}
+    Also note that 
+    \begin{align*}
+        \norm{\nabla_\vx r(\bar{\vx}, \bar{\vy})}_\infty = \norm{20 \norm{
+        \vd}_\infty (1 - \log(n^2+2n)) \ones_{n^2 +2n}}_\infty \leq 20 \norm{
+        \vd}_\infty (1 + 3\log(n))
+    \end{align*}
+    Hence, we can now proceed to bound the suboptimality gap
+    \begin{align*}
+        \delta &\leq \norm{\vs^t_\vx -\nabla_\vx r(\bar{\vx}, \bar{\vy}) + \frac{1}{\kappa} g_\vx(\vz^t)}_\infty \norm{\vx_0-\vx^\ast}_1 + \norm{\vs^t_\vy + \frac{1}{\kappa} g_\vy(\vz^t)}_1 \norm{\vy_0-\vy^\ast}_\infty + \Theta \\
+        &\leq \left(\frac{140 \Theta \norm{\vd}_\infty}{\varepsilon} + 20 \norm{\vd}_\infty (1 + 3\log(n)) + \frac{70 \norm{\vd}_\infty}{9} + \frac{70 \Theta \norm{\vd}_\infty}{\varepsilon} + \frac{46 \norm{\vd}_\infty}{3} \right) \times 2 + \Theta \\
+        &= \left( \frac{420 \norm{\vd}_\infty}{\varepsilon} + 1 \right) \Theta + 40 \norm{\vd}_\infty + 120\norm{\vd}_\infty \log(n) + \frac{416 \norm{\vd}_\infty}{9} \\
+        &= \left( \frac{420 \norm{\vd}_\infty}{\varepsilon} + 3 \right) \Theta + \frac{668 \norm{\vd}_\infty}{9}. 
+    \end{align*}
+    Therefore, the number of iterations to obtain the desired output with $\varepsilon/2$-accuracy is 
+    \begin{equation*}
+        M = 24 \log_{24/23} \left( \frac{2 \delta}{\varepsilon} \right) \leq 24 \log \left( \left( \frac{840 \norm{\vd}_\infty}{\varepsilon^2} + \frac{6}{\varepsilon} \right) \Theta + \frac{1336 \norm{\vd}_\infty}{9} \right) = \mathcal{O} (\log \eta),
+        \end{equation*}
+    where $\eta = \log n \times \norm{\vd}_\infty \times \varepsilon^{-1}$. Each iteration can be done in $\mathcal{O} (n^2)$ time, so we obtain the desired complexity.
+\end{proof}
+
+\subsection{Proof of Theorem \ref{theorem:DE_complexity}}
+% \begin{proof}[\unskip\nopunct]
+%         \label{proof:Complexity_for_AM}
+%         From previous Theorem \ref{Complexity_for_AM}, each proximal step in Algorithm \ref{alg:Dual_Extrapolation_POT} requires $\mathcal{O}(n^2 \log \eta)$ time where $\eta = \log n \norm{\vd}_\infty \varepsilon^{-1}$. Hence, with 2 proximal steps, Algorithm \ref{alg:Dual_Extrapolation_POT} can be done in the total of $\mathcal{O}(n^2 \norm{\vd}_\infty \varepsilon^{-1} \log n \log \eta) = \mathcal{\widetilde O}(n^2 \norm{\vd}_\infty \varepsilon^{-1})$ time. This is exactly  $\mathcal{\widetilde O}(n^2 \norm{\vC}_{max} \varepsilon^{-1})$ in term of the original matrix $\vC$.
+% \end{proof}
+\begin{proof}
+        \label{proof:Complexity_for_AM}
+        From Theorem \ref{Complexity_for_AM}, each proximal step in Algorithm \ref{alg:Dual_Extrapolation_POT} requires $\mathcal{O}(n^2 \log \eta)$ time where $\eta = \log n \norm{\vd}_\infty / \varepsilon$. Hence, with 2 proximal steps, Algorithm \ref{alg:Dual_Extrapolation_POT} can be done in the total of $\mathcal{O}(n^2 \log n \norm{\vd}_\infty \log \eta / \varepsilon) = \mathcal{\widetilde O}(n^2 \norm{\vd}_\infty / \varepsilon)$ time. This is $\mathcal{\widetilde O}(n^2 \norm{\vC}_{max} / \varepsilon)$ in term of the original cost matrix $\vC$.
+\end{proof}
+
+
+% \section{Finite sum decomposition}
+% \label{app:finite_sum_decomposition}
+% We aim to write the "semi-dual" as a finite sum. First we consider the dual after applying the first order conditions. Changing its form from $\max$ to $\min$, we have the dual
+% \begin{equation}
+%     \min_{\vy, \vz, t} \inner{\vy}{\vr} + \inner{\vz}{\vc} + ts + \gamma \sum_{i,j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + y_i + z_j + t \right) - 1 \right) +  \gamma \sum_{i=1}^n \exp \left( \frac{-y_i}{\gamma} - 1 \right) + \gamma \sum_{j=1}^n \exp \left( \frac{-z_j}{\gamma} - 1 \right).
+% \end{equation}
+    
+% Using similar methods to \citep{Xie-PDASGD}, we now consider the so-called semi-dual. For fixed $\vz, t$, we solve for $\vy$ by the optimality condition
+% \begin{equation}
+%     y_i = -\gamma \log r_i - \gamma + \gamma \log \left( 1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right) \right).
+% \end{equation}
+% Plugging back to the dual, we can write the semi-dual as a function of $(\vz, t)$
+% \begin{align} 
+%     G(\vz, t) &= \sum_{i=1}^n r_i \left( -\gamma \log r_i - \gamma + \gamma \log \left( 1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right) \right) \right) + \inner{\vz}{\vc} + ts + \gamma \norm{r}_1 + \gamma \sum_{j=1}^n \exp \left( \frac{-z_j}{\gamma} - 1 \right) \\
+%     &= -\sum_{i=1}^n r_i \gamma \log r_i + \sum_{i=1}^n \gamma \log \left( 1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right) \right) + \inner{\vz}{\vc} + ts + \gamma \sum_{j=1}^n \exp \left( \frac{-z_j}{\gamma} - 1 \right) \\
+%     &= \frac{1}{n} \sum_{i=1}^n \left( -n \gamma r_i \log r_i + n \gamma r_i \log \left( 1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right) \right) + n z_i c_i + ts + \gamma \sum_{j=1}^n \exp \left( \frac{-z_j}{\gamma} - 1 \right) \right) \\
+%     &= \frac{1}{n} \sum_{i=1}^n G_i(\vz, t),
+% \end{align}
+% where
+% \begin{equation}
+%     G_i(\vz, t) = -n \gamma r_i \log r_i + n \gamma r_i \log \left( 1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right) \right) + n z_i c_i + ts + \gamma \sum_{j=1}^n \exp \left( \frac{-z_j}{\gamma} - 1 \right). 
+% \end{equation}
+% Next, we consider 
+% \begin{equation}
+%     \nabla_t G_i(\vz, t) = s - n r_i \frac{\sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)\right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right)},
+% \end{equation}
+% and $\forall 1 \leq k \leq n$, we also have 
+% \begin{equation}
+%     \nabla_{z_k} G_i(\vz, t) = n c_k - n \exp \left( \frac{-z_k}{\gamma} -1 \right) - r_i \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z_k +t) \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right)},
+% \end{equation}
+% In order to show that $G(\vz,t)$ is L-Lipschitz continuous with respect to the infinity norm, we need 
+% \begin{equation}
+%     \norm{\nabla G(\vz,t) - \nabla G(\vz',t')}_1 \leq L \norm{ (\vz ,t) - (\vz' ,t')}_\infty = L \norm{ (\Delta \vz,\Delta t)}_\infty,
+% \end{equation}
+% where $\Delta \vz = \vz - \vz'$ and $\Delta t = t - t'$. Next, consider $|\nabla_{z_k} G_i(\vz, t) - \nabla_{z'_k} G_i(\vz', t')|$ as the following 
+% \begin{align}
+%      &\left| \left( \exp \left( \frac{-z'_k}{\gamma} -1 \right) - \exp \left( \frac{-z_k}{\gamma} -1 \right)  \right) - n r_i \left( \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z'_k +t') \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} - \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z_k +t) \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right)} \right) \right| \\
+%      &\leq \left| \exp \left( \frac{-z'_k}{\gamma} -1 \right) - \exp \left( \frac{-z_k}{\gamma} -1 \right)  \right| + n r_i \left| \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z'_k +t') \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} - \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z_k +t) \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right)} \right|. 
+% \end{align}
+% Note that 
+% \begin{align}
+%     &\sum_{k = 1}^n n r_i \left| \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z'_k +t') \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} - \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z_k +t) \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right)} \right| \\
+%     &= \sum_{k = 1}^n  n r_i \left| \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z'_k +t') \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} - \frac{\exp \left(\frac{-1}{\gamma} (C_{i,k} + z'_k + \Delta z_k + t' + \Delta t) \right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + \Delta z_j + t' + \Delta t \right)  \right)} \right| \\
+%     &= n r_i \norm{\frac{ \left( \exp \left(\frac{-1}{\gamma} (C_{i,k} + z'_k +t') \right) \right)_{1 \leq k \leq n} }{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} - \frac{ \left( \exp \left( \frac{-1}{\gamma} (\Delta z_k + \Delta t) \right) \exp \left(\frac{-1}{\gamma} (C_{i,k} + z'_k + t') \right) \right)_{1 \leq k \leq n}}{1 + \sum_{j=1}^n \exp \left( \frac{-1}{\gamma} (\Delta z_j + \Delta t) \right) \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)}}_1 \\
+%     &= n r_i \norm{\frac{\ve}{1+\norm{\ve}_1} - \frac{\exp(\vf) \odot \ve}{1+\norm{\exp(\vf) \odot \ve}_1}}_1,
+% \end{align}
+% where $\ve = \left( \exp \left(\frac{-1}{\gamma} (C_{i,k} + z'_k +t') \right) \right)_{1 \leq k \leq n}$ and $\vf = \frac{-1}{\gamma} (\Delta \vz + \Delta t \cdot \ones)$. 
+% We will show that 
+% \begin{equation}
+%     n r_i \norm{\frac{\ve}{1+\norm{\ve}_1} - \frac{\exp(\vf) \odot \ve}{1+\norm{\exp(\vf) \odot \ve}_1}}_1 \leq 6 n r_i \norm{\vf}_\infty  \leq \frac{12 n r_i}{\gamma} \norm{ (\Delta \vz,\Delta t)}_\infty
+% \end{equation}
+% Note that 
+% \begin{align}
+%     \norm{\frac{\ve}{1+\norm{\ve}_1} - \frac{\exp(\vf) \odot \ve}{1+\norm{\exp(\vf) \odot \ve}_1}}_1  \leq \frac{\norm{\ve}_1}{1+\norm{\ve}_1} + \frac{
+%     \norm{\exp(\vf) \odot \ve}_1}{1+\norm{\exp(\vf) \odot \ve}_1} \leq 1 + 1 = 2.
+% \end{align}
+% If $\norm{\vf}_\infty > 0.5$, it is obvious the claim holds. It is left for us to show the claim when $\norm{\vf}_\infty \leq 0.5$. Consider further that \textcolor{red}{Hoang: fix the following equations}
+% \begin{align}
+%      \norm{\frac{\ve}{1+\norm{\ve}_1} - \frac{\exp(\vf) \odot \ve}{1+\norm{\exp(\vf) \odot \ve}_1}}_1 &= \frac{\sum_{i = 1}^n \left| e_i + \sum_{j=1}^n e_i \exp (f_j) e_j - e_i \exp(f_i) - \sum_{j=1}^n e_i \exp(f_i) e_j \right| }{(1+\norm{\ve}_1)(1+\norm{\exp(\vf) \odot \ve}_1)} \\
+%      &\leq \frac{\sum_{i = 1}^n \sum_{j=1}^n e_i e_j |\exp(f_j)-\exp(f_i)|}{(1+\norm{\ve}_1)(1+\norm{\exp(\vf) \odot \ve}_1)} + \frac{\sum_{i = 1}^n e_i |1- \exp(f_i)|}{(1+\norm{\ve}_1)(1+\norm{\exp(\vf) \odot \ve}_1)} \\
+%      &\leq \frac{\sum_{i = 1}^n \sum_{j=1}^n e_i e_j (|\exp(f_j)- 1| + |\exp(f_i)-1|)}{\norm{\ve}_1 \norm{\exp(\vf) \odot \ve}_1} + \frac{\sum_{i = 1}^n e_i |1- \exp(f_i)|}{\norm{\ve}_1} \\
+%      &\leq \frac{\sum_{i = 1}^n \sum_{j=1}^n e_i e_j 2(\exp(0.5)-1) (|f_j| + |f_i|)}{\norm{\ve}_1\norm{\exp(\vf) \odot \ve}_1} + \frac{\sum_{i = 1}^n e_i 2(\exp(0.5)-1) |f_i|}{\norm{\ve}_1} \\
+%      &\leq \frac{2(\exp(0.5)-1) \sum_{i = 1}^n \sum_{j=1}^n e_i e_j 2 \norm{\vf}_\infty}{\norm{\ve}_1\norm{\ve}_1 \exp(-0.5)} + \frac{2(\exp(0.5)-1) \sum_{i = 1}^n e_i \norm{\vf}_\infty}{\norm{\ve}_1} \\
+%      &= \left( \frac{4(\exp(0.5)-1)}{\exp(-0.5)} + 2(\exp(0.5)-1) \right) \norm{\vf}_\infty \\
+%      &< 6 \norm{\vf}_\infty.
+% \end{align}
+% Note that we used the Taylor expansion to upper bound expressions in the form $|\exp(x) - 1|$ for $x$ such that $|x| \leq 0.5$. More specifically,
+% \begin{align}
+%     |\exp(x) - 1| = |x| \left| 1 + \frac{x}{2} + \frac{x^2}{6} + ... \right| \leq |x| \left( 1 + \frac{0.5}{2} + \frac{0.5^2}{6} + ... \right) = 2 |x| \left(0.5 + \frac{0.5^2}{2} + \frac{0.5^3}{6} + ...\right) = 2 |x| (\exp(0.5) - 1).
+% \end{align}
+% Next, for all feasible $\vz^\ast$, we note that for $1 \leq i \leq n$
+% \begin{align}
+%     \exp \left( \frac{-z^\ast_i}{\gamma} -1 \right) = q_i \leq c_i,
+% \end{align}
+% which implies
+% \begin{equation}
+%     z^\ast_i \geq  \gamma (-1-\log c_i).
+% \end{equation}
+% Let $\mathcal{Z}$ be this feasible region for $\vz$. With the mean value  theorem applied to any $z'_k, z_k \in \mathcal{Z}$ we have 
+% \begin{align}
+%     \sum_{k=1}^n \left| \exp \left( \frac{-z'_k}{\gamma} -1 \right) - \exp \left( \frac{-z_k}{\gamma} -1 \right)  \right| &= \sum_{k=1}^n \frac{1}{\gamma} \exp \left( \frac{-\bar{z_k}}{\gamma} -1 \right) |z'_k - z_k| \\
+%     &\leq \sum_{k=1}^n \frac{1}{\gamma} c_i \norm{\Delta z}_\infty \\
+%     &\leq \frac{n c_i}{\gamma} \norm{(\Delta z,\Delta t)}_\infty.
+% \end{align}
+% Hence we obtain
+% \begin{align}
+%     \norm{\nabla_{
+%     \vz} G_i(\vz, t) - \nabla_{\vz'} G_i(\vz', t')}_1 \leq \frac{12 n r_i}{\gamma} \norm{ (\Delta \vz,\Delta t)}_\infty + \frac{n c_i}{\gamma} \norm{(\Delta z,\Delta t)}_\infty = \frac{12 n r_i + n c_i}{\gamma} \norm{ (\Delta \vz,\Delta t)}_\infty.
+% \end{align}
+% On the other hand, 
+% \begin{align}
+%     \norm{\nabla_{
+%     t} G_i(\vz, t) - \nabla_{t} G_i(\vz', t')}_1 &= n r_i \left| \frac{\sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)\right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} - \frac{\sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)\right)}{1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right)} \right| \\
+%     &= n r_i \frac{\left| \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)\right) - \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)\right) \right|}{\left( 1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right) \right)\left( 1 + \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z_j + t \right)  \right) \right)} \\
+%     &\leq n r_i \frac{\left| \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)\right) \left( 1- \exp \left( -\frac{1}{\gamma} (\Delta z_j +\Delta t) \right) \right) \right|}{ \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} \\ 
+%     &\leq n r_i \frac{\left| \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)\right) \left( - \frac{1}{\gamma}(\Delta z_j +\Delta t) \right) \right|}{ \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} \\
+%     &\leq n r_i \frac{\sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)\right) \left| \frac{1}{\gamma}(\Delta z_j +\Delta t) \right|}{ \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} \\
+%     &\leq n r_i \frac{\sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)\right) \frac{2}{\gamma} \norm{ (\Delta \vz,\Delta t)}_\infty}{ \sum_{j=1}^n \exp \left( - \frac{1}{\gamma} \left( C_{i, j} + z'_j + t' \right)  \right)} \\
+%     &= \frac{2 n r_i}{\gamma} \norm{ (\Delta \vz,\Delta t)}_\infty.
+% \end{align}
+% Hence, we obtain 
+% \begin{equation}
+%     \norm{\nabla G_i(\vz, t) - \nabla G_i(\vz', t')}_1 \leq \frac{12 n r_i + n c_i}{\gamma} \norm{ (\Delta \vz,\Delta t)}_\infty + \frac{2 n r_i}{\gamma} \norm{ (\Delta \vz,\Delta t)}_\infty = \frac{14 n r_i + n c_i}{\gamma} \norm{ (\Delta \vz,\Delta t)}_\infty.
+% \end{equation}
+% In other words, $G_i(\vz,t)$ is $\frac{14 n r_i + n c_i}{\gamma}$-Lipschitz continuous. Therefore, 
+% \begin{equation}
+%     \Bar{L} = \frac{1}{n} \sum_{i=1}^n \frac{14 n r_i + n c_i}{\gamma} = \frac{14 \norm{\vr}_1 + \norm{\vc}_1}{\gamma}.
+% \end{equation}
+
+
+% - $\textbf{G1:}$ Quantitative bound for Theorem 4.1.
+% - $\textbf{Reply:}$ We hereby revise Theorem 4.1 to provide the quantitative bound for the constraint violation of Sinkhorn. While it suggests increasing $A$ as a resort to alleviate the infeasibility (note that $n$ and $\varepsilon$ should be the same for both APDAGD and Sinkhorn as inputs), we highlight that Sinkhorn's complexity is  dependent on $\|\mathbf{\tilde{C}}\|_\infty^2=A^2$ (Dvurechensky et al., 2018), thereby exploding as $A \to \infty$. 
+% - $\textbf{Revised Theorem 4.1:}$ We have: $1^T \mathbf{\bar{X}} 1 \geq s + \exp\left(-\dfrac{12A \log{n}}{\varepsilon} - \mathcal{O}(\log{n})\right )$
+
+% $\textbf{Proof of Revised Theorem 4.1:}$ Recalling that $1^T \mathbf{X} 1 = s + \tilde{X}_{n+1,n+1}$ we thus proceed to lowerbound the second term. 
+% Note that the reformulated OT problem that Sinkhorn solves
+
+% \begin{equation*}
+% \min_{\mathbf{\tilde{X}} \geq 0} \langle \mathbf{\tilde{X}},\mathbf{\tilde{C}} \rangle \quad \text{s.t. } \quad \: \mathbf{X} \mathbf{1} = \mathbf{\tilde{r}}, \: \mathbf{X}^\top \mathbf{1} = \mathbf{\tilde{c}}.
+% \end{equation*}
+% With a well known dual formulation for entropic OT (Lin et al., 2019), we can minimize the Lagrangian w.r.t. $\mathbf{\tilde{X}}$ and obtain
+% \begin{equation*}
+%    \mathbf{\tilde{X}} = \exp \left( - \dfrac{\mathbf{\tilde{C}}}{\gamma} + \mathbf{u} \mathbf{1}^\top + \mathbf{1} \mathbf{v}^\top\right), 
+% \end{equation*}
+% where $\mathbf{u}, \mathbf{v}$ are the dual variable associated with each constraints. 
+
+% Now consider only the $\tilde{X}_{n+1,n+1}$ element, we can deduce
+
+% \begin{equation*}
+%    \tilde{X}_{n+1,n+1} = \exp \left(-\frac{\tilde{C}_{n+1,n+1}}{\gamma} - u_{n+1} -  v_{n+1}\right) \geq \exp \left( - \dfrac{A}{\gamma} - \|\mathbf{u}\|_\infty - \|\mathbf{v}\|_\infty\right).
+% \end{equation*}
+
+% Similar to our Lemma F.2 POT, a similar bound for the infinity norm of OT dual variables Lemma 3.2 (Lin et al., 2019) shows that $\| \mathbf{u} \|_\infty, \| \mathbf{v} \|_\infty \leq R$, where $R =  \dfrac{A}{\gamma} + \log(n) - 2 \log\left({\min_{1\leq i, j\leq n}\{r_i, c_j\}}\right)$. With $\gamma = \dfrac{\varepsilon}{4 \log{n}}$ set by Sinkhorn,  we obtain 
+% \begin{equation*}
+%    \tilde{X}_{n+1,n+1} \geq \exp\left(-\dfrac{12A \log{n}}{\varepsilon} - \mathcal{O}(\log{n})\right ). 
+% \end{equation*}
+% Next, through both wall-clock time and iteration count (see $\textbf{Figure 1}$ in our attached PDF), we empirically verify the tightness of our bound as well as showing the practical outperformance of APDAGD over Sinkhorn.  

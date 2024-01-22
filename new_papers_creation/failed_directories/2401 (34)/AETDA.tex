@@ -1,0 +1,109 @@
+%!TEX root =  main.tex
+
+\section{Adaptively ETDA (AETDA) Algorithm}\label{sec:aetda}
+
+
+
+
+In this section, we propose a new algorithm adaptively ETDA (AETDA) for many-to-one markets with responsive preferences which is incentive compatible. 
+To ensure each player has a chance to be matched, we simply assume $N\le C$ as existing works in many-to-one and one-to-one markets \citep{liu2020competing,liu2021bandit,zhang2022matching,kong2023player,wang2022bandit}, which relaxes the requirement of ETDA in the previous section. 
+
+
+For simplicity, we present the main algorithm in a centralized manner in Algorithm \ref{alg:AETDA}, i.e., a central platform coordinates players' selections in each round. The discussion on how to extend it to a decentralized setting is provided later.   
+
+
+\begin{algorithm}[thb!]
+    \caption{centralized adaptively explore-then-deferred-acceptance (AETDA, from the view of the central platform)}\label{alg:AETDA}
+    \begin{algorithmic}[1]
+    \STATE Initialize: $S_i = \cK, E_i = \true$ for each player $p_i \in \cN$ \label{alg:AETDA:initial}
+    \FOR{round $t=1,2,...,$}
+        \STATE Allocate $A_i(t) \in S_i$ to each player $p_i$ with $E_i = \true$ in a round-robin manner; Allocate $A_i(t) = \mathrm{opt}_i$ to each player $p_i$ with $E_i = \false$ \label{alg:AETDA:exploit}
+        \STATE Receive the estimation status $\mathrm{opt}_i$ from each $p_i$ \label{alg:AETDA:receiveOpt}
+        \FOR{each player $p_i\in \cN$ with $\mathrm{opt}_i \neq -1$}
+                \STATE $E_i = \false$ \label{alg:AETDA:opt:true:update}
+        \ENDFOR
+        \FOR{each player $p_i\in \cN$ and $a_j \in S_i$ with $p_i \notin \ch_j(\set{p_{i'}: \mathrm{opt}_{i'}=a_j }\cup \set{p_i})$} \label{alg:aetda:detect:start} 
+                \STATE $S_i = S_i \setminus \set{a_j}$ \label{alg:AETDA:update:Si}
+                % \STATE Set $E_i = \true$ if $E_i=\false$ and $a_j = \mathrm{opt}_i$ \label{alg:aetda:detect:E:false}
+                \IF{$E_i=\false$ and $a_j = \mathrm{opt}_i$} \label{alg:aetda:detect:E:false:start}
+                    \STATE $E_i = \true$ \label{alg:aetda:detect:E:false}
+                \ENDIF
+    \ENDFOR\label{alg:aetda:detect:end} 
+    \ENDFOR
+    \end{algorithmic}
+\end{algorithm}
+
+
+Intuitively, AETDA integrates the learning process into each step of DA instead of estimating the full preference ranking before following DA like the ETDA algorithm. More specifically, each player explores arms in a round-robin manner in each step to learn its most preferred arm and then focuses on this arm before being rejected in the corresponding step of DA. 
+For each player $p_i$, the algorithm maintains $S_i$ to represent the available arm set that has not rejected $p_i$ in previous steps
+and $E_i$ to represent the exploration status. Specifically, $E_i=\true$ means that $p_i$ still needs to explore arms in a round-robin manner to find its most preferred arm in $S_i$, and $E_i=\false$ means that $p_i$ now focuses on its most preferred available arm. At the beginning of the algorithm, $S_i$ is initialized as the full arm set $\cK$ and $E_i$ is initialized as $\true$ (Line \ref{alg:AETDA:initial}). 
+
+
+
+For players with $E_i = \true$, the central platform would allocate the arm $A_i(t)\in S_i$ in a round-robin manner.
+And for those players with $E_i=\false$, they can just focus on the determined optimal arm $\mathrm{opt}_i$ (Line \ref{alg:AETDA:exploit}).
+After being matched in each round, each player $p_i$ would update its empirical mean $\hat{\mu}_{i,A_i(t)}$ and the number of observed times $T_{i,A_i(t)}$ on arm $A_i(t)$ as $\hat{\mu}_{i,A_i(t)} = ({\hat{\mu}_{i,A_i(t)}\cdot T_{i,A_i(t)} + X_{i,A_i(t)}(t) })/{(T_{i,A_i(t)}+1)}\,,\ T_{i,A_i(t)} = T_{i,A_i(t)}+1$. 
+For the preference value $\mu_{i,j}$ towards each arm $a_j$, $p_i$ also maintains a confidence interval at $t$ with the upper bound $\ucb_{i,j}
+:= \hat{\mu}_{i,j}+\sqrt{{6\log T}/{T_{i,j}}}$ 
+and lower bound $\lcb_{i,j}
+:=\hat{\mu}_{i,j}-\sqrt{{6\log T}/{T_{i,j}}}$.  
+If $T_{i,j}=0$, $\ucb_{i,j}$ and $\lcb_{i,j}$ are set as $\infty$ and $-\infty$, respectively. 
+When the $\ucb$ of $a_j$ is even lower than the $\lcb$ of other available arms, $a_j$ is considered to be less preferred. Based on the estimations, $p_i$ needs to determine whether an arm can be considered as optimal in $S_i$ and submit this status to the platform (Line \ref{alg:AETDA:receiveOpt}). Specifically, if there exists an arm $a_j \in S_i$ such that $\lcb_{i,j} > \max_{a_{j'}\in S_i\setminus \set{a_j}}\ucb_{i,j'}$, then $a_j$ is regarded as optimal and player $p_i$ would submit $\mathrm{opt}_i = a_j$ to the platform. Otherwise, no arm can be regarded as optimal, and $p_i$ would submit $\mathrm{opt}_i=-1$. 
+For players who have learned their most preferred arm, the platform would mark their exploration status as $\false$ (Line \ref{alg:AETDA:opt:true:update}). 
+
+To avoid conflict when players with $E_i=\true$ explore arms in a round-robin manner, we introduce a detection procedure to detect whether an arm in $S_i$ is occupied by its more preferred players (Line \ref{alg:aetda:detect:start}-\ref{alg:aetda:detect:end}).   
+Specifically, if an arm $a_j$ does not accept player $p_i$ when faced with the player set who regards $a_j$ as the optimal one (Line \ref{alg:aetda:detect:start}), then $p_i$ can be regarded to be rejected by $a_j$ when exploring this arm. 
+In this case, no matter whether this arm is the most preferred one, $p_i$ has no chance of being matched with it. 
+So $p_i$ directly deletes $a_j$ from its available arm set $S_i$ (Line \ref{alg:AETDA:update:Si}). And if this arm is just the estimated optimal arm of $p_i$, then this case is equivalent in offline DA to that $p_i$ is rejected when proposing to its most preferred arm (Line \ref{alg:aetda:detect:E:false:start}). 
+In this case, $p_i$ needs to explore to learn its next preferred arm and update $E_i$ as $\true$ (Line \ref{alg:aetda:detect:E:false}). 
+
+
+For the arrangement of round-robin exploration, without loss of generality, we can convert the original set of $K$ arms with total capacity $C$ into a set of $C$ new arms, each with a capacity $1$. When $N$ players explore these $C$ new arms: the platform let $p_1$ follow the ordering $1,2,...,C-1,C,1,...$; $p_2$ follow $2,3,...,C,1,2,...$; and so on.
+If an arm $a_j$ is unavailable for a player $p_i$, $p_i$ simply forgo the opportunity to select in the corresponding rounds. This pre-arranged ordering ensures that, in the worst case, each player can match with each available new arm, and so as to the available original arm, at least once in every $C$ rounds.
+
+
+
+
+\paragraph{Extension to the decentralized setting. }
+In the decentralized setting without a central platform, each player maintains and updates their own $S_i$ and $E_i$. We can define a phase version of Algorithm \ref{alg:AETDA}. Specifically, each phase contains a number of rounds and the size of phases grows exponentially, i.e., $2,2^2,2^3,\cdots$. Within each phase, each player $p_i$ would explore arms in $S_i$ in a round-robin manner if $E_i=\true$ as discussed above and focus on arm $\mathrm{opt}_i$ otherwise. 
+Players only update the status of $\mathrm{opt}_i$ (Line \ref{alg:AETDA:receiveOpt}), $E_i$ (Line \ref{alg:AETDA:opt:true:update}),  and $S_i$ (Line \ref{alg:aetda:detect:start}-\ref{alg:aetda:detect:end}) at the end of the phase based on the communication with other players and arms. 
+If $L$ observations on arms are enough to learn the optimal one in the centralized version, then the stopping condition (Line \ref{alg:AETDA:receiveOpt}) would be satisfied at the end of the phase guaranteeing the number of observations in this decentralized version and the total number of selecting times would be at most $2L$ due to the exponentially increasing phase length. 
+So the regret in this decentralized version is at most two times as that suffered in the centralized version. And the number of communications is at most $O(\log T)$ which is of the same order as the ETDA algorithm and also \citet{kong2023player} for the one-to-one setting. 
+
+
+
+
+
+\subsection{Theoretical Analysis}
+
+Algorithm \ref{alg:AETDA} presents a new perspective that integrates the learning process into each step of the DA algorithm to find a player-optimal stable matching, which is more adaptive compared with existing explore-then-DA strategy \citep{zhang2022matching,kong2023player}. In the following, we will show that such a design simultaneously enjoys guarantees of player-optimal stable regret and incentive compatibility. 
+
+
+
+\begin{theorem}\label{thm:aetgs:regret}
+    Following Algorithm \ref{alg:AETDA}, the player-optimal stable regret of each player $p_i$ satisfies
+    \begin{align*}
+        \overline{R}_i(T) \le O\bracket{ N\cdot \min\set{N, K}C \log T/\Delta^2  } \,.
+    \end{align*}
+\end{theorem}
+
+
+
+The following theorem further discusses the incentive compatibility of Algorithm \ref{alg:AETDA}. 
+
+\begin{theorem}{(Incentive  Compatibility)}\label{thm:aetgs:strategic}
+Given that all of the other players follow Algorithm \ref{alg:AETDA}, no single player $p_i$ can improve its final matched arm by misreporting its $\mathrm{opt}_i$ in some rounds.  
+\end{theorem}
+
+
+Compared with \citet{wang2022bandit}, our result not only achieves 
+an $O(N^4K\log T/(C\varepsilon^{N^4}))$ improvement over their weaker player-pessimal stable regret objective but also enjoys guarantees of incentive compatibility. 
+Compared with the state-of-the-art result in one-to-one settings, our algorithm is more robust to players' deviation only with the cost of $O(NC)$ worse regret bound \citep{zhang2022matching,kong2023player}. 
+To the best of our knowledge, it is the first algorithm that simultaneously achieves guarantees of polynomial player-optimal stable regret and incentive compatibility in both many-to-one markets and previously widely studied one-to-one markets without knowing the value of $\Delta$. 
+
+Due to the space limit, the proofs of two theorems are deferred to Appendix \ref{sec:proof:aetda}. 
+
+
+
+
+

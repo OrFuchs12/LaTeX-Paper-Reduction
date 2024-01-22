@@ -1,0 +1,79 @@
+\section{Background: FedOPT and FedAvg}
+\label{sec:background}
+
+Many FL tasks can be formulated as solving the following optimization problems, 
+\begin{equation}
+\begin{gathered}
+\min_{x\in\mathbb{R}^d}f(x)\triangleq\frac{1}{n}\sum_{i=1}^n f_i(x), \quad
+\text{where} \quad f_i(x)=\mathbb{E}_{\xi\sim \mathcal{D}_i} f_i(x,\xi).
+\end{gathered}
+\label{fed_min_objective}
+\end{equation}
+where $n$ is the total number of clients, $x$ is the model parameter with $d$ dimension. Each client $i$ has a local data distribution $\mathcal{D}_i$ and a local objective function $f_i(x)=\mathbb{E}_{\xi\sim \mathcal{D}_i} f_i(x,\xi)$. The global objective function is the averaged objective among all clients. $\mathcal{D}_i$ can be very different from $\mathcal{D}_j$ when $i\neq j$.
+
+
+\begin{algorithm2e}[tb]
+\SetAlgoVlined
+\KwIn{
+Number of clients $n$, objective function $f(x)=\frac{1}{n}\sum_{i=1}^n f_i(x)$, initialization $x_0$, Number of communication rounds $T$, \textbf{local} learning rate $\eta_l$, \textbf{local} number of updates $K$, \textbf{global} hyperparameters $\mathbb{H}$;}
+\SetAlgoLined
+\For{$t\in\{1,...,T\}$}
+{   
+    Randomly sample a subset $\mathcal{S}_t$ of clients
+    
+    Server sends $x_t$ to subset $\mathcal{S}_t$ of clients
+    
+    \For{each client $i\in \mathcal{S}_t$}
+    {
+    $\Delta_t^i=\textbf{LocalOPT}\left(i,\eta_l,K,x_t\right)$
+    }
+    
+    Server aggregates $\Delta_t=\frac{1}{\lvert \mathcal{S}_t\rvert}\sum_{i\in \mathcal{S}_t}\Delta_t^i$
+    
+    $x_{t+1} = \textbf{ServerOPT}\left(x_t,\Delta_t,\mathbb{H}\right)$
+
+}
+return $x_T$
+\caption{\textbf{FedOPT} \citep{reddi2020adaptive}: A Generic Formulation of Federated Optimization}
+\label{alg:fedopt}
+\end{algorithm2e}
+
+\begin{algorithm2e}[tp]
+\SetAlgoVlined
+\KwIn{
+client index $i$, data distribution $\mathcal{D}_i$,
+\textbf{local} learning rate $\eta_l$, \textbf{local} updating number $K$,
+round $t$, \textbf{global} model $x_t$\;
+}
+\SetAlgoLined
+Initialize $x_{t,0}^i\gets x_t$
+    
+\For{$k\in\{0,1,...,K-1\}$}
+{
+Randomly sample a batch $\xi_{t,k}^i$ from $\mathcal{D}_i$
+    
+Compute $g_{t,k}^i=\nabla f_i(x_{t,k}^i, \xi_{t,k}^i)$
+    
+Update $x_{t,k+1}^i=x_{t,k}^i-\eta_l g_{t,k}^i$
+}
+$\Delta_t^i=x_t-x_{t,K}^i$
+return $\Delta_t^i$
+\caption{$\textbf{LocalOPT}\left(i,\eta_l,K,x_t\right)$}
+\label{alg:localopt}
+\end{algorithm2e}
+
+
+
+FedAvg \citep{McMahan2017FedAvg} and its variants are a special case of a more flexible formulation, \textbf{FedOPT} \citep{reddi2020adaptive}, which is formalized in Algorithm \ref{alg:fedopt}. Suppose the total number of rounds is $T$, and the global model parameter is $\{x_t\}_{t=1}^T$. At each round $t$, the server randomly samples a subset of clients $\mathcal{S}_t$ and sends the global model $x_t$ to them. Upon receiving $x_t$, each participating client would do \textbf{LocalOPT} (Algorithm \ref{alg:localopt}). Specifically, each client $i$ would initialize their local model at $x_t$, run $K$ steps of local SGD with local $\eta_l$ and the local model is updated to $x_{t,K}^i$. The client then sends the local model update $\Delta_t^i=x_t-x_{t,K}^i$ back to the server. The server aggregates by averaging, i.e. $\Delta_t=\frac{1}{\lvert \mathcal{S}_t\rvert}\sum_{i\in \mathcal{S}_t}\Delta_t^i$, and then triggers server-side optimization \textbf{ServerOPT}, which takes $x_t$, aggregated model update $\Delta_t$, and a hyperparameter set $\mathbb{H}$ as input, and outputs the next round's global model parameter $x_{t+1}$.
+
+In FedAvg, ServerOPT is simply $x_{t+1} = x_t - \Delta_t$, which is in spirit identical to SGD with a constant learning rate one if viewing $\Delta_t$ as a pseudo gradient. 
+
+
+
+
+
+
+
+
+
+

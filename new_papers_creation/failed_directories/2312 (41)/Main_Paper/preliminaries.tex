@@ -1,0 +1,73 @@
+\section{Preliminaries}
+
+\subsection{Notation} 
+% \label{sec:prelim:notation}
+
+The set of non-negative real numbers is $\RR_+$. We use bold capital font for matrices (e.g., $\vA$) and bold lowercase font for vectors (e.g., $\vx$). For an $m \times n$ matrix $\vX$, $\vecflatten(\vX)$ denotes the $(m n)$-dimensional vector obtained by concatenating the rows of $\vX$ and transposing the result. Entrywise multiplication and division for matrices and vectors are respectively denoted by $\odot$ and $\oslash$. For $1 \leq p \leq \infty$, let $\norm{\cdot}_p$ be the $\ell_p$-norm of matrix or vector. For matrices, $\norm{\cdot}_{p \rightarrow q}$ is the operator norm: $\norm{\vA}_{p \rightarrow q} = \sup_{\norm{\vx}_p = 1} \norm{\vA \vx}_q$. Three specific cases are considered in this paper: for $q \in \{1, 2, \infty\}$, $\norm{\vA}_{1 \rightarrow q}$ is the largest $\ell_q$ norm of any column of $\vA$. We use $\norm{\vA}_{\max}$ and $\norm{\vA}_{\min}$ to denote the maximum and minimum entries in absolute value of a matrix $\vA$, respectively. The $n$-vectors of zeros and of ones are respectively denoted by $\zeros_n$ and $\ones_n$. The $(n-1)$-dimensional probability simplex is $\Delta_n = \left\{ \vv \in \RR_+^n : \vv^\top \ones_n = 1 \right\}$. 
+
+\subsection{Partial Optimal Transport} 
+% \label{sec:prelim:pot}
+
+% \textbf{Optimal Transport:} Consider two finite measures $\vr, \vc \in \Delta_n$ and a cost matrix $\vC \in \RR^{n \times n}_+$ whereby $C_{i, j}$ is the cost of moving one unit of mass from $r_i$ to $c_j$. The Optimal Transport (OT) problem seeks a coupling matrix $\vX \in \RR^{n \times n}$, where $X_{i, j}$ is the amount of mass moved from $r_i$ to $c_j$, to minimize the total transportation cost:
+% with the smallest total cost. Formally, the transport matrix is the solution to the problem
+%\begin{align} \label{eq:ot_formulation}
+%  \mathbf{OT}(\vr, \vc) = \min_{\vX \in \mathcal{U}(\vr, \vc)} \inner{\vC}{\vX},
+%\end{align}
+%where the transport plan is  constrained by
+%$\mathcal{U}(\vr, \vc) \defeq \left\{ \mathbf{X} \in \RR_{+}^{n \times n} : \mathbf{X} \ones_n = \vr, \mathbf{X}^\top \ones_n = \vc \right\}$ \citep{Cuturi-2013-Sinkhorn}.
+
+%When $\vC$ is a Euclidean distance matrix, the optimal objective value of \eqref{eq:ot_formulation} defines the Wasserstein distance between $\vr$ and $\vc$.
+
+%\textbf{Partial Optimal Transport:} 
+% In this paper, we study the problem of \emph{partial optimal transport}, where we 
+%relaxes the requirement that $\vr$ and $\vc$ are probability vectors---i.e., they may have different masses
+
+Consider two discrete distributions $\vr, \vc \in \RR_+^{n}$ with possibly different masses. POT seeks a transport plan $\vX \in \RR_{+}^{n \times n}$ which maps $\vr$ to $\vc$ at the lowest cost. Since the masses at two marginals may differ, only a total mass $s$ such that $0 \leq s \leq \min\{\norm{\vr}_1, \norm{\vc}_1\}$ is allowed to be transported \citep{Chapel-nips2020, nhatho-mmpot}. Formally, the POT problem is written as
+% In order to account for the setting of unbalanced masses, i.e., $\|\vr\|_1 \neq \|\vc\| _1$,  Partial Optimal Transport (POT) instead relaxes the marginal constraints and seeks a \emph{partial} transportation of only a fraction of $0 \leq s \leq \min\{\norm{\vr}_1, \norm{\vc}_1\}$ of the specified mass \citep{Chapel-nips2020, nhatho-mmpot}. Formally, the problem can be written as:  
+% We also assume that a fixed amount of mass $s$ ($0 \leq s \leq \min\{\norm{\vr}_1, \norm{\vc}_1\}$) must be transported between them. The POT problem is modified from \eqref{eq:ot_formulation} as a constrained linear program
+\begin{align} \label{eq:pot_formulation}
+  \mathbf{POT}(\vr, \vc, s) = \min \inner{\vC}{\vX} ~~\text{s.t.}~~ \vX \in \mathcal{U}(\vr, \vc, s),
+\end{align}
+where $\mathcal{U}(\vr, \vc, s)$ is defined as $$ \left\{ \mathbf{X} \in \RR_{+}^{n \times n} : \mathbf{X} \ones_n \leq \vr, \mathbf{X}^\top \ones_n \leq \vc, \ones_n^\top \mathbf{X} \ones_n = s \right\},$$ 
+i.e. the feasible set for the transport map $\vX$ is and $\vC \in \RR^{n \times n}_+$ is a cost matrix.
+The goal of this paper is to derive efficient algorithms to find an $\varepsilon$-approximate solution to $\mathbf{POT}(\vr, \vc, s)$, pursuant to the following definition.
+
+\begin{definition}[$\varepsilon$-approximation]
+For $\varepsilon \geq 0$, the matrix $\vX \in \RR_{+}^{n \times n} $ is an $\varepsilon$-approximate solution to $ \mathbf{POT}(\vr, \vc, s)$ if $\vX \in \mathcal{U}(\vr, \vc, s)$ and
+\begin{equation*}
+    \inner{\vC}{{\vX}} \leq \min \inner{\vC}{\vX'} + \varepsilon ~~ \text{s.t.} ~~ \vX' \in \mathcal{U}(\vr, \vc, s).
+\end{equation*}
+\end{definition}
+% The primary aim of this paper is to efficiently find an $\varepsilon$-approximate solution $\widehat{\vX} \in \mathcal{U}(\vr, \vc, s)$ for problem \eqref{eq:pot_formulation} such that
+% \begin{equation}
+%     \inner{\vC}{\widehat{\vX}} \leq \min_{\mathbf{X} \in \mathcal{U}(\vr, \vc, s)} \inner{\mathbf{C}}{\mathbf{X}} + \varepsilon.
+% \end{equation}
+% The marginal constraints in the original OT problem have been changed to inequality constraints in \eqref{eq:pot_formulation}. This is because an admissible coupling is forced to have the total mass of $s$. 
+
+To aid the algorithmic design in the following sections, we introduce two new slack variables $\vp, \vq \in \RR_+^{n}$ and equivalently express problem \eqref{eq:pot_formulation} as
+\begin{align}
+    \label{prob:pot_with_pq}
+        &\min_{\vX \geq 0, \vp \geq 0, \vq \geq 0} \inner{\vC}{\vX} \\
+        &\text{s.t. } \: \mathbf{X} \ones_n + \vp = \vr, \mathbf{X}^\top \ones_n + \vq = \vc, \ones_n^\top \mathbf{X} \ones_n = s.
+\end{align}
+We also study a convenient equivalent formulation of this problem:
+\begin{equation} \label{main_problem}
+    \min_{\vx \geq \zeros} \:  \inner{\vd}{\vx} ~~ \text{s.t.} ~~ \vA\vx = \vb,
+\end{equation}
+where we perform vectorization with $\vd^\top = (\vecflatten(\vC)^\top, \zeros_{2n}^\top)$ and  $\vx^\top = (\vecflatten(\vX)^\top, \vp^\top, \vq^\top)$. 
+% We use $\vecflatten(\vX)$ and $\vecflatten(\vC)$ to denote the vectorized versions of $\vX$ and $\vC$, respectively. 
+The  constraints in Equation \ref{prob:pot_with_pq} are encoded in $\vA\vx = \vb$, where $\vA \in \RR^{(2n + 1) \times (n^2+2n)}$ and $\vb \in H \defeq \RR^{2n+1}$ such that $(\vA \vx)^\top = ((\vX \ones + \vp)^\top, (\vX^\top \ones + \vq)^\top, \ones^\top \vX \ones)$ and $\vb^\top = (\vr^\top, \vc^\top, s)$. In other words, the linear operator $\vA$ has the form
+\begin{equation*} \label{matrix_A}
+    \vA = \left(
+    \begin{array}{cc}
+    \vA' & \vI_{2n} \\
+    \ones_{n^2}^\top & \zeros_{2n}
+    \end{array} \right),
+\end{equation*}
+where $\vA'$ is the edge-incidence matrix of the underlying bipartite graph in OT problems \citep{Dvurechensky-2018-Computational,Jambulapati-2019-Direct}.
+
+% \begin{remark}
+% Though matrix $\vA \in \mathbb{R}^{(n^2+2n)\times(2n+1)}$,
+% $\vA$ has $\mathcal{O}(n^2)$ non-zero entries since $\vA'$ is an bipartite incidence matrix. 
+% The implementations of both our algorithms make use of this special structure of $\vA$. Specifically, operations in the form of $\vA \vx$ (line 1 of APDAGD Algorithm \ref{alg:APDAGD}, lines 10, 13 of DE Algorithm \ref{alg:Dual_Extrapolation_POT}) or $\vA^\top \vx$ (lines 9, 12 of DE Algorithm \ref{alg:Dual_Extrapolation_POT} and lines 1, 4 of Alternating Algorithm \ref{alg:alternating_minimization}) are all implemented implicitly in $\mathcal{O}(n^2)$.    
+% \end{remark}

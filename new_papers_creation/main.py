@@ -3,7 +3,7 @@ from Vspace_delete import *
 import os
 from addRows import *
 import shutil
-
+import time
 
 
 
@@ -13,6 +13,7 @@ def loop_through_directories(directory_path):
         for directory in dirs:
             subdirectory_path = os.path.join(root, directory)   
             print("now in directory: --------------------------------: " ,subdirectory_path)
+            
             try:
                 create_new_pdf(subdirectory_path)
                 move_changed_pdfs(subdirectory_path, "new_papers_creation/results")
@@ -20,8 +21,7 @@ def loop_through_directories(directory_path):
                 print(f"An error occurred: {e}, the directory : {subdirectory_path} was not created")
                 # move the directory to failed directory
                 shutil.move(subdirectory_path, "new_papers_creation/failed_directories")
-            
-
+    
 
 def create_new_pdf(directory_path):
     tex_file_path = find_tex_file(directory_path)
@@ -68,7 +68,51 @@ def move_changed_pdfs(directory_path, destination_path):
 
     
 
-loop_through_directories("new_papers_creation\\failed_last_time")
+loop_through_directories("new_papers_creation\\All_Directories")
+
+import os
+import glob
+import re
+
+def extract_title_from_latex(latex_path):
+    title_pattern = re.compile(r'\\title{([^}]*)}')
+
+    with open(latex_path, 'r', encoding='utf-8') as file:
+        content = file.read()
+        match = title_pattern.search(content)
+        if match:
+            title = match.group(1).strip().replace(':', '')
+            return title
+        else:
+            return None
+
+def rename_directories(base_directory):
+    for folder in os.listdir(base_directory):
+        folder_path = os.path.join(base_directory, folder)
+
+        if os.path.isdir(folder_path):
+            # Look for a LaTeX file with "_changed" in its name
+            latex_files = glob.glob(os.path.join(folder_path, '*_changed.tex'))
+
+            if latex_files:
+                latex_path = latex_files[0]
+                paper_title = extract_title_from_latex(latex_path)
+
+                if paper_title:
+                    # Extract the first word of the title
+                    first_word = paper_title.split()[0]
+
+                    # Rename the directory
+                    new_folder_name = os.path.join(base_directory, first_word)
+                    os.rename(folder_path, new_folder_name)
+                    print(f'Renamed directory: {folder} to {first_word}')
+                else:
+                    print(f'Error: Unable to extract title from LaTeX in {folder}')
+
+                
+                
+                
+# rename_directories("new_papers_creation\\results")
 # create_new_pdf("new_papers_creation\\AAAI 2016")
 # create_new_pdf('new_papers_creation\\aaai_docs')
 # str = "hello yosi my name is or"
