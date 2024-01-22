@@ -18,6 +18,7 @@ def remove_math_patterns(text):
         # Stage 2: Replace 'something_letter' or 'something_number' with 'something_'
         replacement = re.sub(r'_(\w)', '_', original_match)
         replacement = re.sub(r'_\{.*?\}', '_', replacement)
+        replacement = re.sub(r'\\mathcal', '', replacement)
         text = text.replace(original_match, replacement, 1)  # Replace only the first occurrence
 
 
@@ -34,6 +35,8 @@ def clean_latex_line(helpline):
     helpline = re.sub(pattern, '', helpline)
     pattern = r'\\ref\{[^\}]+\}'
     helpline = re.sub(pattern, '', helpline)
+    pattern = r'\\label\{[^\}]+\}'
+    helpline = re.sub(pattern, '', helpline)
     helpline = helpline.replace(r'\emph', '')
     helpline = helpline.replace(r'\textit', '')
     helpline = helpline.replace(r'\textbf', '')
@@ -41,6 +44,7 @@ def clean_latex_line(helpline):
     helpline = helpline.replace(r'\cdot', '')
     helpline = helpline.replace(r'\em', '')
     helpline = helpline.replace(r'\underline', '')
+    helpline = helpline.replace(r'\protect', '')
     latex_command_pattern = re.compile(r'\\[a-zA-Z]+')
     helpline = re.sub(latex_command_pattern, '', helpline)
     helpline = regex.sub(' ', helpline)
@@ -59,26 +63,30 @@ def find_first_row_in_last_page(pdf_file_path, latex_path):
         # Extract text only from the left column
         text = page.within_bbox(left_column).extract_text()
         text = text.split('\n')
-        iteration =0
-        last_iteration = False
+        iteration_tables =0
+        iteration_images = 0 
+        last_iteration_tables = False
+        last_iteration_images = False
         return_index = 0
         while(len(text) > 1):
-            if last_iteration:
+            if last_iteration_tables and last_iteration_images:
                 break
             return_index = find_first_line(pdf_file_path, latex_path, return_index)
-            first_line, is_start_table, is_start_figure, return_index, last_iteration = check_if_text_inside_table(pdf_file_path, latex_path, iteration, return_index)
+            first_line, is_start_table, is_start_figure, return_index, last_iteration_tables = check_if_text_inside_table(pdf_file_path, latex_path, iteration_tables, return_index)
             if is_start_table==False or is_start_figure==True:
-                first_line, is_start_image, return_index, last_iteration = check_if_text_inside_image(pdf_file_path, text, latex_path, is_start_figure)
+                first_line, is_start_image, return_index, last_iteration_images = check_if_text_inside_image(pdf_file_path, text, latex_path, is_start_figure, return_index)
             if is_start_table or is_start_figure or is_start_image:
-                #the first line is different from the first line in text and we need to check again if the first line is inside table or image
+                #the first line is different from the first line in text_in_page and we need to check again if the first line is inside table or image
                 text= text[return_index:]
-                iteration+=1
+                if is_start_table:
+                    iteration_tables+=1
+                else:
+                    iteration_images+=1
             else:
                 break
         return first_line
 
-def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figure = False):
-    return_index = 0
+def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figure = False, return_index=0):
     index = 0
     last_iteration = False
     with pdfplumber.open(pdf_path) as pdf:
@@ -105,10 +113,34 @@ def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figu
                     break
             text_in_page, return_index = remove_caption(text_in_page, latex_path, 'Figure')
             return text_in_page, True, return_index+index, last_iteration
-        return text_in_page[0], False, return_index+index, last_iteration
-    
+        return text_in_page[return_index], False, return_index+index, last_iteration
+
+
+def check_invalid_chars(latex_path):
+    with open(latex_path, 'r', encoding='utf-8', errors='replace') as file:
+        content = file.read()
+    invalid_char_pattern = re.compile(r'[^\x00-\x7F]')
+    content_fixed = invalid_char_pattern.sub('', content)
+    with open(latex_path, 'w', encoding='utf-8') as file:
+        file.write(content_fixed)
+
+if __name__ == "__main__":
+    # Replace 'yourfile.tex' with the actual path to your LaTeX file
+    latex_file_path = 'yourfile.tex'
+
+    # Specify the replacement character (e.g., '?')
+    replacement_character = '?'
+
+    # Call the function to replace invalid characters
+    replace_invalid_chars(latex_file_path, replacement_character)
+            
+
+
+
+
 def convert_Latex_to_rows_list(latex_path,pdf_path):
     find_tables_to_add_adjust_box(latex_path, pdf_path)
+    check_invalid_chars(latex_path)
     rows_list = []
     # the first row in the page we want to start the extraction from
     first_row_to_begin = find_first_row_in_last_page(pdf_path, latex_path)
@@ -232,7 +264,7 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
             #the table is first so we need to get the y coordinate of the last line in the table
             
             #get the first line in page that is after the table
-            for index, line in enumerate(text):
+            for index, line in enumerate(text[return_index:]):
                 if line['top'] > y_coordinate:
                     line = text[index]
                     #extract text only from after the table so from y_coordinate
@@ -252,7 +284,7 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
                         break
                     else: 
                         first_line = rel_text[0]
-                        return_index = index
+                        return_index += index
                     break
         return first_line, is_table, is_figure, return_index, last_iteration
     
@@ -263,7 +295,7 @@ def check_if_text_inside_table(pdf_path, latex_path, iteration=0, return_index=0
         return text_after_table, is_table, is_figure, return_index, last_iteration
                             
 def remove_caption(text_in_page, latex_path , caption_type):
-    with open(latex_path, 'r', encoding='utf-8' ) as f:
+    with open(latex_path, 'r', encoding='utf-8', errors='ignore') as f:
         lines = f.readlines()
     #find all lines that start with \caption
     caption_lines = []
@@ -393,7 +425,7 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
     return rows_list
 
 def extract_tables_from_latex(latex_path):
-    with open(latex_path, 'r') as file:
+    with open(latex_path, 'r',  encoding='UTF-8') as file:
         content = file.read()
     # Use a modified pattern to capture both table and table* environments
     table_pattern = re.compile(r'\\begin{table\*?}(.*?)\\end{table\*?}', re.DOTALL)
@@ -465,7 +497,7 @@ def find_tables_to_add_adjust_box(latex_path, pdf_path):
 
     
     # find all the tables environments in the latex file
-    with open(latex_path, 'r') as file:
+    with open(latex_path, 'r', encoding='utf-8') as file:
         content = file.read()
 
     # check if usepackage{adjustbox} is already in the file
@@ -529,7 +561,7 @@ def find_tables_to_add_adjust_box(latex_path, pdf_path):
 
             
     # write the content to the file
-    with open(latex_path, 'w') as file:
+    with open(latex_path, 'w',  encoding='UTF-8') as file:
         file.write(content)
             
             

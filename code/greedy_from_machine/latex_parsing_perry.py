@@ -221,8 +221,6 @@ def count_paragraphs(lines,ans,new_dict):
         par_start = 0
         definition_flag = False
         for line_number in range(section[0],section[1]+1):
-            if line_number == 308:
-                pass
             str_line = str(lines[line_number])
             if str_line.startswith("\\begin") or str_line.startswith("$\\begin"):
                 if str_line.startswith("\\begin{definition}"):
@@ -239,7 +237,6 @@ def count_paragraphs(lines,ans,new_dict):
                     is_in_begin-=1
                 else:
                     continue
-
             if str_line.startswith("\\alg\\") or str_line.startswith("\\noindent") or (not str_line.startswith(f"\\")) or str_line.startswith(f"\\citeauthor") :
                 if flag == False and not (str_line.isspace()):
                     count += 1

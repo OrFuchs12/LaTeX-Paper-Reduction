@@ -49,9 +49,9 @@ def remove_comments(latex_path):
                 
 #things like \begin{figure*} become \begin{figure}
 def remove_astrik_inside_paranthases(latex_path):
-    with open(latex_path, 'r') as f:
+    with open(latex_path, 'r', encoding='UTF-8') as f:
         lines = f.readlines()
-    with open(latex_path, 'w') as f:
+    with open(latex_path, 'w', encoding='UTF-8') as f:
         for line in lines:
             line = re.sub(r'\\begin{(\w+)\*}', r'\\begin{\1}', line)
             line = re.sub(r'\\end{(\w+)\*}', r'\\end{\1}', line)
