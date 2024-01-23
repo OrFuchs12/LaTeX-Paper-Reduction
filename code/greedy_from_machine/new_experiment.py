@@ -821,7 +821,7 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
             subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
             after_pdf = os.path.join("code/~/results/new_files/", paper_name)
             after_pdf = os.path.join(after_pdf, "after_operator1.pdf")
-            last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES)
+            last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
             
             
             # os.system(cmd_line_act)
@@ -933,7 +933,7 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
                 subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
                 after_pdf = os.path.join("code/~/results/new_files/", paper_name)
                 after_pdf = os.path.join(after_pdf, "after_operator2.pdf")
-                last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES)
+                last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
 
                 new_number_of_pages = check_lines(after_pdf)[1]
 
@@ -1093,7 +1093,7 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
                 subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
                 after_pdf = os.path.join("code/~/results/new_files/", paper_name)
                 after_pdf = os.path.join(after_pdf, "after_operator3.pdf")
-                last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES)
+                last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
 
                 new_number_of_pages = check_lines(after_pdf)[1]
                 lines_before = lines
@@ -1175,7 +1175,7 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
                     remove_comments(path_to_latex)
                 if path_to_pdf:
                     num_of_pages = check_lines(path_to_pdf)[1]
-                    last_pages_pdf_path = copy_last_pages(path_to_pdf,NUMBER_OF_LAST_PAGES)
+                    last_pages_pdf_path = copy_last_pages(path_to_pdf,NUMBER_OF_LAST_PAGES, 0)
             elif file.is_dir():
                 # move all the directories in 'code/greedy_from_machine/files' directory to 'code/~/results/new_files' directory
                 source_dir = os.path.join("code/greedy_from_machine/files", paper_directory)
