@@ -63,31 +63,27 @@ def find_first_row_in_last_page(pdf_file_path, latex_path):
         # Extract text only from the left column
         text = page.within_bbox(left_column).extract_text()
         text = text.split('\n')
-        iteration_tables =0
-        iteration_images = 0 
-        last_iteration_tables = False
-        last_iteration_images = False
+        iteration =0
+        last_iteration = False
         return_index = 0
         while(len(text) > 1):
-            if last_iteration_tables and last_iteration_images:
+            if last_iteration:
                 break
             return_index = find_first_line(pdf_file_path, latex_path, return_index)
-            first_line, is_start_table, is_start_figure, return_index, last_iteration_tables = check_if_text_inside_table(pdf_file_path, latex_path, iteration_tables, return_index)
+            first_line, is_start_table, is_start_figure, return_index, last_iteration = check_if_text_inside_table(pdf_file_path, latex_path, iteration, return_index)
             if is_start_table==False or is_start_figure==True:
-                first_line, is_start_image, return_index, last_iteration_images = check_if_text_inside_image(pdf_file_path, text, latex_path, is_start_figure, return_index)
+                first_line, is_start_image, return_index, last_iteration = check_if_text_inside_image(pdf_file_path, text, latex_path, is_start_figure)
             if is_start_table or is_start_figure or is_start_image:
                 #the first line is different from the first line in text_in_page and we need to check again if the first line is inside table or image
                 text= text[return_index:]
-                if is_start_table:
-                    iteration_tables+=1
-                else:
-                    iteration_images+=1
+                iteration+=1
             else:
                 break
         return first_line
 
-def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figure = False, return_index=0):
+def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figure = False):
     index = 0
+    return_index = 0
     last_iteration = False
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
@@ -113,7 +109,7 @@ def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figu
                     break
             text_in_page, return_index = remove_caption(text_in_page, latex_path, 'Figure')
             return text_in_page, True, return_index+index, last_iteration
-        return text_in_page[return_index], False, return_index+index, last_iteration
+        return text_in_page[0], False, return_index+index, last_iteration
 
 
 def check_invalid_chars(latex_path):
@@ -123,20 +119,7 @@ def check_invalid_chars(latex_path):
     content_fixed = invalid_char_pattern.sub('', content)
     with open(latex_path, 'w', encoding='utf-8') as file:
         file.write(content_fixed)
-
-if __name__ == "__main__":
-    # Replace 'yourfile.tex' with the actual path to your LaTeX file
-    latex_file_path = 'yourfile.tex'
-
-    # Specify the replacement character (e.g., '?')
-    replacement_character = '?'
-
-    # Call the function to replace invalid characters
-    replace_invalid_chars(latex_file_path, replacement_character)
             
-
-
-
 
 def convert_Latex_to_rows_list(latex_path,pdf_path):
     find_tables_to_add_adjust_box(latex_path, pdf_path)
@@ -264,7 +247,7 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
             #the table is first so we need to get the y coordinate of the last line in the table
             
             #get the first line in page that is after the table
-            for index, line in enumerate(text[return_index:]):
+            for index, line in enumerate(text):
                 if line['top'] > y_coordinate:
                     line = text[index]
                     #extract text only from after the table so from y_coordinate
@@ -284,7 +267,7 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
                         break
                     else: 
                         first_line = rel_text[0]
-                        return_index += index
+                        return_index= index
                     break
         return first_line, is_table, is_figure, return_index, last_iteration
     
