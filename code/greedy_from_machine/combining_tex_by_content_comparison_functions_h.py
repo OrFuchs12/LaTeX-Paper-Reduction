@@ -139,7 +139,7 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
                     if current_need_to_be_caption_figure==True: #looking for caption
 
                         for cap_index, caption in enumerate(figure_captions_set):
-                            helpline = regex.sub('', caption[0][1])
+                            helpline = caption[0][1]
                             helpline = clean_latex_line(helpline)
                             if currline.startswith(helpline):
                                 last_obj_caption = ["Figure", cap_index]
@@ -167,7 +167,7 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
 
                     elif current_need_to_be_caption_table==True:
                         for caption in table_captions_set:
-                            helpline = regex.sub('', caption[0][1])
+                            helpline = caption[0][1]
                             helpline = clean_latex_line(helpline)
                             if currline.startswith(helpline):
 

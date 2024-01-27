@@ -18,15 +18,24 @@ def remove_math_patterns(text):
         # Stage 2: Replace 'something_letter' or 'something_number' with 'something_'
         replacement = re.sub(r'_(\w)', '_', original_match)
         replacement = re.sub(r'_\{.*?\}', '_', replacement)
+        replacement = re.sub(r'\\mathcal', '', replacement)
         text = text.replace(original_match, replacement, 1)  # Replace only the first occurrence
 
+
+    frac_pattern = re.compile(r'\\frac\{(\w+)\}\{(\d+)\} ([^\s]+) (\d+)')
+    # Replace the pattern with the desired format
+    text = re.sub(frac_pattern, r'{\1} \3 \4', text)
     return text
 
 def clean_latex_line(helpline):
     regex = re.compile('[^a-zA-Z]')
     pattern = r'\\cite\{[^\}]+\}'
     helpline = re.sub(pattern, '', helpline)
+    pattern = r'\\citet\{[^\}]+\}'
+    helpline = re.sub(pattern, '', helpline)
     pattern = r'\\ref\{[^\}]+\}'
+    helpline = re.sub(pattern, '', helpline)
+    pattern = r'\\label\{[^\}]+\}'
     helpline = re.sub(pattern, '', helpline)
     helpline = helpline.replace(r'\emph', '')
     helpline = helpline.replace(r'\textit', '')
@@ -35,11 +44,12 @@ def clean_latex_line(helpline):
     helpline = helpline.replace(r'\cdot', '')
     helpline = helpline.replace(r'\em', '')
     helpline = helpline.replace(r'\underline', '')
+    helpline = helpline.replace(r'\protect', '')
     latex_command_pattern = re.compile(r'\\[a-zA-Z]+')
     helpline = re.sub(latex_command_pattern, '', helpline)
     helpline = regex.sub(' ', helpline)
     helpline = remove_math_patterns(helpline)
-    helpline = re.sub(r'[^a-zA-Z0-9]+', '', helpline)
+    helpline = re.sub(r'[^a-zA-Z]+', '', helpline)
     helpline= helpline.lower()
 
     return helpline
@@ -64,7 +74,7 @@ def find_first_row_in_last_page(pdf_file_path, latex_path):
             if is_start_table==False or is_start_figure==True:
                 first_line, is_start_image, return_index, last_iteration = check_if_text_inside_image(pdf_file_path, text, latex_path, is_start_figure)
             if is_start_table or is_start_figure or is_start_image:
-                #the first line is different from the first line in text and we need to check again if the first line is inside table or image
+                #the first line is different from the first line in text_in_page and we need to check again if the first line is inside table or image
                 text= text[return_index:]
                 iteration+=1
             else:
@@ -72,8 +82,8 @@ def find_first_row_in_last_page(pdf_file_path, latex_path):
         return first_line
 
 def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figure = False):
-    return_index = 0
     index = 0
+    return_index = 0
     last_iteration = False
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
@@ -100,14 +110,25 @@ def check_if_text_inside_image(pdf_path, text_in_page, latex_path, is_start_figu
             text_in_page, return_index = remove_caption(text_in_page, latex_path, 'Figure')
             return text_in_page, True, return_index+index, last_iteration
         return text_in_page[0], False, return_index+index, last_iteration
-    
+
+
+def check_invalid_chars(latex_path):
+    with open(latex_path, 'r', encoding='utf-8', errors='replace') as file:
+        content = file.read()
+    invalid_char_pattern = re.compile(r'[^\x00-\x7F]')
+    content_fixed = invalid_char_pattern.sub('', content)
+    with open(latex_path, 'w', encoding='utf-8') as file:
+        file.write(content_fixed)
+            
+
 def convert_Latex_to_rows_list(latex_path,pdf_path):
     find_tables_to_add_adjust_box(latex_path, pdf_path)
+    check_invalid_chars(latex_path)
     rows_list = []
     # the first row in the page we want to start the extraction from
     first_row_to_begin = find_first_row_in_last_page(pdf_path, latex_path)
     # clean the line to make it easier to compare
-    clean_line = re.sub(r'[^a-zA-Z0-9]+', '', first_row_to_begin)
+    clean_line = re.sub(r'[^a-zA-Z]+', '', first_row_to_begin)
     clean_line = clean_line.lower()
     # search the line in  the latex file
     try:
@@ -121,7 +142,6 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
         # flag to know if we found the line we want to end the extraction from
         found_end = False
         # clean the line to make it easier to compare
-        pattern = r'\\[a-zA-Z]+(?:\[[^\]]\])?(?:\{[^\}]\})?'
         match_was_in_second_line = False
         for i in range(len(lines)):
             if match_was_in_second_line:
@@ -134,24 +154,10 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
                 line = first_line + next_line
             else:
                 line = lines[i]
-            line = remove_math_patterns(line)
-            frac_pattern = re.compile(r'\\frac\{(\w+)\}\{(\d+)\} ([^\s]+) (\d+)')
-            # Replace the pattern with the desired format
-            clean_line_latex = re.sub(frac_pattern, r'{\1} \3 \4', line)
-            clean_line_latex = re.sub(r'\\phi', '', clean_line_latex)
-            clean_line_latex = re.sub(pattern, '', clean_line_latex)
-            clean_latex_line_to_compare = re.sub(r'[^a-zA-Z0-9]+', '', clean_line_latex)
-            
-            clean_next_line = remove_math_patterns(next_line)
-            clean_next_line = re.sub(frac_pattern, r'{\1} \3 \4', clean_next_line)
-            clean_next_line = re.sub(pattern, '', clean_next_line)
-            clean_next_line = re.sub(r'[^a-zA-Z0-9]+', '', clean_next_line)
-            clean_next_line = clean_next_line.lower()
-            
-            clean_line = clean_line.lower()
-            clean_latex_line_to_compare = clean_latex_line_to_compare.lower()
-            clean_next_line = clean_next_line.lower()
-            
+
+            clean_latex_line_to_compare = clean_latex_line(line)
+            clean_next_line = clean_latex_line(next_line)
+
             while(not found_start and clean_line not in clean_latex_line_to_compare):
                 lines_before_the_line += 1
                 rows_list.append('\n')
@@ -261,7 +267,7 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
                         break
                     else: 
                         first_line = rel_text[0]
-                        return_index = index
+                        return_index= index
                     break
         return first_line, is_table, is_figure, return_index, last_iteration
     
@@ -272,7 +278,7 @@ def check_if_text_inside_table(pdf_path, latex_path, iteration=0, return_index=0
         return text_after_table, is_table, is_figure, return_index, last_iteration
                             
 def remove_caption(text_in_page, latex_path , caption_type):
-    with open(latex_path, 'r', encoding='utf-8' ) as f:
+    with open(latex_path, 'r', encoding='utf-8', errors='ignore') as f:
         lines = f.readlines()
     #find all lines that start with \caption
     caption_lines = []
@@ -402,7 +408,7 @@ def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption
     return rows_list
 
 def extract_tables_from_latex(latex_path):
-    with open(latex_path, 'r') as file:
+    with open(latex_path, 'r',  encoding='UTF-8') as file:
         content = file.read()
     # Use a modified pattern to capture both table and table* environments
     table_pattern = re.compile(r'\\begin{table\*?}(.*?)\\end{table\*?}', re.DOTALL)
@@ -419,11 +425,7 @@ def extract_tables_from_latex(latex_path):
         for line in table_lines:
             multicolumn_pattern = re.compile(r'\\multicolumn{[0-9]+}{.*?}{(.*?)}')
             line = re.sub(multicolumn_pattern, r'{\1}', line)
-            line = remove_math_patterns(line)
-            latex_command_pattern = re.compile(r'\\[a-zA-Z]+')
-            line = re.sub(latex_command_pattern, '', line)
-            line = re.sub(r'[^a-zA-Z0-9]+', '', line)
-            line= line.lower()
+            line = clean_latex_line(line)
             clean_table_lines.append(line)
         tables_dict[table_id] = clean_table_lines
     return tables_dict
@@ -478,7 +480,7 @@ def find_tables_to_add_adjust_box(latex_path, pdf_path):
 
     
     # find all the tables environments in the latex file
-    with open(latex_path, 'r') as file:
+    with open(latex_path, 'r', encoding='utf-8') as file:
         content = file.read()
 
     # check if usepackage{adjustbox} is already in the file
@@ -542,7 +544,7 @@ def find_tables_to_add_adjust_box(latex_path, pdf_path):
 
             
     # write the content to the file
-    with open(latex_path, 'w') as file:
+    with open(latex_path, 'w',  encoding='UTF-8') as file:
         file.write(content)
             
             

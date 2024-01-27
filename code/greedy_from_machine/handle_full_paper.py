@@ -11,8 +11,9 @@ NUMBER_OF_LAST_PAGES = 2
 # pdf_path = 'last_pages_from_full_paper\AAAI 2016\prize_changed.pdf'
   
 #create a new pdf file with only last pages
-def copy_last_pages(input_pdf_path, NUMBER_OF_LAST_PAGES):
-    output_pdf_path = input_pdf_path[:-4] + "_last_pages.pdf"
+def copy_last_pages(input_pdf_path, NUMBER_OF_LAST_PAGES, iteration):
+    output_pdf_path = input_pdf_path[:-4] + "_last_pages_" + str(iteration) + '.pdf'
+
     pdf_document = fitz.open(input_pdf_path)
     total_pages = len(pdf_document)
     new_pdf_document = fitz.open()
@@ -49,9 +50,9 @@ def remove_comments(latex_path):
                 
 #things like \begin{figure*} become \begin{figure}
 def remove_astrik_inside_paranthases(latex_path):
-    with open(latex_path, 'r') as f:
+    with open(latex_path, 'r', encoding='UTF-8') as f:
         lines = f.readlines()
-    with open(latex_path, 'w') as f:
+    with open(latex_path, 'w', encoding='UTF-8') as f:
         for line in lines:
             line = re.sub(r'\\begin{(\w+)\*}', r'\\begin{\1}', line)
             line = re.sub(r'\\end{(\w+)\*}', r'\\end{\1}', line)

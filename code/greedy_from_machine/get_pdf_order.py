@@ -73,12 +73,12 @@ def order_page(path,page_num,tables_dict,pictures_dict,frompdf):
 
         if key_picture["x0"]<300:
             if (key_picture["y0"],key_picture["y1"]) in left_column: #it is possible that two figures have the exact same height
-                left_column[(key_picture["y0"],key_picture["y1"])][0]+="_FIGUREFIGURE"
+                left_column[(key_picture["y0"],key_picture["y1"])] = (left_column[(key_picture["y0"],key_picture["y1"])][0] +"_FIGUREFIGURE", left_column[(key_picture["y0"],key_picture["y1"])][1])
             else:
                 left_column[(key_picture["y0"],key_picture["y1"])]=("FIGUREFIGURE",0)
         else:
             if (key_picture["y0"],key_picture["y1"]) in right_column: #it is possible that two figures have the exact same height
-                right_column[(key_picture["y0"],key_picture["y1"])][0]+="_FIGUREFIGURE"
+                right_column[(key_picture["y0"],key_picture["y1"])] = (right_column[(key_picture["y0"],key_picture["y1"])][0] +"_FIGUREFIGURE", right_column[(key_picture["y0"],key_picture["y1"])][1])
             else:
                 right_column[(key_picture["y0"],key_picture["y1"])]=("FIGUREFIGURE",0)
 
