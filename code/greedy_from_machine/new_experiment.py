@@ -1,6 +1,9 @@
 import os
 import pickle
+import subprocess
 import time
+import shutil
+import pdfplumber
 import perry
 import perry2
 import PyPDF2
@@ -13,7 +16,38 @@ import features_single
 import pandas as pd
 import time
 import xgboost as xg
+from Last_2_pages_rows_extract import convert_Latex_to_rows_list
+from handle_full_paper import copy_last_pages
+from handle_full_paper import remove_comments
+from handle_full_paper import remove_astrik_inside_paranthases
+import cv2
+from pdf2image import convert_from_path
+import numpy as np
+NUMBER_OF_LAST_PAGES = 2
 
+
+def get_new_height(img_path, new_width):
+    try:
+        if img_path.lower().endswith('.pdf'):
+            images = convert_from_path(img_path, first_page=1, last_page=1)
+            if images:
+                image = images[0]
+                # Convert PIL image to OpenCV format
+                im = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+                height, width, channel = im.shape
+                new_height = round((height * new_width / width), 2)
+                return new_height
+        elif img_path.lower().endswith(('.png', '.jpg', '.jpeg')):
+            im = cv2.imread(img_path)
+            if im is not None:
+                height, width, channel = im.shape
+                new_height = round((height * new_width / width), 2)
+                return new_height
+        else:
+            print("Unsupported file format or invalid path.")
+    except Exception as e:
+        print("Error:", e)
+    return None
 
 def take(n, iterable):
     "Return first n items of the iterable as a list"
@@ -48,33 +82,67 @@ def is_par(lst, index):
 
 
 def combine_two_paragraphs(lst, index_1, index_2):
-    lst[index_1] = lst[index_1].replace("\n", " ") + lst.pop(index_2)
+    # lst[index_1] = lst[index_1].replace("\n", " ") + lst.pop(index_2)
+    # return lst
+    # Start removing newlines from index_2 backward until a non-newline is found above it
+    orig_2 = index_2
+    while index_2 > index_1 + 1 and lst[index_2 - 1] == '\n':
+        del lst[index_2 - 1]
+        index_2 -= 1
+    #remove \n from lst[index_2 - 1]
+    lst[index_2 - 1] = lst[index_2 - 1].replace("\n", " ")
+    
+    # Combine the paragraphs by replacing the newline with a space
+    lst[index_2 - 1] += " " + lst.pop(index_2)
+    
     return lst
 
+def extract_resizebox_width(latex_command):
+    empty_resizebox = False
+    missing_number_index = None
+    # Regular expression pattern to match the width value in the LaTeX command
+    pattern = r'\\resizebox{([0-9.]*)\\+[a-zA-Z]+}'
+    match = re.search(pattern, latex_command)
+    if match:
+        width_value = match.group(1)
+        if width_value == '':
+            width_value = 1
+            empty_resizebox = True
+            missing_number_index = match.start(1)
+        try:
+            return float(width_value), empty_resizebox, missing_number_index
+        except ValueError:
+            return None, None, None
+    else:
+        return None, None, None
 
-def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to_file):
+def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, paper_name,lidor):  # ,path_to_file):
 
-    #lidor creation, same as in test (creation of the lines that matter in latex) 
-    with open(latex_path, encoding='UTF-8') as file:
-        lidor = []
-        latex_clean_lines = []
-        with open(latex_path, encoding='UTF-8') as file:
-            foundHeader = False
-            foundBottom = False
-            for line in file:
-                latex_clean_lines.append(line)
-                if foundHeader == False:
-                    if line.startswith("\\begin{document}"):
-                        foundHeader = True
-                    lidor.append("\n")
-                else:
-                    if foundBottom == False and line.startswith("\\end{document}"):
-                        foundBottom = True
-                    else:
-                        if foundBottom == False:
-                            lidor.append(line)
+    latex_clean_lines = []
+    with open(latex_path, encoding='UTF-8') as f:
+        file = f.read()
+        file = file.split("\n")
+        # foundHeader=False
+        # foundBottom=False
+        for line in file:
+            line = line.lstrip()
+            line += "\n"
+            latex_clean_lines.append(line)
+            # if foundHeader==False:
+            #     if line.startswith("\\begin{document}"):
+            #         foundHeader=True
+            #     lidor.append("\n")
+            # else:
+            #     if foundBottom==False and line.startswith("\\end{document}"):
+            #         foundBottom=True
+            #     elif foundBottom == False and line == "":
+            #         lidor.append("\n")
+            #     else:
+            #         if foundBottom==False:
+            #             lidor.append(line)
 
-    
+
+  
     list_of_starts, tags = perry2.parse2_lidor(latex_path, lidor)  # perry.parse2_lidor(latex_path, lidor)
     index_for_object = {'Par': 1, 'Figure': 2, 'CaptionFigure': 3, 'Table': 4, 'CaptionTable': 5, 'Section': 6,
                         'SubSection': 7, 'Matrix': 8, 'Enum': 9, 'Formula': 10, 'Algorithm': 11}
@@ -175,6 +243,9 @@ def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to
     pdf_pairs = [(pdf_order[i], pdf_order[i + 1]) for i in range(len(pdf_order) - 1)]
     latex_pairs = [(latex_order[i], latex_order[i + 1]) for i in range(len(latex_order) - 1)]
     pair_to_check = []
+    
+    height = 0
+    width = 0
 
     for key, value in objects.items():  # in this loop we will make all the operators
 
@@ -320,9 +391,10 @@ def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to
                 if (index_to_go_through > len(latex_clean_lines)):
                     break
                 if (latex_clean_lines[index_to_go_through].startswith(
-                        '\\begin{adjustbox}')):  # finding the line where we can change the scale of the figure
+                        '\\begin{adjustbox}')) or latex_clean_lines[index_to_go_through].startswith('\\resizebox'):  # finding the line where we can change the scale of the figure
                     found_index = index_to_go_through
-                    flag = True
+                    flag = True                    
+
                 else:
                     index_to_go_through += 1
             if (flag == False):
@@ -331,10 +403,12 @@ def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to
             # we will first find the places and then add the values based on the scale
             string_to_edit = latex_clean_lines[
                 found_index]  # the line that we need to edit in order to change the scale
+            width, empty_resizebox, resize_index = extract_resizebox_width(string_to_edit)
             # we will look for width and if it exists we will change it
+            empty_number = False
             start_index = string_to_edit.find('width')
             running_index = 0
-            if (start_index != -1):  # find the number for width
+            if (start_index != -1) and width == None:  # find the number for width
                 running_index = start_index
                 while (running_index < len(string_to_edit)):
                     if (string_to_edit[running_index] == '='):
@@ -347,6 +421,9 @@ def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to
                             else:
                                 number += string_to_edit[running_index]
                                 running_index += 1
+                        if number == '':
+                            number = 1
+                            empty_number = True
                         width = float(number)
                         break
                     running_index += 1
@@ -364,8 +441,24 @@ def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to
                     heuristic = value['height'] * 0.2222
                 elif (i == 3):
                     heuristic = value['height'] * 0.3333
-                new_width = options[i]
-                new_str = string_to_edit.replace(str(width), str(new_width))
+                new_width = options[i] 
+                if width == 0:
+                    #  in the begin adjust box there is no width. we have begin{adjubox}{}, we need to find the index of the second {
+                    index_of_second_bracket = string_to_edit.find('{', string_to_edit.find('{') + 1)
+                    new_str = string_to_edit[:index_of_second_bracket + 1] + "width=" + str(new_width) + "\columnwidth" + string_to_edit[index_of_second_bracket+1:]
+                else:
+                    if empty_number:
+                       #add the new_width after =
+                        new_str = string_to_edit.replace('=', '=' + str(new_width)) 
+                    elif empty_resizebox:
+                        #add the new_width to the resize_index
+                        new_str = string_to_edit[:resize_index] + str(new_width) + string_to_edit[resize_index:]
+                    elif width == 2: 
+                        new_str = string_to_edit.replace(str(int(width)), str(2 * new_width))
+                    elif width == 1:
+                        new_str = string_to_edit.replace(str(int(width)), str(new_width))                        
+                    else:
+                        new_str = string_to_edit.replace(str(width), str(round(new_width * width, 2)))
                 copy_list = copy.deepcopy(latex_clean_lines)
                 copy_list[found_index] = new_str
                 table_name_key_new_latex_list_value[key].append(
@@ -415,13 +508,17 @@ def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to
                             else:
                                 number += string_to_edit[running_index]
                                 running_index += 1
+                        if number == '':
+                            number= 1
                         width = float(number)
                         break
                     running_index += 1
+            given_height = False
             start_index = string_to_edit.find('height')
             running_index = 0
             if (start_index != -1):  # find the number for height
                 running_index = start_index
+                given_height = True
                 while (running_index < len(string_to_edit)):
                     if (string_to_edit[running_index] == '='):
                         running_index += 1  # now we will find the number and change it
@@ -433,14 +530,25 @@ def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to
                             else:
                                 number += string_to_edit[running_index]
                                 running_index += 1
+                        
                         height = float(number)
                         break
                     running_index += 1
+            else: #no height declared in latex, we will find the height using proportion of width 
+                #get height in point and convert to inches
+                height = round(value['height']/72, 2)
+
+               
+                
+                
             # create 5 options:
             options = [0.9, 0.8, 0.7, 0.6, 0.5]  # scale options
             figure_name_key_new_latex_list_value[
                 key] = []  # this dict will have the key as the figure name and then value will be the lists of the new latex content for the new file
             string_to_edit = latex_clean_lines[found_index]  # the string to edit
+            if not given_height:
+                index_for_height = string_to_edit.find(']')
+                string_to_edit = string_to_edit[:index_for_height] + ",height=" + str(height) +"in "+ string_to_edit[index_for_height:]
             heuristic = 0
             for i in range(5):
                 if (i == 0):
@@ -457,6 +565,8 @@ def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to
                 new_height = height * options[i]
                 new_str = string_to_edit.replace(str(width), str(new_width))
                 new_str = new_str.replace(str(height), str(new_height))
+
+                    
                 copy_list = copy.deepcopy(latex_clean_lines)
                 copy_list[found_index] = new_str
                 figure_name_key_new_latex_list_value[key].append(
@@ -522,7 +632,7 @@ def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to
         str__ = arr_of_places_and_vspace_to_add[i][1]
         latex_clean_lines.insert(chosen_index_to_insert, str__)
         latex_clean_lines = latex_clean_lines  # [1:]
-        latex_string = ''.join(latex_clean_lines)
+        latex_string = ''.join(latex_clean_lines) #todo find why putting all the latexstring
         num_of_object = re.findall('\d+', arr_of_places_and_vspace_to_add[i][4])[0]
         operators_dict.append((arr_of_places_and_vspace_to_add[i][5], latex_string, 1,
                                arr_of_places_and_vspace_to_add[i][6], arr_of_places_and_vspace_to_add[i][2],
@@ -632,14 +742,21 @@ def check_lines(file_path):
     path_to_pdf - path to the pdf file 
     path_to_latex - path to the latex file 
 """
-def simple_greedy(path_to_pdf, path_to_latex):
+def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
+    reduced = False
     try:
         operators_done = []
         #perform feature extraction to the file
-        features_single.run_feature_extraction(path_to_latex, path_to_pdf, '/code/greedy_from_machine/bibliography.bib',
+        # extract_name= path_to_pdf.split("/")[-1].split(".")[0]
+        # remove_comments(path_to_latex)
+            
+        # new_path= "new.pdf"
+        # copy_last_pages(path_to_pdf, new_path, 2)
+        df, lidor = features_single.run_feature_extraction(path_to_latex, path_to_pdf, '/code/greedy_from_machine/bibliography.bib',
                                                     "code/~/results/dct0",
-                                                    "~/results/new_files/dct0", "test", pd.DataFrame())
+                                                    "code/~/results/new_files/dct0", "test", pd.DataFrame())
         lines, pages = check_lines(path_to_pdf)
+
 
         #check whether the file is not good for the algorithm:
         if lines < 2:
@@ -655,18 +772,21 @@ def simple_greedy(path_to_pdf, path_to_latex):
         reduced = False
         iteration = 0
         total_cost = 0
+        starting_lines = lines
+        
 
         print("begin lines:", lines)
         print("begin pages:", pages)
+        print("target lines:", target)
         start = time.time()
-        while (lines > target and pages > 1):
-            print("index:", index)
+        while ( not reduced ): # if we manage to short the paper
+            print("lines : --------------", lines, "pages: --------------", pages)
             # get the dictionary of the file
             with open('code/~/results/dct0', 'rb') as dct_file:
                 dct = pickle.load(dct_file) #dict of dicts: for each object in file what are the features
 
             # get list of all possible operators to apply on the file
-            res = perform_operators(dct, 0, path_to_latex, "~/results/new_files/")
+            res = perform_operators(dct, 0, path_to_latex, path_to_pdf ,"code/~/results/new_files/", paper_name,lidor)
             print("total operators:", len(res))
 
             # whether there are no more operators
@@ -688,33 +808,46 @@ def simple_greedy(path_to_pdf, path_to_latex):
 
             latex_after_operator = res[index][1]
             # write the file after operator to file
-            f = open("code/~/results/new_files/after_operator1.tex", "w")
+            after_path = os.path.join("code/~/results/new_files/", paper_name)
+            after_path = os.path.join(after_path, "after_operator1.tex")
+            f = open(after_path, "w")
             f.write(latex_after_operator)
             f.close()
 
             # compile the file
-            cmd_line_act = 'tectonic -X compile ' + "code/~/results/new_files/after_operator1.tex"
-            os.system(cmd_line_act)
-
-            lines_before = lines
+            # cmd_line_act = 'tectonic -X compile ' + "code/~/results/new_files/after_operator1.tex"
+            dir_path = os.path.join("code/~/results/new_files", paper_name)
+            base_name = os.path.basename(after_path)
+            # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+            subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
+            after_pdf = os.path.join("code/~/results/new_files/", paper_name)
+            after_pdf = os.path.join(after_pdf, "after_operator1.pdf")
+            last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
+            
+            
+            # os.system(cmd_line_act)
+            new_number_of_pages = check_lines(after_pdf)[1]
             # check the new current number of lines
-            lines, pages = check_lines("code/~/results/new_files/after_operator1.pdf")
+            lines, pages = check_lines(last_pages_pdf)
+            fullLines , fullPages = check_lines(after_pdf)
             print("current lines:", lines)
             print("current pages:", pages)
 
-            path_to_latex = "code/~/results/new_files/after_operator1.tex"
+            path_to_latex = after_path
 
-            features_single.run_feature_extraction("code/~/results/new_files/after_operator1.tex", 
-                    "code/~/results/new_files/after_operator1.pdf", '~/results/bibliography.bib',
-                    "code/~/results/dct0", "~/results/new_files/dct0", "test", pd.DataFrame())
+            if (lines <= target or pages < 2 or new_number_of_pages < num_of_pages): # lines > starting_lines is for the case that we get the last 2 pages after we made it shoreter
+                reduced = True
+
+            if not reduced:
+                df, lidor = features_single.run_feature_extraction(after_path, 
+                        last_pages_pdf, 'code/~/results/bibliography.bib',
+                        "code/~/results/dct0", "code/~/results/new_files/dct0", "test", pd.DataFrame())
 
             total_cost += res[index][0]
             index += 1
             iteration += 1
 
             # if we manage to short the paper
-            if (lines <= target or pages < 2):
-                reduced = True
 
         end = time.time()
 
@@ -729,13 +862,14 @@ def simple_greedy(path_to_pdf, path_to_latex):
     path_to_pdf - path to the pdf file 
     path_to_latex - path to the latex file 
 """
-def heuristic_greedy(path_to_pdf, path_to_latex):
+def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
+    reduced = False
     try:
         operators_done = []
         #perform feature extraction to the file
-        features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'greedy_from_machine/bibliography.bib',
-                                                    "~/results/dct0",
-                                                    "~/results/new_files/dct0", "test", pd.DataFrame())
+        df, lidor = features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
+                                                    "code/~/results/dct0",
+                                                    "code/~/results/new_files/dct0", "test", pd.DataFrame())
         lines, pages = check_lines(path_to_pdf)
         #check whether the file is not good for the algorithm:
         if lines < 2:
@@ -752,16 +886,18 @@ def heuristic_greedy(path_to_pdf, path_to_latex):
         iteration = 0
         LINE_WIDTH = 10
         total_cost = 0
+        starting_lines = lines
         print("begin lines:", lines)
         print("begin pages:", pages)
         start = time.time()
-        while (lines > target and pages > 1):
+        while (not reduced):
             print("index:", index)
+            
             # get the dictionary of the file
-            with open('~/results/dct0', 'rb') as dct_file:
+            with open('code/~/results/dct0', 'rb') as dct_file:
                 dct = pickle.load(dct_file)
             # get list of all possible operators to apply on the file
-            res = perform_operators(dct, 0, path_to_latex, "~/results/new_files/")
+            res = perform_operators(dct, 0, path_to_latex, path_to_pdf, "code/~/results/new_files/", paper_name, lidor)
             print("total operators:", len(res))
 
             # whether there are no more operators
@@ -785,34 +921,43 @@ def heuristic_greedy(path_to_pdf, path_to_latex):
             if res[index][0] >= LINE_WIDTH:
                 latex_after_operator = res[index][1]
                 # write the file after operator to file
-                f = open("~/results/new_files/after_operator2.tex", "w")
+                after_path = os.path.join("code/~/results/new_files/", paper_name)
+                after_path = os.path.join(after_path, "after_operator2.tex")
+                f = open(after_path, "w")
                 f.write(latex_after_operator)
                 f.close()
 
                 # compile the file
-                cmd_line_act = 'tectonic -X compile ' + "~/results/new_files/after_operator2.tex"
-                os.system(cmd_line_act)
+                dir_path = os.path.join("code/~/results/new_files", paper_name)
+                base_name =  os.path.basename(after_path)
+                # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+                subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
+                after_pdf = os.path.join("code/~/results/new_files/", paper_name)
+                after_pdf = os.path.join(after_pdf, "after_operator2.pdf")
+                last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
 
-                lines_before = lines
+                new_number_of_pages = check_lines(after_pdf)[1]
+
                 # check the new current number of lines
-                lines, pages = check_lines("~/results/new_files/after_operator2.pdf")
+                lines, pages = check_lines(last_pages_pdf)
+                fullLines , fullPages = check_lines(after_pdf)
                 print("current lines:", lines)
                 print("current pages:", pages)
 
-                path_to_latex = "~/results/new_files/after_operator2.tex"
+                path_to_latex = after_path
 
-                features_single.run_feature_extraction("~/results/new_files/after_operator2.tex", 
-                    "~/results/new_files/after_operator2.pdf", '~/results/bibliography.bib',
-                    "~/results/dct0", "~/results/new_files/dct0", "test", pd.DataFrame())
+                # if we manage to short the paper
+                if (lines <= target or pages < 2 or new_number_of_pages < num_of_pages): 
+                    reduced = True
+
+                if not reduced:
+                    df , lidor = features_single.run_feature_extraction(path_to_latex, 
+                    last_pages_pdf, 'code/~/results/bibliography.bib',
+                    "code/~/results/dct0", "code/~/results/new_files/dct0", "test", pd.DataFrame())
 
                 iteration += 1
                 total_cost += res[index][0]
                 index += 1
-
-                # if we manage to short the paper
-                if (lines <= target or pages < 2):
-                    reduced = True
-
             else:
                 index += 1
 
@@ -856,7 +1001,8 @@ def load_models(models_path):
     path_to_latex - path to the latex file 
     models - dict of models (dictionary) 
 """
-def model_greedy(path_to_pdf, path_to_latex, models):
+def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
+    reduced = False
     try:
         operators_done = []
         lines, pages = check_lines(path_to_pdf) 
@@ -870,9 +1016,9 @@ def model_greedy(path_to_pdf, path_to_latex, models):
             return -1, -1, False, -1
 
         #perform feature extraction to the file
-        df1 = features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'greedy_from_machine/bibliography.bib',
-                                                        "~/results/dct0",
-                                                        "~/results/new_files/dct0", "test",
+        df1,lidor = features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
+                                                        "code/~/results/dct0",
+                                                        "code/~/results/new_files/dct0", "test",
                                                         pd.DataFrame())
         df1 = df1.T
         df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
@@ -884,21 +1030,22 @@ def model_greedy(path_to_pdf, path_to_latex, models):
         reduced = False
         iteration = 0
         total_cost = 0
+        starting_lines = lines
 
         print("begin lines:", lines)
         print("begin pages:", pages)
 
         start = time.time()
-        while (lines > target and pages > 1):
+        while (not reduced):
 
             print("index:", index)
 
             # get the dictionary of the file
-            with open('~/results/dct0', 'rb') as dct_file:
+            with open('code/~/results/dct0', 'rb') as dct_file:
                 dct = pickle.load(dct_file)
 
             # get list of all possible operators to apply on the file
-            res = perform_operators(dct, 0, path_to_latex, "~/results/new_files/")
+            res = perform_operators(dct, 0, path_to_latex, path_to_pdf, "code/~/results/new_files/", paper_name, lidor)
             print("total operators:", len(res))
 
             # whether there are no more operators
@@ -910,7 +1057,7 @@ def model_greedy(path_to_pdf, path_to_latex, models):
                 model_to_predict = (str(res[index][2]), str(res[index][3]), str(res[index][4]), res[index][5])
             else:
                 model_to_predict = (str(res[index][2]), str(res[index][3]), res[index][5])
-
+ 
             # whether we applied the operator before
             if model_to_predict in operators_done:
                 index += 1
@@ -933,38 +1080,51 @@ def model_greedy(path_to_pdf, path_to_latex, models):
             if prediction > 0 and res[index][0] >= 10:
                 latex_after_operator = res[index][1]
 
-                f = open("~/results/new_files/after_operator3.tex", "w")
+                after_path = os.path.join("code/~/results/new_files/", paper_name)
+                after_path = os.path.join(after_path, "after_operator3.tex")
+                f = open(after_path, "w")
                 # write the file after operator to file
                 f.write(latex_after_operator)
                 f.close()
 
                 # compile the file
-                cmd_line_act = 'tectonic -X compile ' + "~/results/new_files/after_operator3.tex"
-                os.system(cmd_line_act)
+                dir_path =os.path.join("code/~/results/new_files", paper_name)
+                base_name = os.path.basename(after_path)
+                # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+                subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
+                after_pdf = os.path.join("code/~/results/new_files/", paper_name)
+                after_pdf = os.path.join(after_pdf, "after_operator3.pdf")
+                last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
 
+                new_number_of_pages = check_lines(after_pdf)[1]
                 lines_before = lines
                 # check the new current number of lines
-                lines, pages = check_lines("~/results/new_files/after_operator3.pdf")
+                lines, pages = check_lines(last_pages_pdf)
                 print("current lines:", lines)
                 print("current pages:", pages)
 
-                path_to_latex = "/results/new_files/after_operator3.tex"
+                path_to_latex = after_path
 
-                df1 = features_single.run_feature_extraction(
-                    "~/results/new_files/after_operator3.tex",
-                    "~/results/new_files/after_operator3.pdf", '~/results/bibliography.bib',
-                    "~/results/dct0", "~/results/new_files/dct0", "test",
-                    pd.DataFrame())
-                df1 = df1.T
-                df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
-                            'num_of_object'], axis=1, inplace=True)
+                if (lines <= target or pages < 2 or new_number_of_pages < num_of_pages): # lines > starting_lines is for the case that we get the last 2 pages after we made it shoreter
+                    reduced = True
+                
+                if not reduced:
+
+                    df1, lidor = features_single.run_feature_extraction(
+                        path_to_latex,
+                        last_pages_pdf, 'code/~/results/bibliography.bib',
+                        "code/~/results/dct0", "code/~/results/new_files/dct0", "test",
+                        pd.DataFrame())
+                    df1 = df1.T
+                    df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
+                                'num_of_object'], axis=1, inplace=True)
 
                 total_cost += res[index][0]
                 index += 1
                 iteration += 1
                 
                 # if we manage to short the paper
-                if (lines <= target or pages < 2):
+                if (lines <= target or pages < 2 or lines > starting_lines):
                     reduced = True
             else:
                 index += 1
@@ -987,54 +1147,68 @@ def model_greedy(path_to_pdf, path_to_latex, models):
     models - dict of models (dictionary) 
 """
 def run_greedy_experiment(variant_function, variant_name, variant_file_name, files_dir, results_dir, models=None):
-    names = [] #names of the files
     directory = files_dir
-    for file in os.scandir(directory):
-        if file.is_file():
-            # uncomment this 2 lines if you don't have the pdfs
-            # cmd_line_act = '"C:\\Users\\user\\tectonic.exe" ' + f"{directory}\\{file.name}"
-            # os.system(cmd_line_act)
-            names.append(file.name.split('.')[0])
-
     results = []
     idx = 0
-    done = 1
-
-    # iterate all the files in the directory
-    for filename in set(names):
-        print(f"file in test {idx}:", filename)
+    for paper_dir in os.scandir(directory):
+        print("paper_dir:", paper_dir.name)
+        names = []
+        paper_directory = paper_dir.name
         idx += 1
-        try:
-            # get the full pdf path of the file
-            file_path = os.path.join(directory, filename + ".pdf")
-            if os.path.isfile(file_path):
-                path_to_pdf = file_path
-            
-            # get the full latex path of the file
-            file_path = os.path.join(directory, filename + ".tex")
-            if os.path.isfile(file_path):
-                path_to_latex = file_path
+        done = 1
+        path_to_latex = None
+        path_to_pdf = None
+        for file in os.scandir(paper_dir):
+            if file.is_file():
+                source_dir = os.path.join("code/greedy_from_machine/files", paper_directory)
+                destination_dir = os.path.join("code/~/results/new_files", paper_directory)       
+                os.makedirs(destination_dir, exist_ok=True)     
+                if file.name.lower().endswith("_changed.pdf") :
+                    path_to_pdf = os.path.join(destination_dir, file.name)
+                if file.name.lower().endswith("_changed.tex") :
+                    path_to_latex = os.path.join(destination_dir, file.name)
+                    
 
-            # whether you want to run the model-based greedy algorithm
-            if models: 
-                iterations, time_taken, reduced, cost = variant_function(path_to_pdf, path_to_latex, models)
+                source_path = file.path
+                destination_path = os.path.join(destination_dir, file.name)
+                shutil.copy(source_path, destination_path)
+                if path_to_latex:
+                    remove_comments(path_to_latex)
+                if path_to_pdf:
+                    num_of_pages = check_lines(path_to_pdf)[1]
+                    last_pages_pdf_path = copy_last_pages(path_to_pdf,NUMBER_OF_LAST_PAGES, 0)
+            elif file.is_dir():
+                # move all the directories in 'code/greedy_from_machine/files' directory to 'code/~/results/new_files' directory
+                source_dir = os.path.join("code/greedy_from_machine/files", paper_directory)
+                destination_dir = os.path.join("code/~/results/new_files", paper_directory)
+                os.makedirs(destination_dir, exist_ok=True)
+                source_path = file.path
+                destination_path = os.path.join(destination_dir, file.name)
+                # if directory already exists in destination, do not copy it
+                if not os.path.exists(destination_path):
+                    shutil.copytree(source_path, destination_path)
+                
 
-            # whether you want to run other greedy algorithms
-            else: 
-                iterations, time_taken, reduced, cost = variant_function(path_to_pdf, path_to_latex)
 
-            if iterations != -1:
-                results.append((filename, variant_name, reduced, iterations, time_taken, cost))
+                # whether you want to run the model-based greedy algorithm
+        if models: 
+            iterations, time_taken, reduced, cost = variant_function(last_pages_pdf_path, path_to_latex, models,num_of_pages, paper_directory)
 
-                # write the results every document finished (just in case)
-                df = pd.DataFrame(results, columns=["Name", "Algorithm", "Reduced", "Iterations", "Time", "Cost"])
+        # whether you want to run other greedy algorithms
+        else: 
+            iterations, time_taken, reduced, cost = variant_function(last_pages_pdf_path, path_to_latex,num_of_pages, paper_directory)
+
+        if iterations != -1:
+            results.append(( paper_dir.name, variant_name, reduced, iterations, time_taken, cost))
+            try:
+            # write the results every document finished (just in case)
+                df = pd.DataFrame(results, columns=["Directory", "Name", "Algorithm", "Reduced", "Iterations", "Time", "Cost"])
                 df.to_csv(f'{results_dir}/{variant_file_name}.csv', index=False)
+            except Exception as e:
+                print(e)
 
-                print("Done!", done)
-                done += 1
-
-        except Exception as e:
-            print(e)
+            print("Done!", done)
+            done += 1
 
     # write the final results
     df = pd.DataFrame(results, columns=["Name", "Algorithm", "Reduced", "Iterations", "Time", "Cost"])
@@ -1053,7 +1227,7 @@ if __name__ == "__main__":
     #0 -> simple greedy algorithm.
     #1 -> heuristic greedy algorithm.
     #2 -> model greedy algorithm.
-    if x==0: 
+    if x==0:  
         run_greedy_experiment(simple_greedy, "simple greedy", "results_simple_greedy", pdf_tex_files_dir, dir_to_results)
     elif x==1:
         run_greedy_experiment(heuristic_greedy, "heuristic greedy", "results_heuristic_greedy", pdf_tex_files_dir, dir_to_results)

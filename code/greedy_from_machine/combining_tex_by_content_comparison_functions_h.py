@@ -1,6 +1,8 @@
 import re
 
 from get_pdf_order import order
+from Last_2_pages_rows_extract import remove_math_patterns, clean_latex_line
+import traceback
 
 regex = re.compile('[^a-zA-Z]')
 regex_1 = re.compile('\bfi\b')
@@ -40,6 +42,8 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
 
     current_need_to_be_caption_table=False
     current_need_to_be_caption_figure=False
+    
+    last_obj_caption = []
 
     pdf_arr_for_appending=[]
     for k in range(2):
@@ -49,23 +53,18 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
             for i in pdf_extract[k][j]:  # left_column_page_0
                 # print(i)
                 index_line += 1
+                if index_line == 12:
+                    print("here")
                 box, line = i
 
                 if i[1].startswith("TABLETABLE"):  # it's a table
-
-                    if len(tables) > tables_counter and tables[tables_counter][0][-1]=="True":
+                    
+                    if tables[tables_counter][0][-1]=="True":
                         current_need_to_be_caption_table=True
                     # object_dict.append([i[0], figures[figures_counter], i[1], index_line, k, j])
-                        helper_dict = {"First_line_bbox": i[0], "Text": tables[tables_counter][0], "Line": index_line,
-                                        "k": k, "j": j,"Type":"Table","LaTeX":"", "NumberLine":tables[tables_counter][1]}
-                        object_dict.append(helper_dict)
-                        tables_counter += 1
-                    if len(figures) > figures_counter and figures[figures_counter][0][-1]=="True":
-                        current_need_to_be_caption_figure=True
-                        helper_dict={"First_line_bbox":i[0],"Text":figures[figures_counter][0],"Line":index_line,"k":k,"j":j,"Type":"Figure"
-                                     ,"LaTeX":"", "NumberLine":figures[figures_counter][1]}
-                        object_dict.append(helper_dict)
-                        figures_counter+=1
+                    helper_dict = {"First_line_bbox": i[0], "Text": tables[tables_counter][0], "Line": index_line,
+                                    "k": k, "j": j,"Type":"Table","LaTeX":"", "NumberLine":tables[tables_counter][1]}
+                    object_dict.append(helper_dict)
 
                     if len(object_dict) > 1:
                         # object_dict[len(object_dict) - 2].append(last_line_bbox)
@@ -75,7 +74,7 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
                         object_dict[len(object_dict) - 2]["pdf_array"] =pdf_arr_for_appending
 
                         pdf_arr_for_appending=[i]
-                    
+                    tables_counter += 1
                     object_dict_counter += 1
 
                 elif i[1].startswith("FIGUREFIGURE"):  # it's a figure
@@ -121,21 +120,29 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
                     # counter+=1
 
                 else:  # it's a text line or formula
+                    algorithm_pattern = r'^Algorithm\s+\d+:'
+
                     line_number_of_last_next_position =index_line
 
                     currline = regex.sub('', line)
-                    currline=currline.replace("fi", "")
-                    currline=currline.replace("fl", "")
-                    helpline = regex.sub('', lines_to_search[next_line_to_find][1])
-                    helpline=helpline.replace("fi", "")
-                    helpline=helpline.replace("fl", "")
+                    currline = currline.lower()
+                    if (next_line_to_find < len(tags)):
+                        helpline = tags[next_line_to_find][0][3]
+                        helpline = clean_latex_line(helpline)
+                        # helpline = regex.sub('', tags[next_line_to_find][0][3])
+
+                    else: 
+                        helpline = ""
+                    
+                    
+                    
                     if current_need_to_be_caption_figure==True: #looking for caption
 
-                        for caption in figure_captions_set:
-                            helpline = regex.sub('', caption[0][1])
-                            helpline = helpline.replace("fi", "")
-                            helpline = helpline.replace("fl", "")
+                        for cap_index, caption in enumerate(figure_captions_set):
+                            helpline = caption[0][1]
+                            helpline = clean_latex_line(helpline)
                             if currline.startswith(helpline):
+                                last_obj_caption = ["Figure", cap_index]
                                 current_need_to_be_caption_figure = False
                                 # object_dict.append([box, line, index_line, k, j])
                                 helper_dict = {"First_line_bbox": box, "Text": line,
@@ -160,9 +167,8 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
 
                     elif current_need_to_be_caption_table==True:
                         for caption in table_captions_set:
-                            helpline = regex.sub('', caption[0][1])
-                            helpline=helpline.replace("fi", "")
-                            helpline=helpline.replace("fl", "")
+                            helpline = caption[0][1]
+                            helpline = clean_latex_line(helpline)
                             if currline.startswith(helpline):
 
                                 current_need_to_be_caption_table = False
@@ -188,7 +194,8 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
 
 
 
-                    elif currline.startswith(helpline):
+                    elif currline in helpline and len(currline) > 0 and currline !='x':
+                            last_obj_caption = []
 
                             # print(helpline)
                             next_line_to_find += 1
@@ -251,11 +258,9 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
                             object_dict_counter += 1
                             last_text_position = len(object_dict)
 
-                    elif currline.startswith("Algorithm"):
-
+                    elif re.match(algorithm_pattern, line):
                         helpline = regex.sub('', algorithms[algorithms_counter][0][1])
-                        helpline = helpline.replace("fi", "")
-                        helpline = helpline.replace("fl", "")
+                        helpline = clean_latex_line(helpline)
                         if currline.startswith(helpline):
                             # object_dict.append([box, line, index_line, k, j])
                             helper_dict = {"First_line_bbox": box, "Text": line,
@@ -276,6 +281,21 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
                             # next_line_to_find += 1
                             object_dict_counter += 1
                             last_text_position = len(object_dict)
+                    elif len(last_obj_caption) > 0 and last_obj_caption[0] == "Figure":
+                        helpline= list(figure_captions_set)[last_obj_caption[1]]
+                        helpline = helpline[0][3]
+                        helpline = clean_latex_line(helpline)
+                        # might be a problem here
+                        if currline in helpline:
+                            new_text = object_dict[-1]["Text"] + line
+                            new_bbox = (object_dict[-1]["First_line_bbox"][0], box[1])
+                            object_dict[-1]["Text"] = new_text
+                            object_dict[-1]["First_line_bbox"] = new_bbox
+                            
+                    
+
+                        
+                    
 
 
                 last_line_bbox=box
@@ -700,6 +720,7 @@ def running_from_outside(pdf_path,tags,figures,tables,algorithms,lines_to_search
         final_list=filling_missing_objects_locations(objects_list,missing_objects_list,tags,lines_to_search,pdf_extract)
 
         final_list=fixing_missing_objects(final_list,tags,lines_to_search,pdf_extract)
+        final_list = objects_list
 
         totheight=0
         for k in pdf_extract[1][0]:
@@ -714,7 +735,8 @@ def running_from_outside(pdf_path,tags,figures,tables,algorithms,lines_to_search
         final_list.append(totheight)
 
         return final_list
-    except:
+    except Exception as e:
+        print(e)
         return []
 
 

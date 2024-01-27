@@ -33,17 +33,17 @@ def run(latex_path):
         if line=="": #separation_line
             current_scope=""
 
-        if line.startswith("\\section{"):
+        if line.startswith("\\section"):
             dct["Section"].append(lineIndex)
             scope = ""
             current_scope="Section"
 
-        elif line.startswith("\\subsection{"):
+        elif line.startswith("\\subsection"):
             dct["SubSection"].append(lineIndex)
             scope = ""
             current_scope="SubSection"
 
-        elif line.startswith("\\begin{figure}"):
+        elif line.startswith("\\begin{figure"):
             scope = "Figure"
             current_scope="Figure"
             if line.find("[")!=-1:
@@ -53,7 +53,7 @@ def run(latex_path):
             else:
                 dct["Figure"].append(lineIndex)
 
-        elif line.startswith("\\begin{table}"):
+        elif line.startswith("\\begin{table"):
             scope = "Table"
             current_scope="Table"
 
@@ -64,7 +64,7 @@ def run(latex_path):
             else:
                 dct["Table"].append(lineIndex)
 
-        elif line.startswith("\\begin{algorithm}"):
+        elif line.startswith("\\begin{algorithm"):
             scope = ""
             current_scope="Algorithm"
 
@@ -85,12 +85,12 @@ def run(latex_path):
             scope = ""
             current_scope="Enum"
 
-        elif line.startswith("\\paragraph{"):
+        elif line.startswith("\\paragraph"):
             dct["Paragraph"].append(lineIndex)
             scope = ""
             current_scope="Paragraph"
 
-        elif line.startswith("\\caption{"):
+        elif line.startswith("\\caption"):
             if scope=="Figure":
                 dct["CaptionFigure"].append(lineIndex)
             elif scope=="Table":

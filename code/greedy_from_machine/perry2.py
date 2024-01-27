@@ -145,7 +145,8 @@ def receive_lines_version_1(lines):
             definition_line =new_line[new_line.find("}")+1:].lstrip(" ")
             original_line = new_line
             new_line = new_line.split("{")[1].split("}")[0]
-
+            if new_line.endswith("*"):
+                new_line = new_line[:-1]
             if begins.get(new_line,-1) != -1:
                 if new_line == "enumerate" or new_line == "cases":
                     continue
@@ -496,7 +497,8 @@ def parse2_lidor(path, lines= None):
     else:
         file = read_file(path)
 
-    file.insert(0,"\\section{demo}")
+    if (file[0] != "\\section{demo}"):
+        file.insert(0,"\\section{demo}")
     order = receive_lines_version_1(file)
     latex, tree, lines = latex_parsing_perry.parse(lines)
 

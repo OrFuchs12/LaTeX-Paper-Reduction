@@ -4,7 +4,7 @@ import pickle
 import sys
 import openpyxl
 from pathlib import Path
-
+from handle_full_paper import remove_comments
 
 # if __name__ == "__main__":
 
@@ -211,7 +211,7 @@ def run_feature_extraction(latex_path, pdf_path, bib_path, path_to_save_lidor_dc
     max_height = 0
 
     for file_index in range(1):
-        res = test.run(latex_path, pdf_path, bib_path)
+        res, lidor = test.run(latex_path, pdf_path, bib_path)
         #print(res)
         
         # try:
@@ -580,12 +580,17 @@ def run_feature_extraction(latex_path, pdf_path, bib_path, path_to_save_lidor_dc
                     dct[object_name]['end_y']=-1
                 height = 0
                 # we are assuming a paragraph wont be more than 1 column long
-                if (object['First_line_bbox'][0] > object['Last_line_bbox'][1]):
+                try:
+                    if (object['First_line_bbox'][0] > object['Last_line_bbox'][1]):
+                        height += 704.1519215999999 - object['First_line_bbox'][0]
+                        height += object['Last_line_bbox'][1] - 50.01389562499992
+                        dct[object_name]['spread_on_more_than_1_column'] = 1
+                    else:
+                        height += object['Last_line_bbox'][1] - object['First_line_bbox'][0]
+                        dct[object_name]['spread_on_more_than_1_column'] = 0
+                except:
+                    #no last line bbox
                     height += 704.1519215999999 - object['First_line_bbox'][0]
-                    height += object['Last_line_bbox'][1] - 50.01389562499992
-                    dct[object_name]['spread_on_more_than_1_column'] = 1
-                else:
-                    height += object['Last_line_bbox'][1] - object['First_line_bbox'][0]
                     dct[object_name]['spread_on_more_than_1_column'] = 0
                 # WONT WORK UNTILL LAST_LINE_J AND LAST_LINE_K WILL BE FIXED
                 # if(object['k'] != object['Last_line_k'] or object['j'] != object['Last_line_j']):
@@ -1242,7 +1247,8 @@ def run_feature_extraction(latex_path, pdf_path, bib_path, path_to_save_lidor_dc
     # print(df)
     # print(df.T)
     # df2 = df.T
-    return df
+    return df, lidor
+
     # return df,files_created
     # df2.to_csv('example.csv')
 
@@ -1284,6 +1290,7 @@ if __name__ == "__main__":
     print(pdf_path_adi)
     file_name = file_num + "_" + permutation_num
 
+    #remove comments 
     try:
         df = run_feature_extraction(latex_path, pdf_path, bib_path, pdf_path_lidor, pdf_path_adi, file_name)
         # df.to_csv(excel_path, mode="a", header=False)
@@ -1447,6 +1454,7 @@ if __name__ == "__main__":
             x.to_csv(excel_path, mode='a', index=True, header=False)
         else:
             x.to_csv(excel_path, index=True, header=True)
+        
 
     # with pd.ExcelWriter(excel_path, mode='a') as writer:
     #    df.to_excel(writer, sheet_name="Sheet1", startrow=line_num, header=False)

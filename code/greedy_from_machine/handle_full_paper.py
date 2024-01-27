@@ -8,11 +8,12 @@ import re
 
 NUMBER_OF_LAST_PAGES = 2
 
-pdf_path = 'last_pages_from_full_paper\AAAI 2016\prize_changed.pdf'
+# pdf_path = 'last_pages_from_full_paper\AAAI 2016\prize_changed.pdf'
   
 #create a new pdf file with only last pages
-def copy_last_pages(input_pdf_path, output_pdf_path, NUMBER_OF_LAST_PAGES):
-    
+def copy_last_pages(input_pdf_path, NUMBER_OF_LAST_PAGES, iteration):
+    output_pdf_path = input_pdf_path[:-4] + "_last_pages_" + str(iteration) + '.pdf'
+
     pdf_document = fitz.open(input_pdf_path)
     total_pages = len(pdf_document)
     new_pdf_document = fitz.open()
@@ -24,27 +25,38 @@ def copy_last_pages(input_pdf_path, output_pdf_path, NUMBER_OF_LAST_PAGES):
     
     pdf_document.close()
     new_pdf_document.close()
+    return output_pdf_path
             
-copy_last_pages(pdf_path, "output.pdf", NUMBER_OF_LAST_PAGES)
+# copy_last_pages("code/greedy_from_machine/files/samd_changed.pdf", "output.pdf", NUMBER_OF_LAST_PAGES)
 
 def remove_comments(latex_path):
-    with open(latex_path, 'r') as f:
+    with open(latex_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
-    with open(latex_path, 'w') as f:
+    inside_comment = False
+    with open(latex_path, 'w', encoding='utf-8') as f:
         for line in lines:
+            #remove all lines that start with \commentout{ until the next }
+            if re.match(r'^\s*\\commentout{', line):
+                if not re.match(r'^\s*}', line):
+                   inside_comment = True
+            if inside_comment and not re.match(r'^\s*}', line):
+                continue
+            if inside_comment and re.match(r'^\s*}', line):
+                inside_comment = False
+                continue
+            # Check if the line is a comment    
             if not re.match(r'^\s*%', line):
                 f.write(line)
-
+                
 #things like \begin{figure*} become \begin{figure}
 def remove_astrik_inside_paranthases(latex_path):
-    with open(latex_path, 'r') as f:
+    with open(latex_path, 'r', encoding='UTF-8') as f:
         lines = f.readlines()
-    with open(latex_path, 'w') as f:
+    with open(latex_path, 'w', encoding='UTF-8') as f:
         for line in lines:
             line = re.sub(r'\\begin{(\w+)\*}', r'\\begin{\1}', line)
             line = re.sub(r'\\end{(\w+)\*}', r'\\end{\1}', line)
+            line = re.sub(r'\\section\*', r'\\section', line)
             f.write(line)
     
-
-copy_last_pages
-remove_astrik_inside_paranthases("code\\greedy_from_machine\\files\\prize_changed.tex")
+# copy_last_pages("code/greedy_from_machine/files/Keller_changed.pdf", "updated_keller.pdf", NUMBER_OF_LAST_PAGES)

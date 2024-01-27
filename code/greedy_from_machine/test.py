@@ -1,5 +1,7 @@
 import perry
 import combining_tex_by_content_comparison_functions_h as combining_tex_by_content_comparison_functions
+from Last_2_pages_rows_extract import convert_Latex_to_rows_list
+import traceback
 
 def run(latex_path,pdf_path,bib_path):
     """_summary_
@@ -15,31 +17,36 @@ def run(latex_path,pdf_path,bib_path):
         list of dictionaries, each dictionary represents a part of the paper
     """
     try:
-    # lidor = Lidor_part.read_file(latex_path, bib_path)
-        lidor = []
-        with open(latex_path, encoding='UTF-8') as file:
-            # doc = file.read()
+        # lidor = Lidor_part.read_file(latex_path, bib_path)
+        print("starting converting Latex to rows list")
+        lidor = convert_Latex_to_rows_list(latex_path, pdf_path)
+        print("Finished converting Latex to rows list")
+        # lidor = []
+        # with open(latex_path, encoding='UTF-8') as f:
+        #     file = f.read()
+        #     file = file.split("\n")
+        #     foundHeader=False
+        #     foundBottom=False
+        #     for line in file:
+        #         line = line.lstrip()
+        #         if foundHeader==False:
+        #             if line.startswith("\\begin{document}"):
+        #                 foundHeader=True
+        #             lidor.append("\n")
+        #         else:
+        #             if foundBottom==False and line.startswith("\\end{document}"):
+        #                 foundBottom=True
+        #             elif foundBottom == False and line == "":
+        #                 continue
+        #             else:
+        #                 if foundBottom==False:
+        #                     lidor.append(line)
 
-            foundHeader=False
-            foundBottom=False
-            for line in file:
-                if foundHeader==False:
-                    if line.startswith("\\begin{document}"):
-                        foundHeader=True
-                    lidor.append("\n")
-                else:
-                    if foundBottom==False and line.startswith("\\end{document}"):
-                        foundBottom=True
-                    else:
-                        if foundBottom==False:
-                            lidor.append(line)
 
 
-
-        # lidor_new = ["\n" for line in range(29)]
-        # lidor = lidor_new + lidor
-        #print(11)
+        print("starting parsing")
         tags, lines = perry.parse(latex_path, lidor)
+        print("finished parsing")
         
         tags_without_figures_and_tables = []
         figures = []
@@ -106,15 +113,18 @@ def run(latex_path,pdf_path,bib_path):
 
         lines = new_lines
 
+        print("starting combining")
         adi = combining_tex_by_content_comparison_functions.running_from_outside(pdf_path, tags_without_figures_and_tables,
                                                                                  figures, tables, algorithms, lines,
                                                                                  figure_captions_set, table_captions_set)
+        print("finished combining")
         # for k in adi[:-1]:
         #     print("---")
         #     for key in k:
         #         print(f"{key}[]{k[key]}")
-        return adi
+        return adi, lidor
     except Exception as e:
+        traceback.print_exc()
         print(e)
         return []
 

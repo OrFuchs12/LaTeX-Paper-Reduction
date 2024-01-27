@@ -123,12 +123,15 @@ def receive_lines_version_1(lines):
             if str_line.find(f"\\end") != -1:
                 op = str_line.split("}")[0] + "}"
                 if op in operators:
-                    obj = stack.pop()
-                    parsing_tree[op].append((obj[0],i))
-                    new_dict[obj[0]]=(i,op)
+                    if stack:
+                        obj = stack.pop()
+                        parsing_tree[op].append((obj[0],i))
+                        new_dict[obj[0]]=(i,op)
 
             if str_line.startswith("\\section") or str_line.startswith("\\subsection") or  str_line.find("\\subsubsection") != -1 :
                 op = str_line.split("{")[0]
+                if op.endswith("*"):
+                    op=op[:-1]
                 if section_stack:
                     obj = section_stack.pop()
                     parsing_tree[obj[1]].append((obj[0], i-1))
@@ -259,7 +262,6 @@ def count_paragraphs(lines,ans,new_dict):
                     is_in_begin-=1
                 else:
                     continue
-
             if str_line.startswith("\\alg\\") or str_line.startswith("\\noindent") or (not str_line.startswith(f"\\")) or str_line.startswith(f"\\citeauthor") :
                 if flag == False and not (str_line.isspace()):
                     count += 1

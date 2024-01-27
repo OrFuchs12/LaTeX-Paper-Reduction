@@ -153,6 +153,8 @@ def receive_lines_version_1(lines):
             definition_line =new_line[new_line.find("}")+1:].lstrip(" ")
             original_line = new_line
             new_line = new_line.split("{")[1].split("}")[0]
+            if new_line.endswith("*"):
+                new_line = new_line[:-1]
 
             if begins.get(new_line,-1) != -1:
                 if new_line == "enumerate" or new_line == "cases":
@@ -218,22 +220,26 @@ def receive_lines_version_1(lines):
                 scope = set_scope(new_line)
                 continue
         elif new_line.startswith("\\caption"):
-            if new_line.split("{")[1].split("}")[0] != "":
-                if scope == "algorithm":
-                    continue
-                elif scope=="figure":
-                    new_line = "Figure" + new_line.split("{")[1].split("}")[0]
-                    order.append([new_line, ("CaptionFigure", new_line[:40], new_line[-40:-1],new_line.replace("\n", " ")),
-                                  ("CaptionFigure", "Figure " + new_line[:40], new_line[-40:-1]), i])
-                elif scope=="table":
-                    new_line = "Table" + new_line.split("{")[1].split("}")[0]
-                    order.append([new_line, ("CaptionTable", new_line[:40], new_line[-40:-1],new_line.replace("\n", " ")),
-                                  ("CaptionTable", "Table " + new_line[:40], new_line[-40:-1]), i])
-                elif scope=="subfigure":
-                    new_line = "Figure" + new_line.split("{")[1].split("}")[0]
-                    order.append([new_line, ("CaptionFigure", new_line[:40], new_line[-40:-1], new_line.replace("\n", " ")),
-                                  ("CaptionFigure", "Figure " + new_line[:40], new_line[-40:-1]), i])
-
+            brace_count = new_line.count("{") - new_line.count("}")
+            caption_index = i + 1
+            while brace_count > 0:
+                new_line += lines[caption_index]
+                brace_count = new_line.count("{") - new_line.count("}")
+                caption_index +=1
+            if scope == "algorithm":
+                continue
+            elif scope=="figure":
+                new_line = "Figure" + new_line.split("{", 1)[1].rsplit("}", 1)[0]
+                order.append([new_line, ("CaptionFigure", new_line[:40], new_line[-40:-1],new_line.replace("\n", " ")),
+                                ("CaptionFigure", "Figure " + new_line[:40], new_line[-40:-1]), i])
+            elif scope=="table":
+                new_line = "Table" + new_line.split("{", 1)[1].rsplit("}", 1)[0]
+                order.append([new_line, ("CaptionTable", new_line[:40], new_line[-40:-1],new_line.replace("\n", " ")),
+                                ("CaptionTable", "Table " + new_line[:40], new_line[-40:-1]), i])
+            elif scope=="subfigure":
+                new_line = "Figure" + new_line.split("{", 1)[1].rsplit("}", 1)[0]
+                order.append([new_line, ("CaptionFigure", new_line[:40], new_line[-40:-1], new_line.replace("\n", " ")),
+                                ("CaptionFigure", "Figure " + new_line[:40], new_line[-40:-1]), i]) 
         if new_line.startswith("\\item"):
             new_line = new_line[6:]
             order.append([new_line[:30], ("Enum",new_line[:40],new_line[-40:-1],new_line.replace("\n", " ")), ("Enum",new_line[:40],new_line[-40:-1]),i])
@@ -424,8 +430,10 @@ def parse(path, lines= None):
     # if file[0].startswith("\\title"):
     #     title=True
     # if title==False:
-    file.insert(0,"\\section{demo}")
-    order = receive_lines_version_1(file) # returns a list of lists of each object and the line number in the latex file
+    if (file[0] != "\\section{demo}"):
+        file.insert(0,"\\section{demo}")
+    order = receive_lines_version_1(file)
+
     latex, tree, lines = latex_parsing_perry.parse(lines)
     result11,first_object_location = Connector_perry.connect(latex, lines)
     combined_res = combine(order,result11)
