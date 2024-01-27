@@ -4,6 +4,18 @@ from Last_2_pages_rows_extract import convert_Latex_to_rows_list
 import traceback
 
 def run(latex_path,pdf_path,bib_path):
+    """_summary_
+
+    Args:
+        latex_path : the path to the latex file
+        pdf_path : the path to the pdf file
+        bib_path : the path to the bib file
+    Description:
+        This function creates lidor (the list of relevant lines in latex) and then runs the algorithm on it.
+
+    Returns:
+        list of dictionaries, each dictionary represents a part of the paper
+    """
     try:
         # lidor = Lidor_part.read_file(latex_path, bib_path)
         print("starting converting Latex to rows list")

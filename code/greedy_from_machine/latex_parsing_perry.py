@@ -52,6 +52,9 @@ def read_file(document_path):
     return new_doc
 
 def get_operators():
+    """_summary_
+    This function returns a list of all the operators in the latex file.(const operators)
+    """
     # return ["\\section","\\begin{table}","\\end{table}",
     #         "\\begin{figure}","\\end{figure}","\\begin{abstract}",
     #         "\\end{abstract}","\\title","\\[","\\prob","\\begin{definition}",
@@ -64,6 +67,9 @@ def get_operators():
             "\\subsubsection","\\begin{enumerate}","\\end{enumerate}","\\item","\\noindent","\\end{equation}","\\begin{equation}"]
 
 def get_objects():
+    """_summary_
+    This function returns a list of all the objects in the latex file.(const objects)
+    """
     # return ["\\section","\\begin{table}","\\end{table}",
     #         "\\begin{figure}","\\end{figure}","\\begin{abstract}",
     #         "\\end{abstract}","\\title","\\[","\\prob","\\begin{definition}",
@@ -76,10 +82,20 @@ def get_objects():
             "\\subsubsection","\\end{enumerate}","\\item","\\noindent","\\end{equation}"]
 
 def receive_lines_version_1(lines):
+    """_summary_
+
+    Args:
+        lines : the lines of the latex file of lidor
+
+    Returns:
+        parsing_tree : a dictionary that maps each operator to a list of tuples of the form (start_line,end_line)
+        new_dict : a dictionary that maps each line number  of begin object to a tuple of the form (end number line ,end object)
+    """
+    
     i=1
     parsing_tree={}
-    operators=get_operators()
-    objects=get_objects()
+    operators=get_operators() # const opertors
+    objects=get_objects() # const objects
     for ob in objects:
         parsing_tree[ob]=[]
 
@@ -209,7 +225,16 @@ def get_definition_par(lines, line_number, count):
 
 
 def count_paragraphs(lines,ans,new_dict):
+    """_summary_
 
+    Args:
+        lines : the lines of the latex file of lidor
+        ans : a dictionary that maps each operator to a list of tuples of the form (start_line,end_line)
+        
+
+    Returns:
+       flow : a dictionary that maps each operator to a list of tuples of the form (start_line,end_line)
+    """
 
     sections=ans["\\section"]+ans["\\subsection"]+ans["\\subsubsection"]+ans["\\end{abstract}"]+ans["\\end{definition}"]
     flow={}
@@ -253,6 +278,17 @@ def count_paragraphs(lines,ans,new_dict):
     return flow
 
 def objects(lines,ans,new_dict,type):
+    """_summary_
+
+    Args:
+        lines : the lines of the latex file of lidor
+        ans : a dictionary that maps each operator to a list of tuples of the form (start_line,end_line)
+        new_dict : a dictionary that maps tuple of the form (start_line,end_line) to a tuple of the form (type,boolean,caption)
+        type : the type of the object we want to add to the dictionary
+
+    Returns:
+        new_dict : a dictionary that maps tuple of the form (start_line,end_line) to a tuple of the form (type,boolean,caption)
+    """
     objects=ans[type]
     if type=="\\end{figure}":
         for object in objects:

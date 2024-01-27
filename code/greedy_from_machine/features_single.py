@@ -7,8 +7,23 @@ from pathlib import Path
 from handle_full_paper import remove_comments
 
 # if __name__ == "__main__":
+
 def run_feature_extraction(latex_path, pdf_path, bib_path, path_to_save_lidor_dct,
                            path_to_save_adi_dct, name, df):
+    """_summary_
+
+    Args:
+        latex_path: path to the latex file
+        pdf_path: path to the pdf file
+        bib_path: path to the bib file
+        path_to_save_lidor_dct: path to save the lidor dictionary
+        path_to_save_adi_dct: path to save the adi dictionary
+        name: name of the file
+        df: dataframe to save the features in
+    
+    Returns:
+        df: dataframe with the features
+    """
     #print(22)
     summative_features_keys = ['max_lines_par', 'min_lines_par', 'max_lines_enum', 'min_lines_enum',
                                'max_lines_caption', 'min_lines_caption', 'max_figure_y_space', 'min_figure_y_space',
@@ -108,6 +123,7 @@ def run_feature_extraction(latex_path, pdf_path, bib_path, path_to_save_lidor_dc
         for key in Par_keys:
             Rows.append(key + str(j))
         j += 1
+    # 2 paragraphs with the word Paragraph at the beginning 
     for i in range(2):  # 2*14 = 28 -> 183
         for key in Paragraph_keys:
             Rows.append(key + str(j))

@@ -141,7 +141,8 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
             #         if foundBottom==False:
             #             lidor.append(line)
 
-    
+
+  
     list_of_starts, tags = perry2.parse2_lidor(latex_path, lidor)  # perry.parse2_lidor(latex_path, lidor)
     index_for_object = {'Par': 1, 'Figure': 2, 'CaptionFigure': 3, 'Table': 4, 'CaptionTable': 5, 'Section': 6,
                         'SubSection': 7, 'Matrix': 8, 'Enum': 9, 'Formula': 10, 'Algorithm': 11}
@@ -718,7 +719,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
 
 
 """ 
-    This function return the number of lines in the last page of pdf file, parameters:
+    This function return the number of lines in the last page of pdf file and the number of pages, parameters:
     file_path - path to the pdf file 
 """
 def check_lines(file_path):
@@ -782,7 +783,7 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
             print("lines : --------------", lines, "pages: --------------", pages)
             # get the dictionary of the file
             with open('code/~/results/dct0', 'rb') as dct_file:
-                dct = pickle.load(dct_file)
+                dct = pickle.load(dct_file) #dict of dicts: for each object in file what are the features
 
             # get list of all possible operators to apply on the file
             res = perform_operators(dct, 0, path_to_latex, path_to_pdf ,"code/~/results/new_files/", paper_name,lidor)
@@ -1220,7 +1221,7 @@ if __name__ == "__main__":
     x=int(sys.argv[1])
     pdf_tex_files_dir=sys.argv[2]
     dir_to_results=sys.argv[3]
-    path_to_models=sys.argv[4]
+    path_to_models=sys.argv[4] # the tree of all optional of applying operators 
 
     # How to select algorithm type:
     #0 -> simple greedy algorithm.

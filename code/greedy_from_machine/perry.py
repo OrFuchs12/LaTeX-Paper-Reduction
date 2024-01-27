@@ -129,9 +129,17 @@ def set_scope(new_line):
     if new_line=="paragraph":
         return "paragraph"
 
-
+# lines = lidor list + demo (section)
 def receive_lines_version_1(lines):
-    begins=get_begins()
+    """_summary_
+
+    Args:
+        lines : the lidor list of relevant lines from the latex file
+
+    Returns:
+        list of lists, each list represents an object in the paper and the line number in the latex file
+    """
+    begins=get_begins() # returns a constant dictionary
     order = []
     scope = ""
     i = -1
@@ -405,6 +413,15 @@ def read_first(lines, first_object_location):
 
 
 def parse(path, lines= None):
+    """_summary_
+
+    Args:
+        path : path to the latex file
+        lines : the lidor list of relevant lines from the latex file
+
+    Returns:
+        list of dictionaries, each dictionary represents a part of the paper
+    """
     if lines != None:
         file = lines
     else:
@@ -416,6 +433,7 @@ def parse(path, lines= None):
     if (file[0] != "\\section{demo}"):
         file.insert(0,"\\section{demo}")
     order = receive_lines_version_1(file)
+
     latex, tree, lines = latex_parsing_perry.parse(lines)
     result11,first_object_location = Connector_perry.connect(latex, lines)
     combined_res = combine(order,result11)
