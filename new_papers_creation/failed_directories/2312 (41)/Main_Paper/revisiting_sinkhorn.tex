@@ -1,0 +1,45 @@
+\section{Revisiting Sinkhorn for POT} 
+% \label{sec:sinkhorn_pot}
+We can reformulate Problem \eqref{eq:pot_formulation} by adding \emph{dummy points} and extending the cost matrix as
+\begin{align*}
+    \widetilde{\vC} = \left(
+    \begin{array}{cc}
+    \vC & \zeros_{n} \\
+    \zeros_{n}^\top & A
+    \end{array} \right) \in \RR_{+}^{(n+1) \times (n+1)},
+\end{align*}
+where $A > \max(C_{i, j})$ \citep{Chapel-nips2020}. Then the two marginals are augmented to $(n+1)$-dimensional vectors as $\widetilde{\vr}^\top = (\vr^\top, \norm{\vc}_1 - s)$ and $\widetilde{\vc}^\top = (\vc^\top, \norm{\vr}_1 - s)$. \citep[Proposition 1]{Chapel-nips2020} show that one can obtain the solution POT by solving this extended OT problem with balanced marginals $\widetilde{\vr}, \widetilde{\vc}$ and cost matrix $\widetilde{\vC}$. In particular, if the OT problem admits an optimal solution of the form
+\begin{align*}
+    \widetilde{\vX} = \left(
+    \begin{array}{cc}
+    \bar{\vX} & \widetilde{\vp} \\
+    \widetilde{\vq}^\top & \widetilde{X}_{n+1,n+1}
+    \end{array} \right) \in \RR_{+}^{(n+1) \times (n+1)},
+\end{align*}
+then $\bar{\vX} \in \RR_{+}^{n \times n}$ is the solution to the original POT.
+\citep{nhatho-mmpot} seeks an approximate solution to the extended OT problem using the Sinkhorn algorithm (see Algorithm \ref{alg:Sinkhorn} in the Appendix). Then the rounding procedure by \citep{altschuler2017near} is applied to the solution to give a primal feasible matrix. While the two POT inequality constraints are satisfied, we discover in the following Theorem that the equality constraint $\ones^\top \Bar{\vX} \ones = s$ is violated. The proof is in Appendix, Revisiting Sinkhorn for POT section.
+% Next, the reformulated OT solution after each Sinkhorn iteration with rounding algorithm \citep{altschuler2017near} can be obtained in the following form
+%and then one can obtain the desired POT solution $\bar{\vX} \in \RR_{+}^{n \times n}$ by discarding the last row and column of $\widetilde{\vX}$ \citep[Proposition 1]{Chapel-nips2020}.
+\begin{theorem}
+    \label{contraint_violation}
+    For a POT solution $\Bar{\vX}$ from \citep{nhatho-mmpot}, the constraint violation $V \defeq \mathbf{1}^\top \bar{\vX} \mathbf{1} -s$ can be bounded as
+    \begin{equation*}
+    \tilde{\mathcal{O}}\left( \frac{\|\vC^2\|_{\text{max}}}{A}\right) \geq V \geq \exp\left(\frac{-12A \log{n}}{\varepsilon} - \mathcal{O}(\log n)\right).
+    \end{equation*}
+\end{theorem}
+\textbf{Feasible Sinkhorn Procedure:} With these bounds, we deduce that in order for Sinkhorn to be feasible, one needs to \textbf{both} utilize our \textsc{Round-POT} and choose a sufficiently large $A$ (Theorem \ref{them:revised_sinkhorn_complexity}) as opposed to the common practice of picking $A$ a bit larger than 1 \citep{nhatho-mmpot}. We derive the revised complexity of Sinkhorn for POT in the following theorem.
+\begin{theorem}
+    \label{them:revised_sinkhorn_complexity}
+    (Revised Complexity for Feasible Sinkhorn with \textsc{Round-POT}) We first derive the sufficient size of $A$ to be $\mathcal{O} \left( \frac{\|\mathbf{C}\|_{\text{max}}}{\varepsilon} \right)$. With this large $A$ and \textsc{Round-POT}, Sinkhorn for POT has a computational complexity of $\tilde{\mathcal{O}} \left(\frac{n^2 \|\mathbf{C}\|^2_{\text{max}} }{\varepsilon^4} \right)$ as oppose to $\tilde{\mathcal{O}} \left(\frac{n^2 \|\mathbf{C}\|^2_{\text{max}} }{\varepsilon^2} \right)$ \cite{nhatho-mmpot}. 
+\end{theorem}
+The detailed proof for this theorem is included in Appendix, Revisiting Sinkhorn for POT section. We also empirically verify this worsened complexity in section in Feasible Sinkhorn section in Appendix. 
+\begin{remark} \label{remark:violation}
+Respecting the equality constraint is crucial for various applications that demand strict adherence to feasible solutions such as point cloud registration \citep{qin2022rigid} (for avoiding  incorrect many-to-many correspondences) and mini-batch OT \citep{nguyen2022improving} (for minimizing misspecification). 
+% The former \citep{qin2022rigid} notes that "the hard marginal constraint provides an explicit parameter to adjust the ratio of points that should be accurately matched, and helps avoid incorrect many-to-many correspondences." 
+% The latter \citep{nguyen2022improving} suggests that reducing $s$ can minimize misspecification but can also exclude potential good matches. 
+Consequently, it is imperative for POT to transport the exact fraction of mass to achieve an optimal mapping, which is vital for the effective performances of ML models.
+% Respecting the equality constraint is crucial as there are several applications that require strict adherence to feasible solutions \textcolor{red}{shorten}. Firstly, for point cloud registration, the authors of \citep{qin2022rigid} noted that "the hard marginal constraint provides an explicit parameter to adjust the ratio of points that should be accurately matched, and helps avoid incorrect many-to-many correspondences." Respecting the equality constraint in practice can help increase the accuracy of point cloud registration. Another application that requires strict enforcement of the total mass constraint is solving mini-batch OT using POT \citep{nguyen2022improving}. In this paper, the authors noted that reducing $s$ can minimize misspecification but can also exclude potential good matches. Consequently, it is imperative to identify and transport the appropriate fraction of mass to achieve an optimal mapping, which is vital for the effective performance of ML models. Nevertheless, the current Sinkhorn solver's inaccuracies in the transported mass fraction prevent obtaining such optimal mappings.
+\end{remark}
+
+% We will now introduce APDAGD which, on the contrary, achieves this goal with $\textsc{Round-POT}$.
+%\end{remark}

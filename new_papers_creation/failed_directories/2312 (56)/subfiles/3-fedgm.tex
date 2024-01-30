@@ -1,0 +1,32 @@
+\section{FedGM: Federated Learning with General Momentum Acceleration}
+\label{sec:fedgm}
+
+Partially due to its equivalence of constant learning rate SGD, FedAvg has two main limitations, (a) it is extremely vulnerable to client drift, as FedAvg relies entirely on its current aggregate $\Delta_t$ and ignores historical directions; (b) FedAvg may not be the best option in many applications, e.g. training large-scale vision or language models \citep{devlin2018bert,dosovitskiy2021VIT} where its counterpart SGD is known to be inferior to momentum or adaptive optimizers in non-FL settings \citep{Wilson2017Generalization,Zhang20Adam_Attention}.
+
+Note that in FedOPT, ServerOPT could in principle be any type of gradient-based optimizers. In non-FL settings, the momentum scheme is known to not only exhibit convincing accelerating effect in training, it has also achieved better generalizability in many tasks than adaptive optimizers like Adam \citep{Wilson2017Generalization,Cutkosky2020MomentumIN}, which provides a strong motivation to incorporate server momentum.
+
+Moreover, server-side momentum basically integrates historical aggregates into the current update and therefore could potentially make the global model more robust to drastic local drifts.
+
+Existing server momentum works mostly focus on one specific type of momentum, i.e. stochastic heavy ball momentum (SHB) \citep{Hsu2019MeasuringTE,rothchild20fetchsgd,khanduri2021stem}, while ignoring many other momentum schemes that outperform SHB in many non-FL settings.
+
+In order to systematically understand the role of server momentum schemes in FL, we propose a new algorithm which we refer to as Federated General Momentum (FedGM). FedGM replaces the ServerOPT $x_{t+1}=x_t-\Delta_t$ in FedAvg with the following,
+\begin{equation}
+\label{fedgm_formulation}
+\begin{gathered}
+d_{t+1}=(1-\beta)\Delta_{t}+\beta d_{t},\quad
+h_{t+1}=(1-\nu)\Delta_{t}+\nu d_{t+1},\\
+x_{t+1}=x_t-\eta h_{t+1}.
+\end{gathered}
+\end{equation}
+where the hyperparameter set $\mathbb{H}=\{\eta,\beta,\nu\}$. $\eta$ is server learning rate, $\beta$ and $\nu$ are two hyperparameters which we call momentum factor and instant discount factor. 
+
+By setting $\nu$ as 0, FedGM becomes FedAvg with two-sided learning rates \citep{yang2021achieving}, i.e., choices of $\eta$ other than 1 is allowed, which we refer to as FedSGD.
+
+By setting $\nu=1$, FedGM becomes FedAvgM \citep{Hsu2019MeasuringTE} (or FedSHB), which essentially applies server SHB, i.e. we update the model by a ``momentum buffer'' $d_{t+1}$. $\beta$ controls how slowly the momentum buffer is updated. FedGM could be interpreted as a $\nu$-weighted average of the FedAvgM update step and the plain FedAvg update step. $\nu$ is thus referred to as instant discount factor. 
+
+FedGM leverages the general formulation of QHM \citep{ma2018quasihyperbolic} and is much more general than just FedAvg and FedAvgM. It subsumes many other momentum variants that are never explored in FL. For example, if $\nu=\beta$, FedGM becomes a new algorithm which can be naturally referred to as FedNAG, i.e. application of the popular optimizer Nesterov's accelerated gradient (NAG) to FL. Specifically, we update model by $x_{t+1}=x_t-\eta\left[(1-\beta)\Delta_{t}+\beta d_{t+1}\right]$, where $d_{t+1}$ is the momentum buffer.
+
+FedGM could further recover the FL version of many other momentum schemes, e.g., SNV \citep{Lessard14SNV}, PID \citep{An18PID}, ASGD \citep{Kidambi18Insufficiency}, and Triple Momentum \citep{VanScoy18Triple}, with different $\eta,\beta,\nu$. Therefore, FedGM describes a family of momentum schemes, most of which have not been studied yet in FL.
+
+
+

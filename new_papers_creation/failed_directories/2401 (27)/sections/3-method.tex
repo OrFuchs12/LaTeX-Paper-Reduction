@@ -1,0 +1,33 @@
+\section{Method}
+In this work, we adapted the CaSSLe \cite{fini2022self} and Kaizen \cite{tang2023practical} continual learning frameworks to HAR. This section begins with an overview of these methods and then illustrates the modifications adopted to explore their application to HAR.
+
+\subsection{CaSSLe}
+The CaSSLe framework \cite{fini2022self} re-purposed the Siamese/Contrastive learning setup and loss functions for tackling catastrophic forgetting in representation learning. In particular, the framework consists of two main components: new task learning and knowledge distillation.
+The \textbf{new task learning (feature extractor)} component follows the conventional Siamese/Contrastive learning setup, like that in BYOL~\cite{grill2020bootstrap} and MoCoV2+~\cite{chen2020improved, he2020momentum}, in which the input signal is transformed into two views using stochastic transformation functions, and the loss function forces the transformed view to have similar representations. The loss term for this is denoted by $\mathcal{L}^{\mathrm{CT}}_{\mathrm{FE}}$.
+The \textbf{knowledge distillation (feature extractor)} component mirrors the new task learning component, where the same contrastive loss function is used again, but contrasting the representations retrieved by the feature extractor from the previous task and the current feature extractor instead. An additional predictor (a shallow neural network) is attached to the current feature extractor before contrastive learning. We denote this loss as $\mathcal{L}^{\mathrm{KD}}_{\mathrm{FE}}$.
+The CaSSLe framework was shown to be an effective strategy for continual representation learning from a stream of unlabelled data, but it does not propose a specific strategy for training the downstream classifier continually.
+
+\subsection{Kaizen}
+The Kaizen framework \cite{tang2023practical} extends CaSSLe by proposing two additional components to handle classifier training, to ensure that a functional classifier is available at any step of the continual learning process.
+The \textbf{new task learning (classifier)} component follows conventional supervised learning, in which the classifier is trained using categorical cross-entropy to learn the new classes ($\mathcal{L}^{\mathrm{CT}}_{\mathrm{C}}$).
+The \textbf{knowledge distillation (classifier)} component leverages self-distillation to retain knowledge, in which the predictions from the classifier from the previous task are used as pseudo-labels to train the current classifier ($\mathcal{L}^{\mathrm{KD}}_{\mathrm{C}}$). This component does not rely on labelled data and can remain active when only unlabelled data is available.
+A small part of the labelled data is retained and replayed, in a similar fashion to other exemplar-based continual learning methods \cite{rebuffi2017icarl, isele2018selective, rolnick2019experience, mittal2021essentials}. This was shown to be a critical component in maintaining classification performance in class-incremental settings \cite{de2021continual}.
+
+\subsection{CSSL for HAR}
+\label{subsec:balancing}
+As both CaSSLe and Kaizen were proposed for visual representation learning in their original work, we made a few modifications to these frameworks to adapt to HAR.
+
+\subsubsection{Transformation Functions}
+Instead of using image transformation functions, we adopted three transformation functions from previous works \cite{har_transformations, multi_self_har, tang2020exploring, tang2021selfhar} that are tailored to sensor time-series: \emph{random 3D rotation}, \emph{random scaling} and \emph{time warping} (see Appx.~\ref{appx:trans}).
+
+\subsubsection{Balancing Learning Objectives}
+
+In addition to following the original formulation of Kaizen, in which the loss function is a sum of all the learning objectives mentioned above 
+\[
+ \mathcal{L_\mathrm{Kaizen}} =\mathcal{L}^{\mathrm{CT}}_{\mathrm{FE}} + \mathcal{L}^{\mathrm{KD}}_{\mathrm{FE}} + \mathcal{L}^{\mathrm{CT}}_{\mathrm{C}} + \mathcal{L}^{\mathrm{KD}}_{\mathrm{C}}
+\]
+we hypothesise that the relative importance of the knowledge distillation task compared to learning from new data in classification learning can have a direct impact on the performance of the classifier across time. Therefore, we introduce an importance coefficient $\lambda_{\mathrm{C}}$ to the loss function which allows us to change the weighting of the learning objectives:
+\[
+ \mathcal{L_\mathrm{Kaizen(adaptive)}} =(\mathcal{L}^{\mathrm{CT}}_{\mathrm{FE}} + \mathcal{L}^{\mathrm{KD}}_{\mathrm{FE}}) + (\mathcal{L}^{\mathrm{CT}}_{\mathrm{C}} + \lambda_{\mathrm{C}} \mathcal{L}^{\mathrm{KD}}_{\mathrm{C}})
+\]
+The effects of this importance coefficient are explored in our evaluation.

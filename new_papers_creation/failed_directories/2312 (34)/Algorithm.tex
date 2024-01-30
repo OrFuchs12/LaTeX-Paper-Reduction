@@ -1,0 +1,63 @@
+The proposed federated quantized self-supervised learning scheme consists of training procedures deployed at clients' devices and the server, as detailed next.
+
+% May include Dorefa-Net algorithm procedure
+At each client's side, a feature extraction model is trained in low bitwidth with layer-wise quantization in both forward and backward propagation pass. We denote the model parameters of client $k$ in training epoch $t$ by $\w^{(Q)}_{k, t}$; each parameter is represented using  $s_k$ bits. The codebook used for quantizing parameters of each layer of the model, $\w^{(Q)}_{k, t}$, has cardinality $2^{s_k}$. The quantization centers (i.e., codebook entries) are typically determined via uniform quantization \cite{zhou2016dorefa},
+\begin{align*}
+     r_o = \mathrm{quantize}_s(r_i) =  \frac{1}{2^s-1}\mathrm{round}((2^s-1)r_i),
+\end{align*}
+which uses a uniform quantizer $\mathrm{quantize}_s$ to map a real-valued input $r_i \in [0, 1]$ to an $s$-bit output $r_o \in [0, 1]$. In general, parameters of deep neural networks do not follow uniform distribution and may vary in range. Therefore, the parameters may first need to be non-linearly transformed, e.g., by applying $\tanh$ function to limit their range to $[-1, 1]$. If $\tanh$ function is used, the quantized model weights are found as
+\begin{align*}
+     r_o = 2\mathrm{quantize}_s(\frac{\tanh{r_i}}{2\max(\tanh{r_i})}+\frac{1}{2}) - 1, 
+\end{align*}
+where the maximum is taken over all parameters in the same layer. In the forward pass, we apply normalization to ensure that $\frac{\tanh{r_i}}{2\max(\tanh{r_i})}+\frac{1}{2} \in [0, 1] $, where $\max(\tanh{r_i})$ represents the maximum taken over all parameters in this layer. Following the quantization operation, output $r_o$ is in $[-1, 1]$, which improves the stability of training.
+
+In addition to quantizing model parameters, the proposed scheme quantizes activations as well. In particular, after the output of a layer passes through an activation function that guarantees the output to be within $[0, 1]$ range, the activation is quantized using $\mathrm{quantize}_s$. 
+
+To quantize gradients in backward propagation, we use layer-wise quantile quantization method. In particular, we rely on the inverse of the cumulative distribution function $F_{\g}$ of the gradients in a layer to define the quantile function $Quantile_{\g} = F^{-1}_{\g}$. The quantization centers are then specified by the end points of each histogram bin, $Quantile_{\g}(\frac{i}{2^s-1})$, for $i = 0, \dots, 2^s-1$. It has been observed in prior work on low-bitwidth training \cite{zhou2016dorefa} that to avoid significant performance degradation, the number of bits for gradient quantization should be no less than the number of bits for weight quantization (and may in fact need to be greater). In our algorithm, local gradient quantization uses $2$ bits more than local weight quantization, e.g., if client $k$ uses $s_k$ bits for weight/activation quantization then it uses $s_k+2$ bits for gradient quantization. Following the backward pass, the computed estimate of stochastic gradient, $\g_{k, t}$, is immediately quantized to $\g^{(Q)}_{k, t}$. Finally, updated weights are quantized according to $\w^{(Q)}_{k, t+1} = Q(\w^{(Q)}_{k, t} - \alpha_t \g^{(Q)}_{k, t})$.
+
+\begin{algorithm}[tb]
+\caption{Fed-QSSL: Federated quantized self-supervised learning under bitwidth and data heterogeneity}
+\label{alg:algorithm2}
+\textbf{Initialization}: Clients bitwidth configuration $\{s_k \}_{k=1}^n$, local dataset $\{ D_k\}_{k=1}^n$, initial models $\{\w^{(Q)}_{k, 0} \}_{k=1}^n $, global data buffer $D_{g}$, $t = 0$ \\
+\textbf{Parameter}: number of local training epoch $E$, step size $\{\alpha_t\}$
+\begin{algorithmic}[1] %[1] enables line numbers
+\FOR{each round $r = 1, 2, $}
+\STATE $\{$Local training at clients $\}$
+\FOR{each client $k$ in parallel}
+\FOR{$t = 0, 1, \cdots, E-1$}
+\STATE Compute the compressed gradient $\g^{(Q)}_{k, t+(r-1)E}$
+\STATE Update the low-bit weights $\w^{(Q)}_{k, t+1+(r-1)E} = Q(\w^{(Q)}_{k, t+(r-1)E} - \alpha_{t+(r-1)E} \g^{(Q)}_{k, t+(r-1)E}) $
+\STATE $t = t+ 1$
+\ENDFOR
+\ENDFOR
+\STATE $\{$Global operations at the server $\}$
+\STATE The server collects local models $\{\w^{(Q)}_{k, rE} \}_{k=1}^n$
+\STATE The server de-quantizes $\{\w^{(Q)}_{k, rE} \}$ using $D_{g}$ to obtain $\{\w'^{(Q)}_{k, rE} \}$ and loss $\{L_{DQ_k} \}$ for all $k \in [n]$
+\STATE The server aggregates  $\w_{rE, G} = \sum_{k=1}^n p_k \w'^{(Q)}_{k, rE}$ using DQ-based losses
+\STATE The server re-quantizes the aggregation using $D_{g}$ to $s_k$-bit model and distributes to client $k$ for all $k \in [n]$
+\ENDFOR
+\STATE \textbf{Post-training} Each client freezes the trained feature extractor and trains local linear probe (i.e., classification layer) for downstream tasks
+\end{algorithmic}
+\end{algorithm}
+
+In each communication round the server collects and de-quantizes local models, aggregates the de-quantized models, re-quantizes the resulting model to low bitwidth and finally distributes the models to clients. To elaborate, after the central server collects local low-bitwidth models, it uses a small buffer of unlabeled data $D_g$ to de-quantize the collected local models to full precision. The de-quantization process differs from one local model to another and can be performed in parallel. In the scenario without bitwidth constraints, de-quantization can be viewed as a fine-tuning step on uniform unlabeled data; simulation results presented in the next sections demonstrate that such fine-tuning improves robustness in the full-precision model scenario. 
+
+After de-quantizing the collected models, the server forms their weighted average, $\w_{t, G} = \sum_{k=1}^n p_k \w'^{(Q)}_{k, t}$. The weights reflect performance discrepancy among local models caused by both local bitwidth and data heterogeneity, and are computed as 
+\begin{align*}
+    p_k = \frac{e^{-\mathcal{L}_{DQ_k}}}{\sum_{j=1}^n e^{-\mathcal{L}_{DQ_j}}}
+\end{align*}
+where $\mathcal{L}_{DQ_k}$ represents the last epoch loss in the de-quantization process of model $k$. 
+% The de-quantization step can be simply completed by refering to the layer-wise codebook for low-bitwidth models and mapping weights to floating-point numbers. Aggregation can follow the FedAvg algorithm and compute $\w_{t, G} = \sum_{k=1}^n \frac{|D_k|}{|D|} \w'^{(Q)}_{t, k}$. Re-quantization can use the $\tanh$-based quantizer. At this stage, the operations at the server are simple and we focus on analyzing the property of federated low-bitwidth SSL framework. Based on the analysis, we will design more delicate procedures for the server and present in the next section.
+%Re-quantization of the global update $\w_{t, G}$ is customized for each client utilizing low-bitwidth training. 
+%After the weighted aggregation is distributed to each client, a re-quantization step is required. We still use a small buffer to re-quantize the global update $\w_{t, G}$ so that it will be fine-tuned to generate uniform representation. The re-quantization is separate for different clients and low-bitwidth training is utilized. 
+The server re-quantizes global model $\w_{t, G}$ to an $s_k$-bit version denoted by $\w^{(Q)}_{k, t}$ while running fine-tuning epochs on a uniformly distributed dataset stored in the global buffer $D_g$. The fine-tuning epochs use low-bit operations in order to guarantee that the fine-tuned model stays in $s_k$-bit representation. Note: both de-quantization and re-quantization use $D_g$ for fine-tuning but de-quantization runs full precision operations while re-quantization runs low-bit operations.
+
+After completing pre-training and learning the feature extractor model, each client freezes parameters of the feature extractor model and trains a low-bitwidth classifier on its local (labeled) data. 
+
+The described procedure, including both the steps executed by clients as well as those executed by the server, is formalized as Algorithm \ref{alg:algorithm2}.
+
+% Extension to more general setups
+{\bf Remark.}
+While Algorithm \ref{alg:algorithm2} assumes full client participation at each communication round, it is straightforward to incorporate random client sampling as used by the vanilla FedAvg algorithm in settings with a large number of clients. Moreover, when the number of clients is exceedingly large, it may be beneficial to cluster clients with similar data distributions and learn a model for each such cluster, ultimately allowing better utilization of the available resources.
+
+

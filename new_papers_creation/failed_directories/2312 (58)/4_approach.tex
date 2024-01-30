@@ -1,0 +1,228 @@
+\section{Method: \model}
+
+
+We present \model, a fully differentiable method which performs deep graph clustering based on the graph structure and node attributes, without the need to pre-define the number of communities.
+The key rationale of our method is to parameterize a relevant clustering objective (e.g., Modularity) with similarity between nodes computed based on graph neural network (GNN)-based embeddings. Our method {\model} consists of four steps:
+\begin{itemize}
+    \item \textbf{Node embeddings. }As the first step, {\model} obtains the node embeddings as the output of the GNN followed by some transformations that helps to perform efficient clustering.
+    \item 
+    \textbf{Modularity via similarity. }We evaluate the similarity between all node pairs from the embeddings and treat them as soft community pairwise memberships.%
+    \item \textbf{Objectives. }Subsequently, it builds the cluster detection objectives based on the soft memberships and train the GNN parameters in a differentiable manner.%
+    \item \textbf{Final clustering. } Finally, it computes the community memberships by clustering the GNN node embeddings.%
+\end{itemize}
+
+
+
+
+We introduce each step of our method {\model} in the following subsections. 
+
+{\subsection{Node embeddings using GNN}\label{subsec::node_embedding}} 
+
+We begin with a brief introduction of graph neural networks (GNNs). GNNs are powerful graph machine learning paradigms that combine the graph structure and node attribute information into node embeddings for different downstream tasks. %
+A key design element of GNNs is message passing where the nodes iteratively update their representations (embeddings) by aggregating information from their neighbors. In the literature, several different GNN architectures have been proposed~\cite{scarselli2008graph, kipf2016semi, hamilton2017inductive, velickovic2017graph} which implement different schemes of message passing. A comprehensive discussion on the methods and applications of GNNs are described here \cite{zhou2020graph}.
+
+In this paper, we leverage the widely used Graph Convolutional Network (GCN)~\cite{kipf2016semi} to produce node embeddings, noting that our model can be equipped with other GNNs. With the initial node features as $X^{(0)}$, the layer-wise message passing rule for layer $l$ ($l=0,\cdots, L-1$) is as follows: 
+
+\begin{equation}
+    X^{(l+1)}=\sigma ( \Tilde{A} X^{(l)}W^{(l)})
+\end{equation}
+where $\Tilde{A}=D^{-\frac{1}{2}}AD^{\frac{1}{2}}$ is the normalized adjacency matrix, $D$ is the diagonal node degree matrix, $X^l$ is the embedding output of the $l$-th layer, $W^l$ is the learnable weight matrix of the $l$th layer, and $\sigma$ is the activation function which introduces the non-linearity in the feature aggregation scheme. We do not use any self loop creation in the adjacency matrix and we choose the SELU \cite{klambauer2017self} as the activation function for better convergence. The SELU activation is given as:
+\begin{equation}
+    SELU(x)=
+    \begin{cases}
+        \beta x,& \text{if } x \geq 0\\
+        \beta \alpha(e^x-1),& \text{otherwise}
+    \end{cases}
+\end{equation} 
+where $\beta \approx 1.05$ and $\alpha \approx 1.67$.\\
+
+
+\textbf{Transformation of the embeddings. }Let $X=X^{L}=[X_1, \cdots, X_n]^T$ be the output embeddings of the last layer readout from the GNN. We introduce the following problem-specific transformations on the embeddings (where $Z^{\circ 2}$ denotes the element-wise square operation): %
+\begin{equation}
+ \begin{aligned}
+X_i&\leftarrow\frac{X_i}{\sum_j X_{ij}},\\
+X_i&\leftarrow\tanh(X_i),\\
+ X_i &\leftarrow X_i^{\circ 2},\\
+X_i&\leftarrow\frac{X_i}{\|X_i\|_2}    
+\end{aligned}   
+\end{equation}
+
+
+
+
+
+
+
+Specifically, the first normalization is used so as to prevent vanishing gradients because of the $\tanh$ activation function for large values. Next, after the activation, doing the element-wise square ensures the output is constrained within the positive coordinate space. The final $L_2$ normalization reduces the cosine similarity computation of node pairs (introduced in next subsection) to corresponding dot products. 
+Thus, the final embeddings %
+lie on the surface of the unit sphere constrained in the positive space. More detailed intuitions behind these will be explained in details in the following sections.\\
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+\subsection{Modularity via embedding similarity}
+\label{subsec::similarity_computation}
+
+After obtaining the transformed GNN embeddings $X$, we demonstrate how to compute the modularity $Q$ based on them via pairwise node similarities.%
+
+To achieve this, we focus on $M_{}$ which is defined in Eq.~\ref{eq:q_matrix} as a binary matrix that encodes the pairwise memberships (via $\delta$) of the nodes in a cluster. This pairwise relationship is transitive, i.e., $\delta(c_u,c_v)=1$ and $\delta(c_v,c_w)=1$ implies $\delta(c_u,c_w)=1$.  %
+However, as stated before, the problem of finding the optimal $M_{}$ which maximizes $Q$ is NP-Hard. The main idea is to replace $M_{}$ with a soft pairwise community membership matrix. We choose to replace $M_{}$ with a similarity matrix which is defined based on node embeddings, where the similarity ($f_{sim}(X_u, X_v)\in [0,1]$) can be viewed as soft membership between the nodes $\{u,v\}$.  Higher values of $f_{sim}(X_u, X_v)$ corresponds to higher similarity or stronger relationship between the nodes.  %
+Although there can be many choices for the similarity function, we choose $f_{sim}$ as the cosine similarity, $f_{sim}(X_u, X_v) = \cos(X_u, X_v)$. %
+
+Here, we also emphasize our rationale for the transformations of the embeddings earlier. Specifically, the original $M_{}$ only takes binary values (i.e., 0 or 1). Our embedding transformation allows $\cos(X_u, X_v)\in [0,1]$ by limiting them in the positive coordinate space, and enables its computation via dot products $\cos(X_u, X_v) = X_u^TX_v$, which in turn leads to an efficient computation as discussed later.
+
+
+
+
+\subsection{Objective function}
+\label{subsec::objective_function}
+
+We introduce a novel joint objective function that performs clustering based on both the community structure quality measure (i.e., modularity) and local auxiliary information.
+
+
+\subsubsection{Modularity optimization.}
+We first define our primary objective function, i.e., modularity optimization by approximating the pairwise community membership computed with embedding similarity:%
+
+\begin{equation}
+    L_1=-\Tilde{Q} = -\frac{1}{2m}Tr(BXX^T) 
+\end{equation}
+where $B$ is the modularity matrix, $m$ is the number of edges, and $XX^T$ is the similarity matrix obtained from the transformed node embeddings.
+
+
+
+
+
+
+
+\subsubsection{Auxiliary information loss.}
+We now discuss how our algorithm can be made more flexible by accounting for additional local information. %
+
+
+
+
+
+
+Specifically, let $S \subseteq V$ be the subset of nodes whose local information is available, and $H \in \mathbb{R}^{|S| \times |S|}$ be the pairwise information matrix. We consider different types of additional information. In the semi-supervised setting, partial node labels (e.g. cluster labels, class labels) are available, and we can construct $H$ based on the pairwise membership: 
+\begin{equation}
+    H_{ij}=
+    \begin{cases}
+        1,& \text{if } c_i=c_j\\
+        0,& \text{otherwise}
+    \end{cases}
+\end{equation}
+where $c_i$ is the label of the node $i$. Alternatively, by collecting all available labels in one-hot matrix form $C \in \mathbb{R}^{|S| \times p}$, we can rewrite $H$ as: 
+\begin{equation}
+    H = CC^T
+\end{equation}
+
+When those ground-truth information is not available, we can also leverage traditional structure-based graph partitioning heuristics, such as Louvain \cite{blondel2008fast}, and treat their generated clusters as the node labels. 
+In general, any pairwise node information similarity which can be approximated as $\langle C_i, C_j\rangle \in [0,1]$, can be effectively used.
+
+
+
+With the local information matrix $H$, the secondary objective function which minimizes the difference between $H$ and the embedding similarity matrix is given as :
+\begin{equation}
+    L_2 = \frac{1}{|S|^2}\|H-X_SX_S^T\|_F^2
+\end{equation}
+where $X_S$ is the submatrix of node embeddings with only nodes in $S$. 
+
+The final objective function is a weighted combination of the two objectives:
+\begin{equation}
+    L = L_1 + \lambda L_2
+\end{equation}
+where $\lambda$ is a hyperparameter. The GNN parameters are trained in an end-to-end based on the total loss $L$ with the stochastic gradient descent algorithm. 
+
+When instead of individual node labels, samples of pairwise node memberships are available, $L_2$ can be written as follows:
+\begin{equation}
+    L_2=\frac{1}{|S|}\sum_{p_{ij} \in S}(1-\langle X_i, X_j \rangle)^2    
+\end{equation}
+where $p_{ij}$ are the node pairs which belong to the same community and $S$ is a set of such pairs.
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Clustering node embeddings}
+\label{subsec::final_clustering}
+In this section, we illustrate how to obtain the hard cluster partitions based on the soft pairwise memberships obtained in the previous section. 
+
+One way is to directly apply clustering algorithms based on the pairwise node similarity matrix, such as affinity propagation  \cite{frey2007clustering}. However, computing the full similarity matrix from the embeddings is computationally prohibitive. Instead, we take advantage of the following observation. Since our embeddings are $L_2$ normalized (i.e., $\|X_u\|_2=1$), the cosine similarity is directly related to the Euclidean distance in the embedding space:
+\begin{equation}
+    \small
+    \begin{aligned}
+    \|X_u-X_v\|_2^2&=\|X_u\|_2^2+\|X_v\|_2^2-2\|X_u\|_2\|X_v\|_2\cos(X_u, X_v)\\
+    &=2(1-\cos(X_u, X_v))        
+    \end{aligned}
+\end{equation}
+This allows us to apply clustering algorithms based on the euclidean distance in the embedding space without computing the full pairwise similarity matrix. 
+
+
+
+
+
+
+
+Specifically, we apply the Balanced Iterative Reducing and Clustering using Hierarchies (BIRCH) \cite{zhang1996birch}. BIRCH is a scalable, memory-efficient, online clustering algorithm that can cluster large datasets by first generating a small and compact summary of the dataset that retains as much information as possible. Unlike other popular choices such as k-means \cite{hartigan1979algorithm}, BIRCH does not require the number of clusters beforehand. 
+
+
+
+
+
+
+\subsection{Complexity analysis}
+\label{subsec::complexity}
+In this section, we analyze the complexity of our proposed model. The forward pass requires us to compute two objective functions. Specifically, modularity optimization loss $L_1$ can be evaluated with
+
+\begin{equation}
+\small
+    \begin{aligned}
+          L_1 &= -\frac{1}{2m} Tr(B XX^T) =-\frac{1}{2m} Tr(X^T B X)\\
+          &=-\frac{1}{2m}( Tr(X^TAX) - \frac{1}{2m}Tr(X^Tdd^TX) )  
+    \end{aligned}  
+\end{equation}
+We can see that $L_1$ can be computed with sparse matrix multiplications between $X$ and $A$ and matrix vector multiplications between $X$ and $d$. These multiplications lead to an overall computation cost of $O(k^2n)$, where $k$ is the dimension of the embeddings $X$. %
+
+For the auxiliary information loss, we have
+
+\begin{equation}
+\small
+    \begin{aligned}
+        &\|H-X_SX_S^T\|_F^2=\sum_{ij}(H_{ij}-(XX^T)_{ij})^2\\
+        &= \sum_{ij}H_{ij}^2+\sum_{ij}(XX^T)_{ij}^2
+        - 2 \sum_{ij}H_{ij}(XX^T)_{ij}  \\
+        &= \sum_{ij}(CC^T)_{ij}^2+\sum_{ij}(XX^T)_{ij}^2
+        - 2 \sum_{ij}(CC^T)_{ij}(XX^T)_{ij}  \\
+        &=Tr(C^TCC^TC)-Tr(X_S^TX_SX_S^TX_S)- 2 Tr(X_S^TCC^TX_S )\\
+    \end{aligned}
+\end{equation}
+
+
+Computing $C^TC$, $X_S^TX_S$, and $X_S^TC$ requires $O(p^2n)$, $O(k^2n)$, and $O(knp)$ respectively via matrix multiplications, assuming $|S|=n$, since $|S|$ can be atmost $n$. Here, $p$ is the dimension of the auxiliary information (note, $C \in \mathbb{R}^{n \times p}$ ). Thus, the overall complexity of our model is $O(k^2n+p^2n)$, where $k,p \ll n$. This shows that our model scales linearly with the size of the graph. %
+
+
+
+
+
+
+
+
+

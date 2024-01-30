@@ -1,0 +1,249 @@
+%% Overview %%%%%%%%%%%%%%%%%%%%%%%
+
+The overall scheme of the proposed method is depicted  in~\cref{fig:framework}.
+We generate a new proposal model using multiple learnable Gaussian masks from a video feature $\mathbf{V}$ and a query feature $\mathbf{Q}$.
+Here, each mask in a video plays a role in focusing on a specific video event and suppressing the rest.
+% provides positive and negative proposals defined by multiple learnable Gaussian masks.
+We use a mixture model consisting of multiple Gaussian masks to produce proposals.
+Each positive proposal is called {\it Gaussian mixture proposal} (GMP). %defined by a mixture of multiple Gaussian masks.
+% For the proposal, we leverage the shape of a Gaussian mixture because the Gaussian mixture can express multiple peaks in a smoothly curved form and is still learnable.
+To generate $K$ GMPs ($\mathbf{P}_{p}$), we propose an importance weighting strategy to represent importance levels of each Gaussian mask for a query-relevant location.
+% learn the importance of each Gaussian mask in the mixture. 
+For the importance weighting strategy, the importance-based reconstructor receives the generated Gaussian masks and estimates the importance weights of the Gaussian masks for the mixture.
+Then, the GMP is obtained via attentive pooling with the Gaussian masks and importance weights.
+To capture diverse query-relevant events, we propose a pull-push learning scheme, where the Gaussian masks are trained by pulling loss and pushing loss. 
+The pulling loss $\mathcal{L}_{pull}$ makes the masks in a GMP be densely overlapped, whereas  %via a pulling loss $\mathcal{L}_{pull}$ 
+the pushing loss $\mathcal{L}_{push}$ makes the masks in a GMP be less overlapped.
+%via a pushing loss $\mathcal{L}_{push}$.
+Each of $K$ easy negative proposals ($\mathbf{P}_{en}$) is also composed of multiple Gaussian masks to capture diversely-shaped confusing locations within the given video. 
+% Unlike the positive proposal, the easy negative proposal does not use importance weight because the importance weight takes a key role for the reconstruction from positive proposals.
+Unlike the positive proposal, the easy negative proposal does not use importance weights because the importance weights only represent query-relevant levels, which is only needed for positive proposals.
+% The importance-based reconstructor estimates the importance weights of the masks for the Gaussian mixture and 
+% predicts a reconstructed query from the proposals.
+% The importance-based reconstructor receives Gaussian masks for the mixture from the generator and yields mask importance weights.
+% Then, the reconstructor passes the importance weights back to the generator to emphasize meaningful masks in the mixture.
+The importance-based reconstructor receives positive proposals from the Gaussian mixture proposal generator and reconstructs the sentence query from a randomly hidden sentence query.
+% , as depicted in the bottom left of \cref{fig:framework}.
+% We use cross-entropy losses to compute the difference between the original query and the reconstructed queries from the proposals.
+% To train the positive proposals to capture the query-relevant temporal location, we minimize the cross-entropy losses of the positive proposals $\mathcal{L}_{rec}$.
+% To distinguish positive proposals from negative proposals, we perform contrastive learning with $\mathcal{L}_{ivc}$.
+
+%% Encoders %%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Encoders}
+\label{sec:encoders}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Given a video and sentence query, we use pre-trained encoders to obtain a video feature and a query feature, following previous methods~\cite{wu2020reinforcement,chen2021towards}
+% The encoding details are described in Supplementary material.
+
+%% Video encoder %%%%%%%%%%%%%%%%%%%%%%%
+\paragraph{Video encoder.}
+An untrimmed raw video $\mathcal{V}$ is made into a video feature $\mathbf{V}$ through the pre-trained 3D Convolutional Neural Network (3D CNN)~\cite{carreira2017quo, tran2015learning}.
+The video feature $\mathbf{V}$ is given by
+$\mathbf{V}=[\mathbf{v}_1,\mathbf{v}_2,\dots,\mathbf{v}_T]^\top \in \mathbb{R}^{T\times d_V} \text{,}$
+where $\mathbf{v}_t$ is the $t^{th}$ segment feature, $T$ is the number of video segments, and $d_V$ is the dimension of the segment feature $\mathbf{v}_t$.
+
+%% Query encoder %%%%%%%%%%%%%%%%%%%%%%%
+\paragraph{Query encoder.}
+Given a sentence query $\mathcal{S}$, we use the pre-trained GloVe~\cite{pennington2014glove} word embedding to obtain a query feature $\mathbf{Q}=[\mathbf{q}_1,\mathbf{q}_2,\dots,\mathbf{q}_N]^\top \in \mathbb{R}^{N\times d_Q} \text{,}$
+where $\mathbf{q}_n$ is the $n^{th}$ word feature, $N$ is the number of words, and $d_Q$ is the dimension of the word feature $\mathbf{q}_n$.
+% Given a sentence query $\mathcal{S} = \{w_n|n=1,2,\dots,N\}$ where $N$ is the number of words and $w_n$ is the $n^{th}$ word, we use the pre-trained GloVe~\cite{pennington2014glove} word embedding to obtain a query feature $\mathbf{Q}=[\mathbf{q}_1,\mathbf{q}_2,\dots,\mathbf{q}_N]^\top \in \mathbb{R}^{N\times d_Q} \text{,}$
+% where $\mathbf{q}_n$ is the $n^{th}$ word feature and $d_Q$ is the dimension of the word feature $\mathbf{q}_n$.
+
+
+
+%% Gaussian mixture generator %%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Gaussian Mixture Proposal Generator}
+\label{sec:proposal-generator}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%From the features of a video and a query, 
+From video and query features $\mathbf{V}$ and $\mathbf{Q}$, the proposed  GMP  generator yields $K$ positive GMPs ($\mathbf{P}_{p}$), $K$ easy negative proposals ($\mathbf{P}_{en}$) in addition to one existing  hard negative proposal ($\mathbf{P}_{hn}$).
+
+%% Gaussian mixture proposal generation %%%%%%%%%%%%%%%%%%%%%%%
+\paragraph{Modeling of GMP for positive proposal.}
+For the generation of the positive proposal, we first extract a multi-modal feature $\mathbf{G}$ reflecting both visual and textual information.
+We use a transformer~\cite{vaswani2017attention} to aggregate the information of $\mathbf{V}$ and $\mathbf{Q}$ by
+% \begin{math}
+%   \mathbf{G}=\mathrm{Transformer}(\mathbf{Q}, \widehat{\mathbf{V}}) =[\mathbf{g}_1,\mathbf{g}_2,\dots,\mathbf{g}_{T},\mathbf{g}_{cls}]^\top\in \mathbb{R}^{(T+1)\times d_G}\text{,}
+% %   \label{eq:generative-transformer}
+% \end{math}
+\begin{math}
+  \mathbf{G}=f_{td}(\widehat{\mathbf{V}}, f_{te}(\mathbf{Q})) =[\mathbf{g}_1,\mathbf{g}_2,\dots,\mathbf{g}_{T},\mathbf{g}_{cls}]^\top\in \mathbb{R}^{(T+1)\times d_G}\text{,}
+%   \label{eq:generative-transformer}
+\end{math}
+where the transformer uses $\mathbf{Q}$ as an input to the transformer encoder $f_{te}(\cdot)$ and both $\widehat{\mathbf{V}}$ and $f_{te}(\mathbf{Q})$ as inputs to the transformer decoder $f_{td}(\cdot)$, and $d_G$ is the dimension of the multi-modal feature.
+%First, to make a multi-modal feature $\mathbf{G}$ of a video-query pair, we combine the video feature $\mathbf{V}$ and the query feature $\mathbf{Q}$ through a transformer~\cite{vaswani2017attention}.
+For the video feature $\widehat{\mathbf{V}}$, we append a learnable token $\mathbf{v}_{cls}$, same as a [CLASS] token in \cite{devlin2018bert}, by
+$\widehat{\mathbf{V}}=[\mathbf{v}_1,\mathbf{v}_2,\dots,\mathbf{v}_T, \mathbf{v}_{cls}]^\top \in \mathbb{R}^{(T+1)\times d_V}$.
+%Then, the multi-modal feature $\mathbf{G}$ is obtained by
+%\begin{math}
+%  \mathbf{G}=\mathrm{Transformer}(\mathbf{Q}, \widehat{\mathbf{V}}) =[\mathbf{g}_1,\mathbf{g}_2,\dots,\mathbf{g}_{T},\mathbf{g}_{cls}]^\top\in \mathbb{R}^{(T+1)\times d_G}\text{,}
+%   \label{eq:generative-transformer}
+%\end{math}
+%where the transformer uses $\mathbf{Q}$ as input to its encoder and both $\widehat{\mathbf{V}}$ and output of the encoder as input to its decoder, and $d_G$ is the dimension of the multi-modal feature.
+By the transformer, correspondingly, the vector $\mathbf{g}_{cls}\in \mathbb{R}^{d_G}$ stores the sequence information of all words and video segments.
+
+For the $k^{th}$ positive proposal $\mathbf{P}_{p}^{(k)}$, we define multiple Gaussian masks $\mathbf{M}^{(k)} = [\mathbf{M}_{1}^{(k)},\mathbf{M}_{2}^{(k)},\dots,\mathbf{M}_{E_p}^{(k)}]^\top \in \mathbb{R}^{E_p\times T}$, where $\mathbf{M}_{l}^{(k)}$ is the $l^{th}$ Gaussian mask for $\mathbf{M}^{(k)}$, and $E_p$ is the number of masks.
+The $k^{th}$ proposal $\mathbf{P}_{p}^{(k)}$ is defined by a mixture of the Gaussian masks $\mathbf{M}^{(k)}$.
+The Gaussian centers $\mathbf{c}^{(k)}$ and widths (standard deviations) $\mathbf{s}^{(k)}$ of $\mathbf{M}^{(k)}$ are calculated by the function of $\mathbf{g}_{cls}$, as
+%to a fully connected layer followed by a Sigmoid function as
+\begin{align}
+  &\mathbf{c}^{(k)} = \textrm{Sigmoid}\left(\mathbf{W}_\mathbf{c}\,\mathbf{g}_{cls}+\mathbf{b}_\mathbf{c}\right) \in \mathbb{R}^{E_p} \text{,} 
+  \label{eq:mask-center}\\
+  &\mathbf{s}^{(k)} = \frac{1}{\sigma}\textrm{Sigmoid}\left(\mathbf{W}_\mathbf{s}\,\mathbf{g}_{cls}+\mathbf{b}_\mathbf{s}\right) \in \mathbb{R}^{E_p} \text{.}
+  \label{eq:mask-width}
+\end{align}
+Here, $\mathbf{W}_\mathbf{c~or~s}$ and $\mathbf{b}_\mathbf{c~or~s}$ are defined as  learnable parameters of a fully connected layer, and $\sigma$ is a hyper-parameter controlling the width of the masks.
+Consequently, we obtain the $l^{th}$ Gaussian mask $\mathbf{M}_{l}^{(k)} = [f_{l}^{(k)}(0), f_{l}^{(k)}(1), \dots, f_{l}^{(k)}(T-1)]^\top \in \mathbb{R}^{T}$ using 
+\begin{equation}
+  f_{l}^{(k)}(t) = \mathrm{exp}\left(-\left(\frac{t/(T-1)-\mathbf{c}^{(k)}_{l}}{\mathbf{s}^{(k)}_{l}}\right)^2\right) \text{,} 
+  \label{eq:gaussian}
+\end{equation}
+where $\mathbf{c}^{(k)}_{l}$, $\mathbf{s}^{(k)}_{l} \in \mathbb{R}$ are the $l^{th}$  elements of $\mathbf{c}^{(k)}$, $\mathbf{s}^{(k)}$, respectively.
+
+The $k^{th}$ proposal $\mathbf{P}_{p}^{(k)}$ is defined by a mixture of the Gaussian masks $\mathbf{M}^{(k)}$ via attentive pooling with mask importance weights $\mathbf{w}^{(k)}\in\mathbb{R}^{E_p}$. 
+Finally, we generate $K$ positive proposals $\mathbf{P}_{p} = [ \mathbf{P}_{p}^{(1)}, \mathbf{P}_{p}^{(2)}, \dots, \mathbf{P}_{p}^{(K)} ]^\top \in \mathbb{R}^{K\times T}$, where the $k^{th}$ proposal is
+\begin{equation}
+  \mathbf{P}_{p}^{(k)} = \mathbf{M}^{(k)\top}\mathbf{w}^{(k)} \in \mathbb{R}^{T} \text{.}
+  \label{eq:gaussian-mixture-proposal}
+\end{equation}
+To represent the importance levels of each Gaussian mask in the mixture, we leverage an importance weighting strategy, where the importance weights $\mathbf{w}^{(k)}$ are estimated by the importance-based reconstructor in \cref{eq:mask-importance-weight}.
+
+
+%% Optimization for mixture proposals %%%%%%%%%%%%%%%%%%%%%%%
+\paragraph{Losses for pull-push learning scheme.}
+%sparsely throughout the entire video because the masks are learned to find meaningful temporal locations without any constraints.
+In our scheme, the Gaussian masks in a Gaussian mixture proposal should be densely located near a query-relevant temporal location, but should not be overlapped too much with each other to represent diverse events.
+To this end, we propose a pull-push learning scheme using a pulling loss and a pushing loss, each of which plays an opposite role to the other, to produce moderately coupled masks.
+
+%% Pulling loss %%%%%%%%%%%%%%%%%%%%%%%
+The pulling loss $\mathcal{L}_{pull}$ lets the masks stay close, which is computed by minimizing the Euclidean distance between the centers of the two farthest masks as follows:
+\begin{equation}
+  \mathcal{L}_{pull} = \sum_{k=1}^K \left(\mathbf{c}^{(k)}_{l_{min}} - \mathbf{c}^{(k)}_{l_{max}}\right)^2 \text{,}
+  \label{eq:pulling-loss}
+\end{equation}
+where $l_{min}=\mathrm{arg\,min}_l\, \mathbf{c}^{(k)}_{l}$ and $l_{max}=\mathrm{arg\,max}_l\, \mathbf{c}^{(k)}_{l}$.
+
+%% Pushing loss %%%%%%%%%%%%%%%%%%%%%%%
+The pushing loss is defined by two losses: (1) an intra-pushing loss and (2) an inter-pushing loss.
+The intra-pushing loss $\mathcal{L}^{intra}_{push}$ prevents the masks in a proposal from overlapping too much with others by forcing the masks to be less overlapped, which ensures each mask represents different events.
+Furthermore, we use the inter-pushing loss $\mathcal{L}^{inter}_{push}$ to let each proposal predict different temporal locations. Based on the regularization term in \cite{lin2017structured}, the resultant two pushing losses are given as
+\begin{align}
+  &\mathcal{L}^{intra}_{push} = \sum_{k=1}^K || \mathbf{M}^{(k)} \mathbf{M}^{(k)\top} - \lambda_1 I||^2_{F} \text{,} 
+  \label{eq:intra-pushing-loss} \\
+  &\mathcal{L}^{inter}_{push} = || \mathbf{P}_{p} \mathbf{P}_{p}^\top - \lambda_2 I||^2_{F} \text{,}
+  \label{eq:inter-pushing-loss}
+\end{align}
+where $||\cdot||_F$ denotes the Frobenius norm, $I$ is an identity matrix, and $\lambda_1$ and $\lambda_2$ are hyper-parameters controlling the strength of the pushing.
+
+%% Negative proposal mining %%%%%%%%%%%%%%%%%%%%%%%
+\paragraph{Negative proposal mining.}
+To capture diverse shapes of confusing temporal locations inside the video, we generate a new type of a negative proposal with multiple Gaussian masks, called easy negative proposals
+($\mathbf{P}_{en} \in \mathbb{R}^{K\times T}$) in addition to the existing hard negative proposal
+($\mathbf{P}_{hn} \in \mathbb{R}^{T}$).
+To generate $K$ easy negative proposals, we leverage multiple Gaussian masks to include confusing locations.
+In our negative proposal mining, the $k^{th}$ easy negative proposal ($\mathbf{P}^{(k)}_{en}$) is composed of multiple Gaussian masks by using the same process in \cref{eq:mask-center,eq:mask-width,eq:gaussian}.
+Contrary to moderately coupled Gaussian masks in the positive proposal, we let the $E_{en}$ Gaussian masks of each easy negative proposal spread sparsely without the pull-push learning scheme because most of the confusing locations exist throughout the entire video.
+Then, following \cite{zheng2022cnm,zheng2022cpl}, the hard negative proposal $\mathbf{P}_{hn}$ is determined by a mask covering an entire video, which is  $\mathbf{P}_{hn} = [1, 1, \dots, 1] \in \mathbb{R}^{T}$, where both the query-relevant location and confusing locations are included.
+% We define the $k^{th}$ easy negative proposal $\mathbf{P}^{(k)}_{en}$ as
+% \begin{math}
+%   \mathbf{P}^{(k)}_{en} = \sum_{l=1}^{E_{en}} \mathbf{M}_{en,l}^{(k)} \in \mathbb{R}^{T}
+%   \text{.}
+% \label{eq:easy-negative-mask}
+% \end{math}
+Finally, the Gaussian mixture proposal generator produces three proposals $\{\mathbf{P}_{p}, \mathbf{P}_{hn}, \mathbf{P}_{en}\}$.
+
+%% importance-based reconstructor %%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Importance-based Reconstructor}
+\label{sec:importance-based-reconstructor}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+We propose an importance weighting strategy to effectively represent importance levels of each Gaussian mask in the mixture.
+The importance-based reconstructor produces mask importance weights ($\mathbf{w}$) for Gaussian mixture proposals in \cref{eq:gaussian-mixture-proposal}.
+Moreover, the reconstructor receives proposals from the generator and reconstructs the sentence query. 
+
+%% Mask importance %%%%%%%%%%%%%%%%%%%%%%%
+\paragraph{Mask importance.}
+% From the set of Gaussian masks $\{\mathbf{M}^{(k)}\}_{k=1}^K$ in the generator, 
+We estimate the $k^{th}$ mask importance weights ($\mathbf{w}^{(k)}$) from the Gaussian masks $\mathbf{M}^{(k)}$. % in the generator.
+First, we use a Mask-Conditioned transformer (MC transformer)~\cite{zheng2022cnm,lin2020weakly} to extract the multi-modal feature $\mathbf{R}^\mathbf{M}$ for any video mask $\mathbf{M}$, given the video feature $\mathbf{V}$ and a randomly hidden sentence query feature $\widehat{\mathbf{Q}}$.
+In the MC transformer, the mask $\mathbf{M}$ is multiplied by the self-attention map in every self-attention process to focus on the video feature inside the mask.
+Additionally, we append a learnable token $\widehat{\mathbf{q}}_{cls}$
+, same as a [CLASS] token in \cite{devlin2018bert}, 
+to the hidden sentence query feature by
+$\widehat{\mathbf{Q}}=[\widehat{\mathbf{q}}_1,\widehat{\mathbf{q}}_2,\dots,\widehat{\mathbf{q}}_N, \widehat{\mathbf{q}}_{cls}]^\top \in \mathbb{R}^{(N+1)\times d_Q} \text{.}$
+The resultant multi-modal
+feature $\mathbf{R}^\mathbf{M}$ can be calculated as follows:
+% \begin{equation}
+%   \mathbf{R}^\mathbf{M}=\mathrm{MC}\text{-}\mathrm{Transformer}(\mathbf{V}, \widehat{\mathbf{Q}}, \mathbf{M}) \in \mathbb{R}^{(N+1)\times d_R} \text{,}
+%   \label{eq:reconstructive-transformer}
+% \end{equation}
+\begin{equation}
+  \mathbf{R}^\mathbf{M}=f_{md}(\widehat{\mathbf{Q}}, f_{me}(\mathbf{V},\mathbf{M}), \mathbf{M}) \in \mathbb{R}^{(N+1)\times d_R} \text{.}
+  \label{eq:reconstructive-transformer}
+\end{equation}
+Here, the MC transformer uses $\mathbf{V}$ and $\mathbf{M}$ as inputs to the transformer encoder ($f_{me}(\cdot)$).
+Then, the transformer decoder ($f_{md}(\cdot)$) receives  $\widehat{\mathbf{Q}}$, $f_{me}(\mathbf{V},\mathbf{M})$, and $\mathbf{M}$. 
+The dimension of the multi-modal feature is denoted by $d_R$.
+In $\mathbf{R}^\mathbf{M}=[\mathbf{r}^\mathbf{M}_1,\mathbf{r}^\mathbf{M}_2,\dots,\mathbf{r}^\mathbf{M}_{N}, \mathbf{r}^\mathbf{M}_{cls}]^\top$, the vector $\mathbf{r}^\mathbf{M}_{cls}$ reflects all words and video segments conditioned by the mask $\mathbf{M}$.
+To compute the $k^{th}$ mask importance weights $\mathbf{w}^{(k)}$ in \cref{eq:gaussian-mixture-proposal}, we calculate $\mathbf{r}^{\mathbf{M}_{l}^{(k)}}_{cls}$ using $\mathbf{M}_{l}^{(k)}$ via \cref{eq:reconstructive-transformer} and apply it to a Multi-Layer Perceptron~(MLP) with two layers as follows:
+\begin{align}
+  &h^{(k)}_l = \mathrm{MLP}\Bigl(\mathbf{r}^{\mathbf{M}_{l}^{(k)}}_{cls}\,\Bigr)\in \mathbb{R} \text{,}
+  \label{eq:mask-importance-value} \\
+  &\mathbf{w}^{(k)} = \mathrm{Softmax}\Bigl([h^{(k)}_1,h^{(k)}_2,\dots,h^{(k)}_{E_p}]^\top\Bigr) \in\mathbb{R}^{E_p} \text{.}
+  \label{eq:mask-importance-weight}
+\end{align}
+% where $k \neq 1$.
+% We set $\mathbf{w}^{(1)}$ to $1$.
+
+%% importance-based reconstruction %%%%%%%%%%%%%%%%%%%%%%%
+\paragraph{Losses for reconstruction.}
+Based on the supposition that properly generated proposals can reconstruct the given sentence query as in \cite{lin2020weakly, song2020weakly}, we reconstruct the sentence query from a randomly hidden sentence query.
+First, we generate the multi-modal features $\mathbf{R}^\mathbf{P}$ using the proposed proposals $\mathbf{P}\in\{\mathbf{P}_{p}, \mathbf{P}_{hn}, \mathbf{P}_{en}\}$ by replacing $\mathbf{M}$ with $\mathbf{P}$ in \cref{eq:reconstructive-transformer}.
+Then, the reconstructed query is produced using $\mathbf{R}^\mathbf{P}$, and the cross-entropy loss $C(\cdot)$ is used to measure the difference between the reconstructed query and the original query.
+Then, we can calculate $C(\mathbf{P}_{p}^{(k)})$, $C(\mathbf{P}_{hn})$, and
+$C(\mathbf{P}_{en}^{(k)})$.
+%% Optimization for reconstruction %%%%%%%%%%%%%%%%%%%%%%%
+% \paragraph{Losses for reconstruction.}
+For learning to reconstruct the sentence query, following \cite{lin2020weakly}, we use a reconstruction loss which is the cross-entropy losses of the positive proposals and hard negative proposal, where a query-relevant temporal location exists, as
+\begin{math}
+\mathcal{L}_{rec}=C(\mathbf{P}_{p}^{(k^*)})+C\left(\mathbf{P}_{hn}\right) \text{,}
+%   \label{eq:reconstruction-loss}
+\end{math}
+where
+\begin{math}
+  k^* = \mathrm{arg\,min}_k\,C(\mathbf{P}_{p}^{(k)}) \text{.}
+%   \label{eq:argmink}
+\end{math}
+Furthermore, following \cite{zheng2022cnm}, we perform contrastive learning to distinguish the query-relevant location from the confusing locations captured by the easy negative proposals and the hard negative proposal.
+Based on the triplet loss~\cite{wang2014learning}, the intra-video contrastive loss $\mathcal{L}_{ivc}$ is defined as
+\begin{math}
+  \mathcal{L}_{ivc}=
+  \mathrm{max}\bigl(C(\mathbf{P}_{p}^{(k^*)})-C(\mathbf{P}_{hn})+\beta_1,0\bigr)+
+  \mathrm{max}\bigl(C(\mathbf{P}_{p}^{(k^*)})-C(\mathbf{P}_{en}^{(k^*)})+\beta_2,0\bigr)
+  \text{,}
+% \label{eq:intra-video-contrastive-loss}
+\end{math}
+where $\beta_1$ and $\beta_2$ are hyper-parameters for margins and $\beta_1 < \beta_2$.
+
+
+%% Training and inference %%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Training and Inference}
+\label{sec:training-and-inference}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Training %%%%%%%%%%%%%%%%%%%%%%%
+\paragraph{Training.}
+In an end-to-end manner, we train our network with five loss terms: 1)  reconstruction loss $\mathcal{L}_{rec}$, 2)  intra-video contrastive loss $\mathcal{L}_{ivc}$, 3)  pulling loss $\mathcal{L}_{pull}$, and two pushing losses of 4) intra-pushing loss $\mathcal{L}^{intra}_{push}$ and 5) inter-pushing loss $\mathcal{L}^{inter}_{push}$. Then the total loss is given by
+\begin{math}
+  \mathcal{L}_{total}=\mathcal{L}_{rec}+\alpha_{1}\mathcal{L}_{ivc}+\alpha_{2}\mathcal{L}_{pull}+\alpha_{3}\mathcal{L}^{intra}_{push} + \alpha_{4}\mathcal{L}^{inter}_{push} \text{,}
+%   \label{eq:total-loss}
+\end{math}
+where  $\alpha_{1}$, $\alpha_{2}$, $\alpha_{3}$, and $\alpha_{4}$ are hyper-parameters  to balance losses.
+
+%% Inference %%%%%%%%%%%%%%%%%%%%%%%
+\paragraph{Inference.}
+To select the top-1 proposal from the $K$ positive proposals, we use vote-based selection to choose the best overlapping proposal, similar to \cite{zhou2021ensemble, zheng2022cpl}.
+% To predict a temporal location from the selected proposal, we propose three inference strategies: (1) tail-to-tail, (2) average, and (3) importance-based inferences.
+% We adopt the importance-based inference which predicts a temporal location from the selected proposal and importance weights, where details are described in Supplementary material.
