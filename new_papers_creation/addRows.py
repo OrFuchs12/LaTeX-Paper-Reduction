@@ -250,15 +250,18 @@ def remove_line(latex_file_path, pdf_line):
         # check if clean_pdf_line is a substring of cleaned_latex_line
         if clean_pdf_line in cleaned_latex_line:
             try:
-                space_count = 0
-                index = len(line)
-                while space_count < 5:
-                    index = line.rfind(' ', 0, index - 1)
-                    if index == -1:
-                        break
-                    space_count += 1
+                if (line.startswith("\\")):
+                    new_line = ""
+                else: 
+                    space_count = 0
+                    index = len(line)
+                    while space_count < 5:
+                        index = line.rfind(' ', 0, index - 1)
+                        if index == -1:
+                            break
+                        space_count += 1
 
-                new_line = line[:index]
+                    new_line = line[:index]
                 #if in the line[:index+1] there is { and  not } then find the next } and delete until there
                 while new_line.count("{") > new_line.count("}"):
                     # find the index of the last {
@@ -365,8 +368,11 @@ def remove_appendix_content(latex_file_path):
     match_start = re.search(pattern_start, file_content)
     # remove all the content after the command untill \\clearpage
     pattern_end = r"\\clearpage"
+    pattern_second_end = r"\\end{document}"
     match_end = re.search(pattern_end, file_content)
     if match_start and match_end:
+        if match_end.start() < match_start.start():
+            match_end = re.search(pattern_second_end, file_content)
         modified_content = (
         file_content[:match_start.start()]
         + file_content[match_end.start():]
