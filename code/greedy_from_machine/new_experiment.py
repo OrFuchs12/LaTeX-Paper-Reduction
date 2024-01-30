@@ -4,6 +4,7 @@ import subprocess
 import time
 import shutil
 import pdfplumber
+from sklearn.ensemble import AdaBoostRegressor
 import perry
 import perry2
 import PyPDF2
@@ -23,6 +24,8 @@ from handle_full_paper import remove_astrik_inside_paranthases
 import cv2
 from pdf2image import convert_from_path
 import numpy as np
+from catboost import CatBoostRegressor
+
 NUMBER_OF_LAST_PAGES = 2
 
 
@@ -971,26 +974,51 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
     This function load the models and stores them in dictionary, parameters:
     models_path - path to the models directory (string)
 """
-def load_models(models_path):
-    # Load models
+# def load_models(models_path):
+#     # Load models
+#     models = {}
+#     directory = models_path
+#     for file in os.scandir(directory):
+#         if file.is_file():
+#             n = re.findall('\d+\.?\d*', file.name)
+#             if n[0] == '1':
+#                 i = (n[0], n[4], n[5], n[6]) # key for vspace
+#             else:
+#                 i = (n[0], n[4], n[5]) # key for other operators
+
+#             file_path = directory + '/' + file.name
+#             clf = xg.XGBClassifier() # in this case we used the XGBClassifier models
+#             booster = xg.Booster()
+#             booster.load_model(file_path)
+#             clf._Booster = booster
+#             print(i)
+#             models[i] = clf
+
+#     return models
+
+
+def load_regression_models_cat(dir):
+    #Load models
     models = {}
-    directory = models_path
+    directory = dir
+    #print(directory)
     for file in os.scandir(directory):
         if file.is_file():
             n = re.findall('\d+\.?\d*', file.name)
             if n[0] == '1':
-                i = (n[0], n[4], n[5], n[6]) # key for vspace
+                i = (n[0], n[4], n[5], n[6])
             else:
-                i = (n[0], n[4], n[5]) # key for other operators
-
+                i = (n[0], n[4], n[5])
+            
             file_path = directory + '/' + file.name
-            clf = xg.XGBClassifier() # in this case we used the XGBClassifier models
-            booster = xg.Booster()
-            booster.load_model(file_path)
-            clf._Booster = booster
+            clf = CatBoostRegressor()
+            clf.load_model(file_path)
             print(i)
+            #print(file_path)
             models[i] = clf
 
+            
+    print("total models in memory:", len(models))
     return models
 
 
@@ -1231,4 +1259,4 @@ if __name__ == "__main__":
     elif x==1:
         run_greedy_experiment(heuristic_greedy, "heuristic greedy", "results_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
     elif x==2:
-        run_greedy_experiment(model_greedy, "model greedy", "results_model_greedy", pdf_tex_files_dir, dir_to_results, load_models(path_to_models))
+        run_greedy_experiment(model_greedy, "model greedy", "results_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat(path_to_models))
