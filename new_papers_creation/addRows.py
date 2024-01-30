@@ -211,7 +211,7 @@ def compile_latex_to_pdf(latex_file_path):
         print(dir_path)
         print(latex_file_path)
         base_name = os.path.basename(latex_file_path)
-        subprocess.run(['pdflatex.exe', base_name], cwd=dir_path)
+        subprocess.run(['pdflatex', base_name], cwd=dir_path)
         base_name = os.path.splitext(os.path.basename(latex_file_path))[0]
 
         pdf_file_path = os.path.join(dir_path, base_name + ".pdf")

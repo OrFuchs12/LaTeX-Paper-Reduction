@@ -4,7 +4,7 @@ import os
 from addRows import *
 import shutil
 import time
-from func_timeout import func_timeout, FunctionTimedOut
+import func_timeout 
 
 
 def create(sub_path, destination_path):
@@ -25,7 +25,7 @@ def loop_through_directories(directory_path):
             except func_timeout.exceptions.FunctionTimedOut:
                 # Handle timeout exception by logging and continue to the next iteration
                 print("Timeout occurred while executing create.")
-                shutil.move(subdirectory_path, "new_papers_creation/failed_directories")
+                # shutil.move(subdirectory_path, "new_papers_creation/failed_directories")
                 pass   
             except Exception as e:
                 print(f"An error occurred: {e}, the directory : {subdirectory_path} was not created")
@@ -156,7 +156,7 @@ if __name__ == "__main__":
     
     input_directory = "new_papers_creation\\tar_files"
     # Output directory where all the extracted directories will be placed
-    output_directory = "new_papers_creation\\All_Directories"
+    output_directory = "new_papers_creation/All_Directories"
 
     # Process the tar files and run the custom function
     # process_tar_files(input_directory, output_directory)
