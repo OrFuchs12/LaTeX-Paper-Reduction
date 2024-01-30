@@ -100,9 +100,12 @@ def remove_new_page_command(tex_file_path):
 
     # Define a regular expression pattern to match \newpage commands
     pattern = r'\\newpage\b'
+    pattern_clear_page = r'\\clearpage\b'
+
 
     # Use re.sub to replace \newpage commands with commented versions
-    modified_content = re.sub(pattern, r'% \g<0>', latex_content)
+    modified_content = re.sub(pattern, r'', latex_content)
+    modified_content = re.sub(pattern=pattern_clear_page, repl=r'', string=modified_content)
 
     with open(tex_file_path, 'w', encoding='utf-8') as output_file:
         output_file.write(modified_content)

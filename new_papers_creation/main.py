@@ -4,7 +4,7 @@ import os
 from addRows import *
 import shutil
 import time
-import func_timeout
+from func_timeout import func_timeout, FunctionTimedOut
 
 
 def create(sub_path, destination_path):
