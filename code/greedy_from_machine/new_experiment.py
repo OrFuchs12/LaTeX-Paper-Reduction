@@ -122,24 +122,12 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
     with open(latex_path, encoding='UTF-8') as f:
         file = f.read()
         file = file.split("\n")
-        # foundHeader=False
-        # foundBottom=False
+       
         for line in file:
             line = line.lstrip()
             line += "\n"
             latex_clean_lines.append(line)
-            # if foundHeader==False:
-            #     if line.startswith("\\begin{document}"):
-            #         foundHeader=True
-            #     lidor.append("\n")
-            # else:
-            #     if foundBottom==False and line.startswith("\\end{document}"):
-            #         foundBottom=True
-            #     elif foundBottom == False and line == "":
-            #         lidor.append("\n")
-            #     else:
-            #         if foundBottom==False:
-            #             lidor.append(line)
+           
 
 
   
@@ -747,11 +735,7 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
     try:
         operators_done = []
         #perform feature extraction to the file
-        # extract_name= path_to_pdf.split("/")[-1].split(".")[0]
-        # remove_comments(path_to_latex)
-            
-        # new_path= "new.pdf"
-        # copy_last_pages(path_to_pdf, new_path, 2)
+        
         df, lidor = features_single.run_feature_extraction(path_to_latex, path_to_pdf, '/code/greedy_from_machine/bibliography.bib',
                                                     "code/~/results/dct0",
                                                     "code/~/results/new_files/dct0", "test", pd.DataFrame())
