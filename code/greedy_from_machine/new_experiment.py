@@ -844,7 +844,7 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
                         "code/~/results/dct0", "code/~/results/new_files/dct0", "test", pd.DataFrame())
 
             total_cost += res[index][0]
-            index += 1
+            index = 0 
             iteration += 1
 
             # if we manage to short the paper
@@ -957,7 +957,7 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
 
                 iteration += 1
                 total_cost += res[index][0]
-                index += 1
+                index = 0
             else:
                 index += 1
 
@@ -1120,7 +1120,7 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
                                 'num_of_object'], axis=1, inplace=True)
 
                 total_cost += res[index][0]
-                index += 1
+                index = 0
                 iteration += 1
                 
                 # if we manage to short the paper
