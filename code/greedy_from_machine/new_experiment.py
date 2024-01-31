@@ -1031,11 +1031,16 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
             # get list of all possible operators to apply on the file
             res = perform_operators(dct, 0, path_to_latex, path_to_pdf, "code/~/results/new_files/", paper_name, lidor)
             print("total operators:", len(res))
-
+            start_check_operators_that_faild = False
             # whether there are no more operators
-            if index >= (len(res)):
-                print("Out of operators")
+            if index >= (len(res)) and not start_check_operators_that_faild:
+                print("Out of operators, starts checking operators again.")
+                start_check_operators_that_faild = True
+                index = 0
+            elif index >= (len(res)) and start_check_operators_that_faild:
+                print("Out of operators, also out of operators that failed.")
                 break
+                
 
             if str(res[index][2]) == '1':
                 model_to_predict = (str(res[index][2]), str(res[index][3]), str(res[index][4]), res[index][5])
@@ -1046,8 +1051,8 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
             if model_to_predict in operators_done:
                 index += 1
                 continue
-            else:
-                operators_done.append(model_to_predict)
+            
+                
 
             print("model_to_predict:", model_to_predict)
 
@@ -1061,9 +1066,9 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
                 continue
 
             # condition to apply the operator
-            if prediction > 0 and res[index][0] >= 10:
+            if prediction or start_check_operators_that_faild:
                 latex_after_operator = res[index][1]
-
+                operators_done.append(model_to_predict)
                 after_path = os.path.join("code/~/results/new_files/", paper_name)
                 after_path = os.path.join(after_path, "after_operator3.tex")
                 f = open(after_path, "w")
@@ -1112,6 +1117,8 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
                     reduced = True
             else:
                 index += 1
+                
+                
 
         end = time.time()
 
