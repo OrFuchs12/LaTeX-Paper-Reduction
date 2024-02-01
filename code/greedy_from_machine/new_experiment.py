@@ -870,9 +870,11 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
         iteration = 0
         LINE_WIDTH = 10
         total_cost = 0
+        start_check_operators_that_faild = False
         starting_lines = lines
         print("begin lines:", lines)
         print("begin pages:", pages)
+
         start = time.time()
         while (not reduced):
             print("index:", index)
@@ -885,8 +887,12 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
             print("total operators:", len(res))
 
             # whether there are no more operators
-            if index >= (len(res)):
-                print("Out of operators")
+            if index >= (len(res)) and not start_check_operators_that_faild:
+                print("Out of operators, starts checking operators again.")
+                start_check_operators_that_faild = True
+                index = 0
+            elif index >= (len(res)) and start_check_operators_that_faild:
+                print("Out of operators, also out of operators that failed.")
                 break
 
             if str(res[index][2]) == '1':
@@ -898,13 +904,13 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
             if oper in operators_done:
                 index += 1
                 continue
-            else:
-                operators_done.append(oper)
+            
 
             # condition to apply the operator
-            if res[index][0] >= LINE_WIDTH:
+            if res[index][0] >= LINE_WIDTH or start_check_operators_that_faild:
                 latex_after_operator = res[index][1]
                 # write the file after operator to file
+                operators_done.append(oper)
                 after_path = os.path.join("code/~/results/new_files/", paper_name)
                 after_path = os.path.join(after_path, "after_operator2.tex")
                 f = open(after_path, "w")
@@ -944,6 +950,10 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
                 index = 0
             else:
                 index += 1
+                if index >= (len(res)):
+                    print("Out of operators, starts checking operators again.")
+                    start_check_operators_that_faild = True
+                    index = 0
 
         end = time.time()
         return iteration, end - start, reduced, total_cost
@@ -1018,7 +1028,7 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
 
         print("begin lines:", lines)
         print("begin pages:", pages)
-
+        start_check_operators_that_faild = False
         start = time.time()
         while (not reduced):
 
@@ -1031,7 +1041,7 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
             # get list of all possible operators to apply on the file
             res = perform_operators(dct, 0, path_to_latex, path_to_pdf, "code/~/results/new_files/", paper_name, lidor)
             print("total operators:", len(res))
-            start_check_operators_that_faild = False
+            
             # whether there are no more operators
             if index >= (len(res)) and not start_check_operators_that_faild:
                 print("Out of operators, starts checking operators again.")
@@ -1117,6 +1127,10 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
                     reduced = True
             else:
                 index += 1
+                if index >= (len(res)):
+                    print("Out of operators, starts checking operators again.")
+                    start_check_operators_that_faild = True
+                    index = 0
                 
                 
 
