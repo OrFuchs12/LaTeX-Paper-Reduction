@@ -513,7 +513,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                         end_number = False
                         number = ''
                         while (end_number != True):
-                            if (string_to_edit[running_index] == '\\'):
+                            if (string_to_edit[running_index].isdigit() == False and string_to_edit[running_index] not in ['.', ',']):
                                 end_number = True
                             else:
                                 number += string_to_edit[running_index]
