@@ -27,7 +27,24 @@ import numpy as np
 from catboost import CatBoostRegressor
 
 NUMBER_OF_LAST_PAGES = 2
+TRESHOLD = 2
 
+def get_closest_operators(operators):
+    """ Get the closest operators by cost to the  first operator in the list"""
+    trehshold = TRESHOLD
+    cost_index = 0
+    closest_opartors = [operators[0]]
+    for i in range(1, len(operators)):
+        current_operator = operators[i]
+        if (abs(current_operator[cost_index] - closest_opartors[0][cost_index]) < trehshold):
+            closest_opartors.append(current_operator)
+        else:
+            break
+    return closest_opartors
+
+def sort_opeators_by_prediction(operators):
+    """ Sort the operators by the prediction value"""
+    
 
 def get_new_height(img_path, new_width):
     try:
@@ -1162,8 +1179,165 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
     except Exception as e:
         print(e)
         return -1, -1, reduced, -1
+    
+    
+def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
+    reduced = False
+    try:
+        operators_done = []
+        lines, pages = check_lines(path_to_pdf) 
+
+        #check whether the file is not good for the algorithm:
+        if lines < 2:
+            print("Less then 2 lines")
+            return -1, -1, False, -1
+        if pages < 2:
+            print("Less then 2 pages")
+            return -1, -1, False, -1
+
+        #perform feature extraction to the file
+        df1,lidor = features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
+                                                        "code/~/results/dct0",
+                                                        "code/~/results/new_files/dct0", "test",
+                                                        pd.DataFrame())
+        df1 = df1.T
+        df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
+                    'num_of_object'], axis=1, inplace=True)
+
+        # define stop condition and some variables
+        target = lines - 2
+        index = 0
+        reduced = False
+        iteration = 0
+        total_cost = 0
+        starting_lines = lines
+
+        print("begin lines:", lines)
+        print("begin pages:", pages)
+
+        start = time.time()
+        while (not reduced):
+
+            print("index:", index)
+
+            # get the dictionary of the file
+            with open('code/~/results/dct0', 'rb') as dct_file:
+                dct = pickle.load(dct_file)
+
+            # get list of all possible operators to apply on the file
+            res = perform_operators(dct, 0, path_to_latex, path_to_pdf, "code/~/results/new_files/", paper_name, lidor)
+            print("total operators:", len(res))
+
+            # whether there are no more operators
+            if index >= (len(res)):
+                print("Out of operators")
+                break
+
+            oparators_to_check = res[index:] # all the operators that we need to check
+            closest_operators = get_closest_operators(oparators_to_check) # get the closest operators to the current operator
+            sorted_by_prediction_operators =  []
+            for operator in closest_operators:
+                prediction = get_prediction(operator=operator,operators_done=operators_done, models=models,df1=df1)
+                if prediction != -1:                
+                    sorted_by_prediction_operators.append((operator,prediction))
+            # sort from highest to lowest prediction
+            sorted_by_prediction_operators = sorted(sorted_by_prediction_operators, key=lambda x: x[1], reverse=True)
+
+            if len(sorted_by_prediction_operators) == 0:
+                index += 1
+                continue
+
+            operator = sorted_by_prediction_operators[0][0]
+            prediction = sorted_by_prediction_operators[0][1]
+
+           
+            if prediction > 0 :
+                latex_after_operator = res[index][1]
+
+                after_path = os.path.join("code/~/results/new_files/", paper_name)
+                after_path = os.path.join(after_path, "after_operator3.tex")
+                f = open(after_path, "w")
+                # write the file after operator to file
+                f.write(latex_after_operator)
+                f.close()
+
+                # compile the file
+                dir_path =os.path.join("code/~/results/new_files", paper_name)
+                base_name = os.path.basename(after_path)
+                # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+                subprocess.run(['pdflatex', base_name], cwd=dir_path) #On mac
+                after_pdf = os.path.join("code/~/results/new_files/", paper_name)
+                after_pdf = os.path.join(after_pdf, "after_operator3.pdf")
+                last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
+
+                new_number_of_pages = check_lines(after_pdf)[1]
+                lines_before = lines
+                # check the new current number of lines
+                lines, pages = check_lines(last_pages_pdf)
+                print("current lines:", lines)
+                print("current pages:", pages)
+
+                path_to_latex = after_path
+
+                if (lines <= target or pages < 2 or new_number_of_pages < num_of_pages): # lines > starting_lines is for the case that we get the last 2 pages after we made it shoreter
+                    reduced = True
+                
+                if not reduced:
+
+                    df1, lidor = features_single.run_feature_extraction(
+                        path_to_latex,
+                        last_pages_pdf, 'code/~/results/bibliography.bib',
+                        "code/~/results/dct0", "code/~/results/new_files/dct0", "test",
+                        pd.DataFrame())
+                    df1 = df1.T
+                    df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
+                                'num_of_object'], axis=1, inplace=True)
+
+                total_cost += res[index][0]
+                index += 1
+                iteration += 1
+                
+                # if we manage to short the paper
+                if (lines <= target or pages < 2 or lines > starting_lines):
+                    reduced = True
+            else:
+                index += 1
+
+        end = time.time()
+
+        return iteration, end - start, reduced, total_cost
+    except Exception as e:
+        print(e)
+        return -1, -1, reduced, -1
 
 
+
+def get_prediction(operator,operators_done, models,df1):
+    if str(operator[2]) == '1':
+        model_to_predict = (str(operator[2]), str(operator[3]), str(operator[4]), operator[5])
+                
+    else:
+        model_to_predict = (str(operator[2]), str(operator[3]), operator[5])
+        
+
+    # whether we applied the operator before
+    if model_to_predict in operators_done:
+        return -1
+    else:
+        operators_done.append(model_to_predict)
+
+    print("model_to_predict:", model_to_predict)
+
+    
+    
+    try:
+        # get the prediction from the model
+        prediction = models[model_to_predict].predict(df1.to_numpy())[0]
+
+    except Exception as e:
+        print("not found model:", e)
+        return -1
+    return prediction
 """ 
     This is a wrapper function to run the experiment, parameters:
     variant_function - function of the variant algorithm (function)
@@ -1259,4 +1433,4 @@ if __name__ == "__main__":
     elif x==1:
         run_greedy_experiment(heuristic_greedy, "heuristic greedy", "results_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
     elif x==2:
-        run_greedy_experiment(model_greedy, "model greedy", "results_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat(path_to_models))
+        run_greedy_experiment(regreession_model_greedy, "model greedy", "results_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat(path_to_models))
