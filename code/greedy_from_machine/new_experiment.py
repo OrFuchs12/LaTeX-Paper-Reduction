@@ -1232,7 +1232,8 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
             if index >= (len(res)):
                 print("Out of operators")
                 break
-
+            
+           
             oparators_to_check = res[index:] # all the operators that we need to check
             closest_operators = get_closest_operators(oparators_to_check) # get the closest operators to the current operator
             sorted_by_prediction_operators =  []
@@ -1249,11 +1250,18 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
 
             operator = sorted_by_prediction_operators[0][0]
             prediction = sorted_by_prediction_operators[0][1]
+            if str(sorted_by_prediction_operators[index][2]) == '1':
+                model_to_predict = (str(operator[2]), str(operator[3]), str(operator[4]), operator[5])
+            else:
+                model_to_predict = (str(operator[2]), str(operator[3]), operator[5])
 
+            if model_to_predict in operators_done:
+                index += 1
+                continue
            
             if prediction > 0 :
                 latex_after_operator = res[index][1]
-
+                operators_done.append(model_to_predict)
                 after_path = os.path.join("code/~/results/new_files/", paper_name)
                 after_path = os.path.join(after_path, "after_operator3.tex")
                 f = open(after_path, "w")
