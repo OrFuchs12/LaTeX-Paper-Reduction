@@ -27,16 +27,16 @@ import numpy as np
 from catboost import CatBoostRegressor
 
 NUMBER_OF_LAST_PAGES = 2
-TRESHOLD = 2
+THRESHOLD = 4
 
 def get_closest_operators(operators):
     """ Get the closest operators by cost to the  first operator in the list"""
-    trehshold = TRESHOLD
+    threshold = THRESHOLD
     cost_index = 0
     closest_opartors = [operators[0]]
     for i in range(1, len(operators)):
         current_operator = operators[i]
-        if (abs(current_operator[cost_index] - closest_opartors[0][cost_index]) < trehshold):
+        if (abs(current_operator[cost_index] - closest_opartors[0][cost_index]) < threshold):
             closest_opartors.append(current_operator)
         else:
             break
@@ -544,7 +544,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                         end_number = False
                         number = ''
                         while (end_number != True):
-                            if (string_to_edit[running_index] == '\\'):
+                            if (string_to_edit[running_index].isdigit() == False and string_to_edit[running_index] not in ['.', ',']):
                                 end_number = True
                             else:
                                 number += string_to_edit[running_index]
@@ -1238,9 +1238,9 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
             closest_operators = get_closest_operators(oparators_to_check) # get the closest operators to the current operator
             sorted_by_prediction_operators =  []
             for operator in closest_operators:
-                prediction = get_prediction(operator=operator,operators_done=operators_done, models=models,df1=df1)
+                prediction, model_to_predict = get_prediction(operator=operator,operators_done=operators_done, models=models,df1=df1)
                 if prediction != -1:                
-                    sorted_by_prediction_operators.append((operator,prediction))
+                    sorted_by_prediction_operators.append((operator,prediction, model_to_predict))
             # sort from highest to lowest prediction
             sorted_by_prediction_operators = sorted(sorted_by_prediction_operators, key=lambda x: x[1], reverse=True)
 
@@ -1250,10 +1250,7 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
 
             operator = sorted_by_prediction_operators[0][0]
             prediction = sorted_by_prediction_operators[0][1]
-            if str(sorted_by_prediction_operators[index][2]) == '1':
-                model_to_predict = (str(operator[2]), str(operator[3]), str(operator[4]), operator[5])
-            else:
-                model_to_predict = (str(operator[2]), str(operator[3]), operator[5])
+            model_to_predict = sorted_by_prediction_operators[0][2]
 
             if model_to_predict in operators_done:
                 index += 1
@@ -1330,9 +1327,7 @@ def get_prediction(operator,operators_done, models,df1):
 
     # whether we applied the operator before
     if model_to_predict in operators_done:
-        return -1
-    else:
-        operators_done.append(model_to_predict)
+        return -1, model_to_predict
 
     print("model_to_predict:", model_to_predict)
 
@@ -1344,8 +1339,8 @@ def get_prediction(operator,operators_done, models,df1):
 
     except Exception as e:
         print("not found model:", e)
-        return -1
-    return prediction
+        return -1, model_to_predict
+    return prediction, model_to_predict
 """ 
     This is a wrapper function to run the experiment, parameters:
     variant_function - function of the variant algorithm (function)
