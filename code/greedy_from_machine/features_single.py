@@ -1268,192 +1268,192 @@ def run_from_outside(latex_path, pdf_path, bib_path, path_to_save_lidor_dct,
         return df
 
 
-if __name__ == "__main__":
-    path = sys.argv[1]
-    permutation_num = sys.argv[3]
-    file_num = sys.argv[2]
-    excel_path = sys.argv[4]
-    bib_path = sys.argv[5]
-    line_num = int(sys.argv[6])
-    path_to_save_lidor = sys.argv[7]
-    path_to_save_adi = sys.argv[8]
-    print(path_to_save_adi)
+# if __name__ == "__main__":
+#     path = sys.argv[1]
+#     permutation_num = sys.argv[3]
+#     file_num = sys.argv[2]
+#     excel_path = sys.argv[4]
+#     bib_path = sys.argv[5]
+#     line_num = int(sys.argv[6])
+#     path_to_save_lidor = sys.argv[7]
+#     path_to_save_adi = sys.argv[8]
+#     print(path_to_save_adi)
 
-    latex_path = path + "/" + file_num + "_" + permutation_num + ".tex"
-    # latex_path=path+"_"+permutation_num+".tex"
-    # pdf_path = path+"_"+permutation_num+".pdf	"
+#     latex_path = path + "/" + file_num + "_" + permutation_num + ".tex"
+#     # latex_path=path+"_"+permutation_num+".tex"
+#     # pdf_path = path+"_"+permutation_num+".pdf	"
 
-    pdf_path = path + "/" + file_num + "_" + permutation_num + ".pdf"
+#     pdf_path = path + "/" + file_num + "_" + permutation_num + ".pdf"
 
-    pdf_path_lidor = path_to_save_lidor + "/" + file_num + "_" + permutation_num
-    pdf_path_adi = path_to_save_adi + "/" + file_num + "_" + permutation_num
-    print(pdf_path_adi)
-    file_name = file_num + "_" + permutation_num
+#     pdf_path_lidor = path_to_save_lidor + "/" + file_num + "_" + permutation_num
+#     pdf_path_adi = path_to_save_adi + "/" + file_num + "_" + permutation_num
+#     print(pdf_path_adi)
+#     file_name = file_num + "_" + permutation_num
 
-    #remove comments 
-    try:
-        df = run_feature_extraction(latex_path, pdf_path, bib_path, pdf_path_lidor, pdf_path_adi, file_name)
-        # df.to_csv(excel_path, mode="a", header=False)
-        # df.to_excel(excel_path)
+#     #remove comments 
+#     try:
+#         df = run_feature_extraction(latex_path, pdf_path, bib_path, pdf_path_lidor, pdf_path_adi, file_name)
+#         # df.to_csv(excel_path, mode="a", header=False)
+#         # df.to_excel(excel_path)
 
-        my_path = Path(excel_path)
-        if my_path.exists():
-            df.to_csv(excel_path, mode='a', index=True, header=False)
-        else:
-            df.to_csv(excel_path, index=True, header=True)
-    except:
-        summative_features_keys = ['max_lines_par', 'min_lines_par', 'max_lines_enum', 'min_lines_enum',
-                                   'max_lines_caption', 'min_lines_caption', 'max_figure_y_space', 'min_figure_y_space',
-                                   'max_table_y_space', 'min_table_y_space',
-                                   'max_height_object', 'min_height_object', 'num_of_elements',
-                                   'sum_space_taken',
-                                   'sum_open_space', 'sum_space_taken_by_figures', 'sum_space_taken_by_tables',
-                                   'sum_of_chars_across_doc',
-                                   'sum_of_words_from_pars', 'sum_of_chars_from_pars', 'avg_num_of_words_from_pars',
-                                   'avg_num_of_chars_from_pars', 'num_of_paragraphs_with_1_word_at_the_end',
-                                   'num_of_figures_with_captions', 'num_of_tables_with_captions', 'ending_y_of_doc']
-        columns = []
-        # name = list_latex_files.split(".")[0]
-        for i in range(1):
-            columns.append(file_name)
-        Rows = []
-        for key in summative_features_keys:
-            Rows.append(key)
+#         my_path = Path(excel_path)
+#         if my_path.exists():
+#             df.to_csv(excel_path, mode='a', index=True, header=False)
+#         else:
+#             df.to_csv(excel_path, index=True, header=True)
+#     except:
+#         summative_features_keys = ['max_lines_par', 'min_lines_par', 'max_lines_enum', 'min_lines_enum',
+#                                    'max_lines_caption', 'min_lines_caption', 'max_figure_y_space', 'min_figure_y_space',
+#                                    'max_table_y_space', 'min_table_y_space',
+#                                    'max_height_object', 'min_height_object', 'num_of_elements',
+#                                    'sum_space_taken',
+#                                    'sum_open_space', 'sum_space_taken_by_figures', 'sum_space_taken_by_tables',
+#                                    'sum_of_chars_across_doc',
+#                                    'sum_of_words_from_pars', 'sum_of_chars_from_pars', 'avg_num_of_words_from_pars',
+#                                    'avg_num_of_chars_from_pars', 'num_of_paragraphs_with_1_word_at_the_end',
+#                                    'num_of_figures_with_captions', 'num_of_tables_with_captions', 'ending_y_of_doc']
+#         columns = []
+#         # name = list_latex_files.split(".")[0]
+#         for i in range(1):
+#             columns.append(file_name)
+#         Rows = []
+#         for key in summative_features_keys:
+#             Rows.append(key)
 
-        Par_keys = ['page', 'column', 'start_y', 'end_y', 'spread_on_more_than_1_column', 'height', 'number_of_lines',
-                    'num_of_chars', 'num_of_words', 'last_line_length_chars', 'last_line_length_words',
-                    'single_word_in_last_line', 'space_between_this_object_and_last_object',
-                    'space_between_this_object_and_the_next_object']
-        Title_keys = ['page', 'column', 'start_y', 'end_y', 'spread_on_more_than_1_column', 'height', 'number_of_lines',
-                      'num_of_chars', 'num_of_words', 'last_line_length_chars', 'last_line_length_words',
-                      'single_word_in_last_line', 'space_between_this_object_and_last_object',
-                      'space_between_this_object_and_the_next_object']
-        Figure_keys = ['page', 'column', 'start_y', 'end_y', 'height', 'figure_has_caption', 'figure_position_param',
-                       'space_between_this_object_and_last_object', 'space_between_caption_and_figure',
-                       'space_between_this_object_and_the_next_object']
-        CaptionFigure_keys = ['page', 'column', 'start_y', 'end_y', 'height', 'number_of_lines',
-                              'last_line_length_chars',
-                              'last_line_length_words', 'space_between_this_object_and_last_object',
-                              'space_between_this_object_and_the_next_object']
-        Table_keys = ['page', 'column', 'start_y', 'end_y', 'height', 'table_has_caption', 'table_position_param',
-                      'space_between_this_object_and_last_object', 'space_between_caption_and_table',
-                      'space_between_this_object_and_the_next_object']
-        CaptionTable_keys = ['page', 'column', 'start_y', 'end_y', 'height', 'number_of_lines',
-                             'last_line_length_chars',
-                             'last_line_length_words', 'space_between_this_object_and_last_object',
-                             'space_between_this_object_and_the_next_object']
-        AbstractSection_keys = ['page', 'column', 'start_y', 'end_y', 'spread_on_more_than_1_column', 'height',
-                                'space_between_this_object_and_last_object',
-                                'space_between_this_object_and_the_next_object']
-        AbstractPar_keys = ['page', 'column', 'start_y', 'end_y', 'spread_on_more_than_1_column', 'height',
-                            'number_of_lines', 'num_of_chars', 'num_of_words', 'last_line_length_chars',
-                            'last_line_length_words', 'single_word_in_last_line',
-                            'space_between_this_object_and_last_object',
-                            'space_between_this_object_and_the_next_object']
-        Section_keys = ['page', 'column', 'start_y', 'end_y', 'spread_on_more_than_1_column', 'height',
-                        'space_between_this_object_and_last_object', 'space_between_this_object_and_the_next_object']
-        SubSection_keys = ['page', 'column', 'start_y', 'end_y', 'spread_on_more_than_1_column', 'height',
-                           'space_between_this_object_and_last_object', 'space_between_this_object_and_the_next_object']
-        # subsubsection to add
-        Matrix_keys = ['page', 'column', 'start_y', 'end_y', 'height', 'space_between_this_object_and_last_object',
-                       'space_between_this_object_and_the_next_object']
-        Enum_keys = ['page', 'column', 'start_y', 'end_y', 'spread_on_more_than_1_column', 'height', 'number_of_lines',
-                     'num_of_chars', 'num_of_words', 'last_line_length_chars', 'last_line_length_words',
-                     'single_word_in_last_line', 'space_between_this_object_and_last_object',
-                     'space_between_this_object_and_the_next_object']
-        Formula_keys = ['page', 'column', 'start_y', 'end_y', 'height', 'space_between_this_object_and_last_object',
-                        'space_between_this_object_and_the_next_object']
-        Algorithm_keys = ['page', 'column', 'start_y', 'end_y', 'spread_on_more_than_1_column', 'height',
-                          'space_between_this_object_and_last_object', 'space_between_this_object_and_the_next_object']
+#         Par_keys = ['page', 'column', 'start_y', 'end_y', 'spread_on_more_than_1_column', 'height', 'number_of_lines',
+#                     'num_of_chars', 'num_of_words', 'last_line_length_chars', 'last_line_length_words',
+#                     'single_word_in_last_line', 'space_between_this_object_and_last_object',
+#                     'space_between_this_object_and_the_next_object']
+#         Title_keys = ['page', 'column', 'start_y', 'end_y', 'spread_on_more_than_1_column', 'height', 'number_of_lines',
+#                       'num_of_chars', 'num_of_words', 'last_line_length_chars', 'last_line_length_words',
+#                       'single_word_in_last_line', 'space_between_this_object_and_last_object',
+#                       'space_between_this_object_and_the_next_object']
+#         Figure_keys = ['page', 'column', 'start_y', 'end_y', 'height', 'figure_has_caption', 'figure_position_param',
+#                        'space_between_this_object_and_last_object', 'space_between_caption_and_figure',
+#                        'space_between_this_object_and_the_next_object']
+#         CaptionFigure_keys = ['page', 'column', 'start_y', 'end_y', 'height', 'number_of_lines',
+#                               'last_line_length_chars',
+#                               'last_line_length_words', 'space_between_this_object_and_last_object',
+#                               'space_between_this_object_and_the_next_object']
+#         Table_keys = ['page', 'column', 'start_y', 'end_y', 'height', 'table_has_caption', 'table_position_param',
+#                       'space_between_this_object_and_last_object', 'space_between_caption_and_table',
+#                       'space_between_this_object_and_the_next_object']
+#         CaptionTable_keys = ['page', 'column', 'start_y', 'end_y', 'height', 'number_of_lines',
+#                              'last_line_length_chars',
+#                              'last_line_length_words', 'space_between_this_object_and_last_object',
+#                              'space_between_this_object_and_the_next_object']
+#         AbstractSection_keys = ['page', 'column', 'start_y', 'end_y', 'spread_on_more_than_1_column', 'height',
+#                                 'space_between_this_object_and_last_object',
+#                                 'space_between_this_object_and_the_next_object']
+#         AbstractPar_keys = ['page', 'column', 'start_y', 'end_y', 'spread_on_more_than_1_column', 'height',
+#                             'number_of_lines', 'num_of_chars', 'num_of_words', 'last_line_length_chars',
+#                             'last_line_length_words', 'single_word_in_last_line',
+#                             'space_between_this_object_and_last_object',
+#                             'space_between_this_object_and_the_next_object']
+#         Section_keys = ['page', 'column', 'start_y', 'end_y', 'spread_on_more_than_1_column', 'height',
+#                         'space_between_this_object_and_last_object', 'space_between_this_object_and_the_next_object']
+#         SubSection_keys = ['page', 'column', 'start_y', 'end_y', 'spread_on_more_than_1_column', 'height',
+#                            'space_between_this_object_and_last_object', 'space_between_this_object_and_the_next_object']
+#         # subsubsection to add
+#         Matrix_keys = ['page', 'column', 'start_y', 'end_y', 'height', 'space_between_this_object_and_last_object',
+#                        'space_between_this_object_and_the_next_object']
+#         Enum_keys = ['page', 'column', 'start_y', 'end_y', 'spread_on_more_than_1_column', 'height', 'number_of_lines',
+#                      'num_of_chars', 'num_of_words', 'last_line_length_chars', 'last_line_length_words',
+#                      'single_word_in_last_line', 'space_between_this_object_and_last_object',
+#                      'space_between_this_object_and_the_next_object']
+#         Formula_keys = ['page', 'column', 'start_y', 'end_y', 'height', 'space_between_this_object_and_last_object',
+#                         'space_between_this_object_and_the_next_object']
+#         Algorithm_keys = ['page', 'column', 'start_y', 'end_y', 'spread_on_more_than_1_column', 'height',
+#                           'space_between_this_object_and_last_object', 'space_between_this_object_and_the_next_object']
 
-        operators_keys = ['type', 'value', 'object_used_on', 'num_of_object']
-        classes_keys = ['y_gained', 'lines_we_gained', 'binary_class', 'herustica']
+#         operators_keys = ['type', 'value', 'object_used_on', 'num_of_object']
+#         classes_keys = ['y_gained', 'lines_we_gained', 'binary_class', 'herustica']
 
-        j = 0
-        # 8 pars:
-        for i in range(8):  # 8*14 = 112+26(starting features) 138
-            for key in Par_keys:
-                Rows.append(key + str(j))
-            j += 1
-        # #0 titles at most #1*14 = 14 #245
-        # for key in Title_keys:
-        #     Rows.append(key+str(j))
-        #     j += 1
-        # 4 figures at most #4*10 = 40 178
-        for i in range(4):
-            for key in Figure_keys:
-                Rows.append(key + str(j))
-            j += 1
-        # 4 CaptionFigures at most #4*10 = 40 218
-        for i in range(4):
-            for key in CaptionFigure_keys:
-                Rows.append(key + str(j))
-            j += 1
-        # 2 Tables at most 2*10 = 20 238
-        for i in range(2):
-            for key in Table_keys:
-                Rows.append(key + str(j))
-            j += 1
-        # 2 CaptionTables at most 2*10 = 20 258
-        for i in range(2):
-            for key in CaptionTable_keys:
-                Rows.append(key + str(j))
-            j += 1
-        # #0 AbstractSec at most #1*8 = 8 417
-        # for key in AbstractSection_keys:
-        #     Rows.append(key+str(j))
-        #     j += 1
-        # #0 AbstractPar at most #1*14 = 14 421
-        # for key in AbstractPar_keys:
-        #     Rows.append(key+str(j))
-        #     j += 1
-        # 3 sections at most #3*8 = 24 282
-        for i in range(3):
-            for key in Section_keys:
-                Rows.append(key + str(j))
-            j += 1
-        # 3 subsections at most #3*8 = 24 306
-        for i in range(3):
-            for key in SubSection_keys:
-                Rows.append(key + str(j))
-            j += 1
-        # 2 matrixes at most #2*7 = 14 320
-        for i in range(2):
-            for key in Matrix_keys:
-                Rows.append(key + str(j))
-            j += 1
-        # 5 Enum at most #5*14 = 70 390
-        for i in range(5):
-            for key in Enum_keys:
-                Rows.append(key + str(j))
-            j += 1
-        # 5 Formulas at most #5*7 = 35 425
-        for i in range(5):
-            for key in Formula_keys:
-                Rows.append(key + str(j))
-            j += 1
-        # 2 Algorithms at most #2*8 = 16 441
-        for i in range(2):
-            for key in Algorithm_keys:
-                Rows.append(key + str(j))
-            j += 1
-        # 4 operator defining features at most 4 => 445
-        for key in operators_keys:
-            Rows.append(key)
-        j += 1
-        # 4 Classes at most 4 => 449
-        for key in classes_keys:
-            Rows.append(key)
-        j += 1
-        print(Rows)
-        print(len(Rows))
-        df = pd.DataFrame(index=Rows, columns=columns)
-        x = df.T
-        my_path = Path(excel_path)
-        if my_path.exists():
-            x.to_csv(excel_path, mode='a', index=True, header=False)
-        else:
-            x.to_csv(excel_path, index=True, header=True)
+#         j = 0
+#         # 8 pars:
+#         for i in range(8):  # 8*14 = 112+26(starting features) 138
+#             for key in Par_keys:
+#                 Rows.append(key + str(j))
+#             j += 1
+#         # #0 titles at most #1*14 = 14 #245
+#         # for key in Title_keys:
+#         #     Rows.append(key+str(j))
+#         #     j += 1
+#         # 4 figures at most #4*10 = 40 178
+#         for i in range(4):
+#             for key in Figure_keys:
+#                 Rows.append(key + str(j))
+#             j += 1
+#         # 4 CaptionFigures at most #4*10 = 40 218
+#         for i in range(4):
+#             for key in CaptionFigure_keys:
+#                 Rows.append(key + str(j))
+#             j += 1
+#         # 2 Tables at most 2*10 = 20 238
+#         for i in range(2):
+#             for key in Table_keys:
+#                 Rows.append(key + str(j))
+#             j += 1
+#         # 2 CaptionTables at most 2*10 = 20 258
+#         for i in range(2):
+#             for key in CaptionTable_keys:
+#                 Rows.append(key + str(j))
+#             j += 1
+#         # #0 AbstractSec at most #1*8 = 8 417
+#         # for key in AbstractSection_keys:
+#         #     Rows.append(key+str(j))
+#         #     j += 1
+#         # #0 AbstractPar at most #1*14 = 14 421
+#         # for key in AbstractPar_keys:
+#         #     Rows.append(key+str(j))
+#         #     j += 1
+#         # 3 sections at most #3*8 = 24 282
+#         for i in range(3):
+#             for key in Section_keys:
+#                 Rows.append(key + str(j))
+#             j += 1
+#         # 3 subsections at most #3*8 = 24 306
+#         for i in range(3):
+#             for key in SubSection_keys:
+#                 Rows.append(key + str(j))
+#             j += 1
+#         # 2 matrixes at most #2*7 = 14 320
+#         for i in range(2):
+#             for key in Matrix_keys:
+#                 Rows.append(key + str(j))
+#             j += 1
+#         # 5 Enum at most #5*14 = 70 390
+#         for i in range(5):
+#             for key in Enum_keys:
+#                 Rows.append(key + str(j))
+#             j += 1
+#         # 5 Formulas at most #5*7 = 35 425
+#         for i in range(5):
+#             for key in Formula_keys:
+#                 Rows.append(key + str(j))
+#             j += 1
+#         # 2 Algorithms at most #2*8 = 16 441
+#         for i in range(2):
+#             for key in Algorithm_keys:
+#                 Rows.append(key + str(j))
+#             j += 1
+#         # 4 operator defining features at most 4 => 445
+#         for key in operators_keys:
+#             Rows.append(key)
+#         j += 1
+#         # 4 Classes at most 4 => 449
+#         for key in classes_keys:
+#             Rows.append(key)
+#         j += 1
+#         print(Rows)
+#         print(len(Rows))
+#         df = pd.DataFrame(index=Rows, columns=columns)
+#         x = df.T
+#         my_path = Path(excel_path)
+#         if my_path.exists():
+#             x.to_csv(excel_path, mode='a', index=True, header=False)
+#         else:
+#             x.to_csv(excel_path, index=True, header=True)
         
 
     # with pd.ExcelWriter(excel_path, mode='a') as writer:
