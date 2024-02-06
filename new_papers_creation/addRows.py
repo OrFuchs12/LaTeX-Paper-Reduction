@@ -325,13 +325,13 @@ def create_extra_line_page(new_file_path):
             lines_on_last_page = getLines(pdf_file_path, page_number)
         elif check_content_on_second_column(pdf_file_path, page_number):
             print("there is content on the second column on the bottom")
-            lines, page_number = add_to_latex(new_file_path, ESTIMATED_LINES_PER_PAGE)
+            lines, page_number = add_to_latex(new_file_path)
             lines_on_last_page = getLines(pdf_file_path, page_number)
         #TODO: not add text but delete sections until image/table goes up a page, maybe need to  
         #add a check if there is an algorithm 
         elif not check_only_text(pdf_file_path, page_number, lines_on_last_page, new_file_path):
             print("not only text on the last page")
-            lines, page_number = add_to_latex(new_file_path, ESTIMATED_LINES_PER_PAGE)
+            lines, page_number = add_to_latex(new_file_path)
             lines_on_last_page = getLines(pdf_file_path, page_number)
         else:
             lines, new_page_number, lines_on_last_page = remove_lines(pdf_file_path, new_file_path, page_number, lines_on_last_page)

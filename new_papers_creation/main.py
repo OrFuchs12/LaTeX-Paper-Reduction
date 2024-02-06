@@ -4,34 +4,68 @@ import os
 from addRows import *
 import shutil
 import time
-import func_timeout 
+import func_timeout
+import sys
+from multiprocessing import Process
+sys.path.append(r'C:/Users/micha/OneDrive/שולחן העבודה/LaTeX-Paper-Reduction/code/greedy_from_machine')
+
+from Last_2_pages_rows_extract import check_invalid_chars
 
 
 def create(sub_path, destination_path):
     create_new_pdf(sub_path)
     move_changed_pdfs(sub_path, destination_path)
     
-    
-# loop throgh the directory of the papers directories, and activete the function create_new_pdf for each directory
+
+def create_wrapper(subdirectory_path, destination_path, timeout, process_id):
+    try:
+        func_timeout.func_timeout(timeout=timeout, func=create, args=[subdirectory_path, destination_path])
+    except func_timeout.exceptions.FunctionTimedOut:
+        print(f"Timeout occurred for process {process_id}. Terminating...")
+        os.system("TASKKILL /F /PID {pid} /T".format(pid=os.getpid())) 
+        shutil.move(subdirectory_path, "new_papers_creation/failed_directories")# Terminate the process
+    except Exception as e:
+        print(f"An error occurred: {e}, the directory: {subdirectory_path} was not created")
+        shutil.move(subdirectory_path, "new_papers_creation/failed_directories")
+    finally:
+        print(f"Processing for directory {subdirectory_path} completed.")
+
+
 def loop_through_directories(directory_path):
     for root, dirs, files in os.walk(directory_path):
         for directory in dirs:
-            subdirectory_path = os.path.join(root, directory)   
-            print("now in directory: --------------------------------: " ,subdirectory_path)
+            subdirectory_path = os.path.join(root, directory)
+            print("now in directory: --------------------------------: ", subdirectory_path)
             
-            try:
-                func_timeout.func_timeout(timeout=120,func=create, args=[subdirectory_path,"new_papers_creation/results"])
+            # Use multiprocessing to run create function in a separate process
+            process = Process(target=create_wrapper, args=[subdirectory_path, "new_papers_creation/results", 120, os.getpid()])
+            process.start()
+            process.join()  # Wait for the process to complete or timeout
+            if process.is_alive():
+                print(f"Process {process.pid} exceeded the timeout. Terminating...")
+                process.terminate()
+                process.join()  # Ensure the process is terminated before continuing
+    
+# loop throgh the directory of the papers directories, and activete the function create_new_pdf for each directory
+# def loop_through_directories(directory_path):
+#     for root, dirs, files in os.walk(directory_path):
+#         for directory in dirs:
+#             subdirectory_path = os.path.join(root, directory)   
+#             print("now in directory: --------------------------------: " ,subdirectory_path)
             
-            except func_timeout.exceptions.FunctionTimedOut:
-                # Handle timeout exception by logging and continue to the next iteration
-                print("Timeout occurred while executing create.")
-                # shutil.move(subdirectory_path, "new_papers_creation/failed_directories")
-                pass   
-            except Exception as e:
-                print(f"An error occurred: {e}, the directory : {subdirectory_path} was not created")
-                # move the directory to failed directory
-                shutil.move(subdirectory_path, "new_papers_creation/failed_directories")
-                pass
+#             try:
+#                 func_timeout.func_timeout(timeout=120,func=create, args=[subdirectory_path,"new_papers_creation/results"])
+            
+#             except func_timeout.exceptions.FunctionTimedOut:
+#                 # Handle timeout exception by logging and continue to the next iteration
+#                 print("Timeout occurred while executing create.")
+#                 shutil.move(subdirectory_path, "new_papers_creation/failed_directories")
+#                 continue   
+#             except Exception as e:
+#                 print(f"An error occurred: {e}, the directory : {subdirectory_path} was not created")
+#                 # move the directory to failed directory
+#                 shutil.move(subdirectory_path, "new_papers_creation/failed_directories")
+#                 continue
     
 
 def create_new_pdf(directory_path):
@@ -41,6 +75,7 @@ def create_new_pdf(directory_path):
             # create a new file with the same name as the original file, but with the suffix '_changed' and the same content as the original file.
             new_file_name = os.path.splitext(os.path.basename(tex_file_path))[0] + "_changed.tex"
             new_file_path = os.path.join(directory_path, new_file_name)
+            check_invalid_chars(tex_file_path)
             with open(tex_file_path, 'r', encoding="utf-8") as original_file:
                 content = original_file.read()
             with open(new_file_path, 'w', encoding="utf-8") as new_file:
@@ -52,7 +87,6 @@ def create_new_pdf(directory_path):
             # remove_small_command(new_file_path)
             # add 3 lines to the last page
             create_extra_line_page(new_file_path)
-            
 
             
             # comment_vspace_lines(tex_file_path)
@@ -98,7 +132,7 @@ import glob
 #                 else:
 #                     print(f'Error: Unable to extract title from LaTeX in {folder}')
 def extract_tar(tar_file, extract_path):
-    with tarfile.open(tar_file, 'r') as tar:
+    with tarfile.open(tar_file, 'r:gz') as tar:
         tar.extractall(extract_path)
 
 # def run_custom_function(directory_path):
@@ -106,60 +140,44 @@ def extract_tar(tar_file, extract_path):
 #     print(f"Running custom function on directory: {directory_path}")
 
 def process_tar_files(input_directory, output_directory):
-        # Create the output directory if it doesn't exist
+    # Create the output directory if it doesn't exist
     os.makedirs(output_directory, exist_ok=True)
 
-    # Get a list of all files with the pattern "xxxx.xxxxx" in the input directory
-    tar_files = glob.glob(os.path.join(input_directory, '[0-9]*.[0-9]*'))
-
-    # Set to keep track of encountered base names
-    # encountered_base_names = set()
-    # encountered_base_names.add("2312")
-    index=2
+    # Get a list of all files with the pattern "title.tar.gz" in the input directory
+    tar_files = glob.glob(os.path.join(input_directory, '*.tar.gz'))
+    index=0
     for tar_file in tar_files:
-        # Create a directory with a unique name
-        
-        
-        directory_name = f"newdir_{index}"
-        index+=1
-        # tex_file_path = find_tex_file(tar_file)
-        # if tex_file_path != None :
-        # base_name, extension = os.path.splitext(os.path.basename(tar_file))
-        
-        # # Check if the base name has been encountered before
-        # if base_name in encountered_base_names:
-        #     index = 1
-        #     while f"{base_name}_{index}" in encountered_base_names:
-        #         index += 1
-        #     directory_name = f"{base_name}_{index}"
-        # else:
-        #     directory_name = base_name
+        try:
+            if index==200:
+                break
+            # Create a directory with a unique name based on the tar file's base name
+            base_name, _ = os.path.splitext(os.path.splitext(os.path.basename(tar_file))[0])
+            extract_path = os.path.join(output_directory, base_name)
+            os.makedirs(extract_path, exist_ok=True)
 
-        # encountered_base_names.add(directory_name)
+            # Extract tar.gz file into the created directory
+            extract_tar(tar_file, extract_path)
 
-        extract_path = os.path.join(output_directory, directory_name)
-        os.makedirs(extract_path, exist_ok=True)
+            # Delete the tar.gz file after extraction
+            os.remove(tar_file)
+            index+=1
+        except Exception as e:
+            os.remove(tar_file)
+            print(f"Error: {e}")
+            continue
 
-        # Extract tar file into the created directory
-        extract_tar(tar_file, extract_path)
-
-        # Delete the tar file after extraction
-        os.remove(tar_file)
-
-    # Run the custom function on the output directory
-    # rename_directories(output_directory)
-    
-    loop_through_directories(output_directory)
+    # Now you can perform any additional processing on the extracted directories
+    # For example, you can call a function to process each extracted directory:
+    # loop_through_directories(output_directory)
 
 if __name__ == "__main__":
     # List of gzipped tar files
     
     input_directory = "new_papers_creation\\tar_files"
     # Output directory where all the extracted directories will be placed
-    output_directory = "new_papers_creation/All_Directories"
-
+    output_directory = "new_papers_creation\\All_Directories"
     # Process the tar files and run the custom function
-    # process_tar_files(input_directory, output_directory)
+    #process_tar_files(input_directory, output_directory)
     loop_through_directories(output_directory)
 
 
