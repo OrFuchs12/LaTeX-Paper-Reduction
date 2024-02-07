@@ -25,7 +25,7 @@ import cv2
 from pdf2image import convert_from_path
 import numpy as np
 NUMBER_OF_LAST_PAGES = 2
-THRESHOLD = 3
+THRESHOLD = 5
 
 Model_Classification_Path = "code/greedy_from_machine/classification_models"
 Model_Regressor_Path = "code/greedy_from_machine/regression_models"
@@ -990,7 +990,7 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
             latex_after_operator = res[index][1]
             # write the file after operator to file
             after_path = os.path.join("code/~/results/new_files/", paper_name)
-            after_path = os.path.join(after_path, "after_operator1.tex")
+            after_path = os.path.join(after_path, "after_operator0.tex")
             f = open(after_path, "w")
             f.write(latex_after_operator)
             f.close()
@@ -1002,7 +1002,7 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
             # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
             subprocess.run(['pdflatex', '-interaction=nonstopmode', base_name], cwd=dir_path) #On mac
             after_pdf = os.path.join("code/~/results/new_files/", paper_name)
-            after_pdf = os.path.join(after_pdf, "after_operator1.pdf")
+            after_pdf = os.path.join(after_pdf, "after_operator0.pdf")
             last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
             
             
@@ -1031,6 +1031,7 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
             # if we manage to short the paper
 
         end = time.time()
+        print("RESULTS: simple, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
 
         return iteration, end - start, reduced, total_cost
     except Exception as e:
@@ -1103,7 +1104,7 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
                 latex_after_operator = res[index][1]
                 # write the file after operator to file
                 after_path = os.path.join("code/~/results/new_files/", paper_name)
-                after_path = os.path.join(after_path, "after_operator2.tex")
+                after_path = os.path.join(after_path, "after_operator1.tex")
                 f = open(after_path, "w")
                 f.write(latex_after_operator)
                 f.close()
@@ -1114,7 +1115,7 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
                 # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
                 subprocess.run(['pdflatex', '-interaction=nonstopmode', base_name], cwd=dir_path) #On mac
                 after_pdf = os.path.join("code/~/results/new_files/", paper_name)
-                after_pdf = os.path.join(after_pdf, "after_operator2.pdf")
+                after_pdf = os.path.join(after_pdf, "after_operator1.pdf")
                 last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
 
                 new_number_of_pages = check_lines(after_pdf)[1]
@@ -1143,6 +1144,7 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
                 index += 1
 
         end = time.time()
+        print("RESULTS: heuristic, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
         return iteration, end - start, reduced, total_cost
     except Exception as e:
         print(e)
@@ -1259,6 +1261,7 @@ def non_stop_heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_nam
                     index = 0
 
         end = time.time()
+        print("RESULTS: non stop heuristic, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
         return iteration, end - start, reduced, total_cost
     except Exception as e:
         print(e)
@@ -1452,7 +1455,7 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
                 index += 1
 
         end = time.time()
-
+        print("RESULTS: classification, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
         return iteration, end - start, reduced, total_cost
     except Exception as e:
         print(e)
@@ -1544,7 +1547,7 @@ def non_stop_classification_greedy(path_to_pdf, path_to_latex, models,num_of_pag
                 latex_after_operator = res[index][1]
                 operators_done.append(model_to_predict)
                 after_path = os.path.join("code/~/results/new_files/", paper_name)
-                after_path = os.path.join(after_path, "after_operator3.tex")
+                after_path = os.path.join(after_path, "after_operator4.tex")
                 f = open(after_path, "w")
                 # write the file after operator to file
                 f.write(latex_after_operator)
@@ -1557,7 +1560,7 @@ def non_stop_classification_greedy(path_to_pdf, path_to_latex, models,num_of_pag
                 subprocess.run(['pdflatex', '-interaction=nonstopmode', base_name], cwd=dir_path) #On mac
 
                 after_pdf = os.path.join("code/~/results/new_files/", paper_name)
-                after_pdf = os.path.join(after_pdf, "after_operator3.pdf")
+                after_pdf = os.path.join(after_pdf, "after_operator4.pdf")
                 last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
 
                 new_number_of_pages = check_lines(after_pdf)[1]
@@ -1599,7 +1602,7 @@ def non_stop_classification_greedy(path_to_pdf, path_to_latex, models,num_of_pag
                 
 
         end = time.time()
-
+        print("RESULTS: non stop classification, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
         return iteration, end - start, reduced, total_cost
     except Exception as e:
         print(e)
@@ -1685,7 +1688,7 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
                 latex_after_operator = res[index][1]
                 operators_done.append(model_to_predict)
                 after_path = os.path.join("code/~/results/new_files/", paper_name)
-                after_path = os.path.join(after_path, "after_operator3.tex")
+                after_path = os.path.join(after_path, "after_operator5.tex")
                 f = open(after_path, "w")
                 # write the file after operator to file
                 f.write(latex_after_operator)
@@ -1698,7 +1701,7 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
                 subprocess.run(['pdflatex', '-interaction=nonstopmode', base_name], cwd=dir_path) #On mac
 
                 after_pdf = os.path.join("code/~/results/new_files/", paper_name)
-                after_pdf = os.path.join(after_pdf, "after_operator3.pdf")
+                after_pdf = os.path.join(after_pdf, "after_operator5.pdf")
                 last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
 
                 new_number_of_pages = check_lines(after_pdf)[1]
@@ -1716,7 +1719,7 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
                 if not reduced:
 
                     df1, lidor = features_single.run_feature_extraction(
-                        path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
+                        path_to_latex, last_pages_pdf, 'code/greedy_from_machine/bibliography.bib',
                                                         "code/~/results/dct0",
                                                         "code/~/results/new_files/dct0", "test", pd.DataFrame())
                     df1 = df1.T
@@ -1724,7 +1727,7 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
                                 'num_of_object'], axis=1, inplace=True)
 
                 total_cost += res[index][0]
-                index += 1
+                index  = 0
                 iteration += 1
                 
                 # if we manage to short the paper
@@ -1734,7 +1737,7 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
                 index += 1
 
         end = time.time()
-
+        print("RESULTS: regression, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
         return iteration, end - start, reduced, total_cost
     except Exception as e:
         print(e)
@@ -1821,11 +1824,11 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
                 index += 1
                 continue
            
-            if prediction < 0 or start_check_operators_that_faild:
+            if prediction > 0 or start_check_operators_that_faild:
                 latex_after_operator = res[index][1]
                 operators_done.append(model_to_predict)
                 after_path = os.path.join("code/~/results/new_files/", paper_name)
-                after_path = os.path.join(after_path, "after_operator3.tex")
+                after_path = os.path.join(after_path, "after_operator6.tex")
                 f = open(after_path, "w")
                 # write the file after operator to file
                 f.write(latex_after_operator)
@@ -1838,7 +1841,7 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
                 subprocess.run(['pdflatex', '-interaction=nonstopmode', base_name], cwd=dir_path) #On mac
 
                 after_pdf = os.path.join("code/~/results/new_files/", paper_name)
-                after_pdf = os.path.join(after_pdf, "after_operator3.pdf")
+                after_pdf = os.path.join(after_pdf, "after_operator6.pdf")
                 last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
 
                 new_number_of_pages = check_lines(after_pdf)[1]
@@ -1856,7 +1859,7 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
                 if not reduced:
 
                     df1, lidor = features_single.run_feature_extraction(
-                        path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
+                        path_to_latex, last_pages_pdf, 'code/greedy_from_machine/bibliography.bib',
                                                         "code/~/results/dct0",
                                                         "code/~/results/new_files/dct0", "test", pd.DataFrame())
                     df1 = df1.T
@@ -1864,7 +1867,7 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
                                 'num_of_object'], axis=1, inplace=True)
 
                 total_cost += res[index][0]
-                index += 1
+                index = 0 
                 iteration += 1
                 
                 # if we manage to short the paper
@@ -1874,7 +1877,7 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
                 index += 1
 
         end = time.time()
-
+        print("RESULTS: non stop regression, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
         return iteration, end - start, reduced, total_cost
     except Exception as e:
         print(e)
