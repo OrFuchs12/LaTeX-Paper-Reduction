@@ -1,0 +1,283 @@
+
+NEW INTRO
+
+% I still am not totally happy with this opening paragraph
+A popular and effective way to build heuristic functions is to pre-compute and store information about the state-space that can be used to quickly calculate the heuristic values of states encountered during search. One example of such memory-based heuristics are pattern databases (PDBs) ~\cite{culberson1998patternDatabases,Edelkamp01planningwith}. A PDB is a pre-computed lookup table that contains the optimal solution costs for states in an abstracted and smaller version of the original state-space. During search, the entries in the table are used to provide heuristic estimates for states in the original state-space. Other examples of memory-based heuristics include differential heuristics~\cite{stutervant2009memoryBased} as used in pathfinding. % And one more example
+
+When using a search algorithm such as A*~\cite{hart1968aFormalBasis} and Iterative-Deepening A* (IDA*)~\cite{korf85}, the heuristic function is consulted every time a node is generated. As such , the pre-computed information used by a memory-based heuristic to calculate heuristic values must be stored in fast-access memory such as dynamic RAMs (DRAMs) in order to achieve high performance. However, this means that such systems can have a high energy usage since memory-based heuristics are typically designed to use as much memory as is available, and the memory usage of systems often plays an important role in energy consumption \cite{5695550}.
+
+Energy consumption has become a major constraint, not only in embedded systems, but also in clusters and server-farms~\cite{Cameron2005}. As memory is known to play an important role in the overall energy consumption of a system~\cite{5695550}, several techniques have been introduced that can greatly improve the energy efficiency of the system, but at the cost of allowing a limited amount of memory errors. For example, consider dynamic RAM (DRAM) cells, which require a periodic refresh of stored values. This operation, which consists of reading and rewriting the value in all cells, consumes a substantial amount of energy. To reduce this consumption, one alternative is to use a technique called Flikker
+\cite{Liu:2011:FSD:1950365.1950391} which reduces the refresh frequency of certain memory regions at the cost of introducing memory errors into those regions. When using this technique, the user can identify the data that cannot withstand such corruption and must be stored in memory that is refreshed at the standard frequency, while allowing the remaining data to be refreshed much less frequently. 
+
+If state-space search approaches are to be deployed on systems that exploit such energy-saving technology, we thus need to make as much of the program as possible robust in the face of memory errors. Given that when memory-based heuristics are used to guide IDA*, the heuristics will typically comprise over 95\% of the total memory usage, the memory used by these heuristics represent a natural region on which to use low refresh rates. When such a large proportion of a programs can be stored in a low-refresh region of memory, we can expect a reduction in the refresh energy consumption of approximately 33\% \cite{Liu:2011:FSD:1950365.1950391}. However, by allowing for errors in the memory used to store a memory-based heuristic, the resulting heuristic values may be corrupted. The resulting heuristic function may not only cause the heuristic to be less accurate, but it may also become arbitrarily inadmissible. As we will show below, this can lead to severely suboptimal solutions.
+
+In this paper, we introduce techniques for using memory-based heuristics in an environment where the heuristic may be corrupted due to memory errors. The algorithms are based on IDA* so as to minimize the memory needs of the non-heuristic parts of the search system, and use novel error detection and correction methods. As such, these approaches will allow for state-space search systems to take advantage of the energy efficiency when using techniques like Flikker. However, these techniques can also be used when memory errors occur due to other physical phenomena, such as radioactive particles and electrical noise \cite{7266869}.
+
+Below, we will show that the new approaches introduced are guaranteed to return solutions that cost no more than three times larger than the optimal solution. In contrast with other resilient algorithms from other fields (see \cite{finocchi2007designing} for example), our methods also do not assume an upper bound on the number of memory errors that may occur during search. By experimenting with PDBs on standard benchmark domains, we demonstrate the advantages of our correction methods in terms of solution quality. We will also compare these new techniques to Error Correcting Codes (ECC), which are a standard mechanism for mitigating memory errors. ECCs are not without costs and, as such, their application to memory requires a tradeoff of precision for energy efficiency \cite{Luo:2014:CAM:2671853.2672438}. Below, we will experimentally show the advantages of our methods over a variety of ECC approaches with respect to energy consumption---while our approaches increase in only 5\% the energy consumed by DRAMs, ECCs can have an energy overhead of up to 40\%. 
+
+
+
+
+OLD INTRO
+
+Memory-based heuristics such as pattern databases~\cite{culberson1998patternDatabases,Edelkamp01planningwith} and differential heuristics~\cite{stutervant2009memoryBased} are fundamental for guiding search algorithms such as A*~\cite{hart1968aFormalBasis} and Iterative-Deepening A* (IDA*)~\cite{korf85} while finding optimal solutions to state-space search problems. 
+
+A pattern database (PDB) is a pre-computed lookup table that contains the optimal solution costs for states in an abstracted and smaller version of the original state space. The entries of the lookup table serve as heuristic estimates for states in the original state space. 
+%Korf conjectured that there is an inverse relationship between the size of the PDB and the running time of search algorithm employing the PDB~\cite{Korf97,Holte2014}. This relation explains why PDBs are memory-intensive heuristic functions: if one wants to decrease the search algorithm�s running time, one must increase the PDB size. As a result, one usually constructs the largest possible PDB to solve a given problem. 
+PDBs frequently require a few gigabytes of memory, and they must be stored in fast-access memories such as dynamic RAMs (DRAMs). This is because search algorithms consult the PDB for every node generated during search. And since memories play an important role in the overall energy consumption of systems \cite{5695550}, the means to store PDBs are not only crucial for performance, but also for energy consumption. %Energy has become a major constraint not only for embedded systems but also in clusters and server-farms~\cite{Cameron2005}.
+
+ DRAM cells require periodic refresh to maintain their stored values, which consists in reading and rewriting the value in all cells. This operation consumes substantial energy and, to reduce this consumption, one alternative is to reduce the refresh frequency of memory regions 
+ at the cost of introducing memory errors, a 
+ %in memory regions holding non-critical data, 
+  technique is known as Flikker 
+\cite{Liu:2011:FSD:1950365.1950391}. %This is possible because these frequencies are determined for worst case cells, being overdimensioned for the vast majority of cells. In newer technologies this phenomenon becomes more prominent, as process variability increases the differences between typical and worst case transistors. 
+In Flikker, data that cannot withstand corruption is kept with the nominal refresh frequency. %Liu \textit{et al.} \shortcite{Liu:2011:FSD:1950365.1950391} observed that refresh power is substantially reduced up until refresh periods of 1 second (nominal values are usually 64 or 32 microseconds), while introducing approximately one error for every $4\times10^8$ bits. Further reductions in refresh frequency do not provide relevant gains, as other components begin to dominate the overall memory power. This is thus considered to be a near-optimal period for low-refresh regions.
+%
+Substantial gains can be obtained when most of the memory can use the low refresh frequency. This property is strongly present in the heuristics evaluated in this work: for all evaluated problems, the heuristics correspond to at least 95\% of entire program memory. For programs with such large low-refresh regions, approximately 33\% reduction in refresh energy consumption can be expected \cite{Liu:2011:FSD:1950365.1950391}. 
+
+In the case of state-space search, memory errors introduced by reducing the refresh rate of memory regions holding heuristics can result in the search algorithm finding 
+%suboptimal solutions. As we show in this paper, unchecked errors in the heuristic can lead to 
+severely suboptimal solutions, which can be catastrophic for some applications. As our main contribution, we introduce algorithms to handle memory errors in memory-based heuristics with the goal of benefiting from the energy efficiency provided by approaches such as Flikker. 
+% introduced either by approximation computing techniques or other phenomena such as radioactive particles and electrical noise. 
+The proposed algorithms are based on IDA* and novel error detection and correction methods. Our algorithms are guaranteed to find a solution if one exists and the cost of the solution they find is no more than three times larger than the problem's optimal solution cost. In contrast with other resilient algorithms (see \cite{finocchi2007designing}) our methods do not assume an upper bound on the number of memory errors that may occur during search. Experiments on standard search benchmarks show the advantages of our correction methods in terms of suboptimality
+
+% Energy has become a major constraint not only for embedded systems but also in clusters and server-farms~\cite{Cameron2005}. One prospective approach to reduce energy consumption is approximate computing. 
+%Similarly to Flikker, there exist other methods for trading computation precision for energy efficiency.
+
+
+%In this paper we focus on memory-based approaches. %See the work of Venkataramani \textit{et al.} \shortcite{Venkataramani:2015:ACQ:2744769.2751163} for a comprehensive review on approximate computing.
+
+%Not all applications are amenable to approximate computing. Only those that support imprecisions in their computations can benefit from such techniques. As a result, existing approximate computing techniques are evaluated with applications that naturally present these properties, such as digital signal processing, image processing and data mining \cite{974895} \cite{Venkataramani:2015:ACQ:2744769.2751163}. %Even for these applications, there is typically only a subset of data that can be computed or stored with reduced precision. 
+%Most approximate computing frameworks require developers to indicate which data can be approximate \cite{Misailovic:2014:CRA:2660193.2660231} \cite{Liu:2011:FSD:1950365.1950391}. 
+
+%The general tradeoff in memory-based approximate computing schemes is that the larger the data and the greater the acceptable degree of imprecision, the more energy can be saved. Since PDBs are typically very large, they are excellent candidates for approximation. In the case of state-space search, a computation's imprecision can result in suboptimal solutions. As we show in this paper, unchecked errors in the PDB can lead to severely suboptimal solutions, which can be catastrophic for some applications. %Performance, in terms of execution time, can also be greatly affected.
+
+ %Applications operating in harsh environments, such as spaceborne systems, typically face stringent and conflicting energy and dependability constraints, and therefore can also benefit from such approaches \cite{6517720}.
+
+%\subsection{Our Contributions}
+
+%With the goal of reducing energy consumption, 
+
+Energy efficiency is also affected by memory errors that are caused by various phenomena, 
+%
+%Energy efficiency is also directly affected by the increasing error rates observed in memories manufactured with newer technologies. These errors are naturally induced by various phenomena, 
+e.g., radioactive particles and electrical noise \cite{7266869}.
+%and are already a concern for companies such as Facebook \cite{7266869}. 
+The standard mechanism to mitigate memory errors, namely Error Correcting Codes (ECC) are not without costs and, as such, their partial application to memories also allows trading precision for energy efficiency, as investigated in \cite{Luo:2014:CAM:2671853.2672438}.
+%
+ Experiments show the advantages of our methods over a variety of ECC approaches with respect to energy consumption---while our approaches increase in only 5\% the energy consumed by DRAMs, ECCs can have an energy overhead of up to 40\%.
+
+
+
+
+
+
+
+
+
+ 
+
+In our case
+
+Let $n^*$ be the node that represents the optimal path to a goal. 
+Valenzano et al.~\shortcite{Valenzano:alternative_bounding} have shown that an iterative deepening search algorithm with an evaluation function $F(n)<B($
+
+
+
+
+
+\begin{theorem}
+\label{theorem:sufficient_for_3C}
+Any solution found by an IDA* that uses the evaluation function $g + H$ will have a cost of at most $3 \cdot C^*$ if there exists an optimal solution path $\pi$ such that the following holds for any $n \in \pi$:
+$$g(n) + H(n) \leq 3 \cdot (g(n) + h^*(n))$$
+\end{theorem}
+This theorem is a special case of Theorem 2.5 from \cite{Valenzano:alternative_bounding} when the conditions of that theorem are restricted to the $3\cdot C^*$ bound and to evaluation functions of the form $g + H$.
+The proof of this statement, given formally in \cite{Valenzano:alternative_bounding}, follows from the following argument.
+First, notice that any solution found during iteration $i$ must have a cost of at most $T_i$ since a goal node $n_g$ can only be expanded if $g(n_g) \leq T_i$.
+Now consider the condition given in the theorem and notice it guarantees that this guarantees that the evaluation of any node on the optimal solution cost will be at most $3 \cdot C^*$.
+This is because for any node on this path, $g(n)=g^*(n)$.
+Therefore, the threshold cannot get any higher than $3 \cdot C^*$ before a solution is found since at that point the optimal solution will be found.
+
+
+
+
+
+
+
+
+
+
+
+
+Let $n$ be any node from some optimal solution path $\pi$ on which $H$ satisfies the above conditions.
+Now consider the following derivation:
+\begin{align}
+g(n) + H(n) &\leq 2\cdot g(n) + H(n_{\mathrm{init}})\label{line:g_as_max1}\\ 
+& \leq 2 \cdot g(n) + h^*(n_{\mathrm{init}})\label{line:g_as_max2}\\
+& \leq 2 \cdot g(n) + g^*(n) + h^*(n)\label{line:g_as_max3}\\
+& \leq 3 \cdot g(n) + h^*(n) \label{line:g_as_max4}\\
+& \leq 3(g(n) + h^*(n))\label{line:g_as_max5}
+\end{align}
+Line \ref{line:g_as_max1} holds because by condition 2 and line \ref{line:g_as_max2} then follows by condition 1.
+Since $n$ is along an optimal path, $g^*(n) + h^*(n)=C^* = h^*(n_{\mathrm{init}})$, and so line \ref{line:g_as_max3} follows.
+Since the cost of the optimal path to $n$ must be no more costly than the path found, $g^*(n)\leq g(n)$, which implies line \ref{line:g_as_max4}.
+The last line then follows immediately.
+
+Since $n$ is an arbitrary node from $\pi$, the statement holds by line \ref{line:g_as_max5} and Theorem \ref{theorem:sufficient_for_3C}.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+he heuristic can only increase by $\kappa(n_i, n_{i+1})$ along any edge $(n_i, n_{i+1}$ on $\pi$, then the most it can increase beyond $H(n_{\mathrm{init}})$ when it reaches $n_k$ is $g(n_k)$.
+Given that fact, the corollary then follows by the admissibility of $H$ on node $n_{\mathrm{init}}$ and Theorem \ref{theorem:g_as_max}.
+%\begin{proof}
+%To prove this statement, we will first show that if the condition given is satisfied, then $H(n_k) \leq H(n_0) + g(n_k)$.
+%This can be shown by induction on the length of $\pi=[n_0,.., n_k]$.
+%If $k=1$, then $g(n_1)=\kappa(n_0, n_1)$.
+%Therefore, condition $1$ implies that $H(n_1) \leq H(n_0) + g(n_1)$ and the base case is satisfied.
+%
+%Now assume that for all paths that are composed of no more than $k$ edges and consider a path $\pi = [n_0, ..., n_{k+1}]$.
+%By the induction hypothesis, $H(n_k) \leq H(n_0) + g(n_k)$.
+%By adding $\kappa(n_k, n_{k+1})$ to both sides of this inequality, we are left with $H(n_k) + \kappa(n_k, n_{k+1}) \leq  H(n_0) + g(n_{k+1})$ since $g(n_{k+1}) = g(n_k) + \kappa(n_k, n_{k+1})$.
+%The left side of this inequality is no smaller than $H(n_{k+1})$ by condition 1.
+%Therefore, $H(n_{k+1}) \leq H(n_0) + g(n_k)$ is true by induction.
+%
+%This fact, along with condition 1 then implies the statement is true by Theorem \ref{theorem:g_as_max}.
+%\end{proof}
+
+Corollary \ref{corollary:h_increase_policy} therefore identifies conditions on heuristic correction that will ensure any solution found is at most three times suboptimal.
+All this requires is an admissible heuristic value for $n_{\mathrm{init}}$, and that the heuristic never increases by more than consistency allows along the path currently under consideration.
+Notice that this bound holds regardless of the amount of heuristic corruption or whether the domain is undirected or not.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+To do so, we will first require that the heuristic value of the initial state is admissible.
+Secondly, we will require that when evaluating a node $n$ which has been found along path $\pi$, the heuristic will satisfy the directed form of consistency along $\pi$.
+Formally, this means that where $\pi=[n_0, ..., n_k]$, the following holds:
+$$\forall 0 \leq i < k, H(n_i) \leq H(n_{i+1}) + \kappa(n_i, n_{i+1})$$
+Notice that this is a weaker condition than the standard consistency definition, as it only requires consistency on a small subset of the graph.
+% FIX EXAMPLE TO ALLOW FOR THIS
+%For example, this heuristic is satisfied for $n_3$ in Figure \ref{corruption_example} where $[n_0, n_1, n_2, n_3]$ is the path in question, but it will not be satisfied if this path extended and used to evaluate $n_4$ without the heuristic value of $n_4$ being adjusted.
+
+Let us now show that this weaker version of consistency will be enough to guarantee that any solution found by IDA* will cost no more than $3 \cdot C^*$.
+To do so, we will use the following theorem:
+\begin{theorem}
+\label{theorem:sufficient_for_3C}
+Any solution found by an IDA* that uses the evaluation function $g + H$ will have a cost of at most $3 \cdot C^*$ if there exists an optimal solution path $\pi$ such that the following holds for any $n \in \pi$:
+$$g(n) + H(n) \leq 3 \cdot (g(n) + h^*(n))$$
+\end{theorem}
+This theorem is a special case of Theorem 2.5 from \cite{Valenzano:alternative_bounding} when the conditions of that theorem are restricted to the $3\cdot C^*$ bound and to evaluation functions of the form $g + H$.
+The proof of this statement, given formally in \cite{Valenzano:alternative_bounding}, follows from the following argument.
+First, notice that any solution found during iteration $i$ must have a cost of at most $T_i$ since a goal node $n_g$ can only be expanded if $g(n_g) \leq T_i$.
+Now consider the condition given in the theorem and notice it guarantees that this guarantees that the evaluation of any node on the optimal solution cost will be at most $3 \cdot C^*$.
+This is because for any node on this path, $g(n)=g^*(n)$.
+Therefore, the threshold cannot get any higher than $3 \cdot C^*$ before a solution is found since at that point the optimal solution will be found.
+
+This theorem will now allow us to prove the following:
+\begin{theorem}
+\label{theorem:g_as_max}
+Any solution found by an IDA* that uses the evaluation function $g+H$ will have a cost of at most $3 \cdot C^*$ if the following conditions hold:
+\begin{enumerate}
+\item $H(n_{\mathrm{init}}) \leq h^*(n_{\mathrm{init}})$
+\item For any node $n$, $H(n) \leq H(n_{\mathrm{init}}) + g(n)$
+\end{enumerate}
+\end{theorem}
+\begin{proof}
+Let $n$ be any node from some optimal solution path $\pi$ on which $H$ satisfies the above conditions.
+Now consider the following derivation:
+\begin{align}
+g(n) + H(n) &\leq 2\cdot g(n) + H(n_{\mathrm{init}})\label{line:g_as_max1}\\ 
+& \leq 2 \cdot g(n) + h^*(n_{\mathrm{init}})\label{line:g_as_max2}\\
+& \leq 2 \cdot g(n) + g^*(n) + h^*(n)\label{line:g_as_max3}\\
+& \leq 3 \cdot g(n) + h^*(n) \label{line:g_as_max4}\\
+& \leq 3(g(n) + h^*(n))\label{line:g_as_max5}
+\end{align}
+Line \ref{line:g_as_max1} holds because by condition 2 and line \ref{line:g_as_max2} then follows by condition 1.
+Since $n$ is along an optimal path, $g^*(n) + h^*(n)=C^* = h^*(n_{\mathrm{init}})$, and so line \ref{line:g_as_max3} follows.
+Since the cost of the optimal path to $n$ must be no more costly than the path found, $g^*(n)\leq g(n)$, which implies line \ref{line:g_as_max4}.
+The last line then follows immediately.
+
+Since $n$ is an arbitrary node from $\pi$, the statement holds by line \ref{line:g_as_max5} and Theorem \ref{theorem:sufficient_for_3C}.
+%Now notice that if $H(n) \leq H(n_{\mathrm{init}}) + g(n)$, then $g(n) + H(n) \leq 2\cdot g(n) + H(n_{\mathrm{init}})$.
+%This also means that $g(n) + H(n) \leq  2\cdot g(n) + h^*(n_{\mathrm{init}})$ by the assumption that $H$ is admissible on the initial state.
+%It then follows that $g(n) + H(n) \leq  2\cdot g(n) + g^*(n) + h^*(n)$ since both $n$ and $n_{\mathrm{init}}$ are on an optimal solution path.
+%Since $g(n) \geq g^*(n)$, this simplifies to $g(n) + H(n) \leq  3\cdot g(n) + h^*(n)$ which implies that  $g(n) + H(n) \leq  3\cdot (g(n) + h^*(n))$.
+%Therefore, the bound holds by Theorem \ref{theorem:sufficient_for_3C}.
+\end{proof}
+
+This theorem then implies the desired result:
+\begin{corollary}
+\label{corollary:h_increase_policy}
+Any solution found by an IDA* that uses the evaluation function $g+H$ will have a cost of at most $3 \cdot C^*$ if $H(n_{\mathrm{init}}) \leq h^*(n_{\mathrm{init}})$, and where $\pi=[n_0, ...,n_k]$ is the path found from $n_0=n_{\mathrm{init}}$ to $n_k$, the following holds:
+$$\forall 0 \leq i < k, H(n_i) \leq H(n_{i+1}) + \kappa(n_i, n_{i+1})$$
+\end{corollary}
+This corollary follows from the fact that if the heuristic can only increase by $\kappa(n_i, n_{i+1})$ along any edge $(n_i, n_{i+1}$ on $\pi$, then the most it can increase beyond $H(n_{\mathrm{init}})$ when it reaches $n_k$ is $g(n_k)$.
+Given that fact, the corollary then follows by the admissibility of $H$ on node $n_{\mathrm{init}}$ and Theorem \ref{theorem:g_as_max}.
+%\begin{proof}
+%To prove this statement, we will first show that if the condition given is satisfied, then $H(n_k) \leq H(n_0) + g(n_k)$.
+%This can be shown by induction on the length of $\pi=[n_0,.., n_k]$.
+%If $k=1$, then $g(n_1)=\kappa(n_0, n_1)$.
+%Therefore, condition $1$ implies that $H(n_1) \leq H(n_0) + g(n_1)$ and the base case is satisfied.
+%
+%Now assume that for all paths that are composed of no more than $k$ edges and consider a path $\pi = [n_0, ..., n_{k+1}]$.
+%By the induction hypothesis, $H(n_k) \leq H(n_0) + g(n_k)$.
+%By adding $\kappa(n_k, n_{k+1})$ to both sides of this inequality, we are left with $H(n_k) + \kappa(n_k, n_{k+1}) \leq  H(n_0) + g(n_{k+1})$ since $g(n_{k+1}) = g(n_k) + \kappa(n_k, n_{k+1})$.
+%The left side of this inequality is no smaller than $H(n_{k+1})$ by condition 1.
+%Therefore, $H(n_{k+1}) \leq H(n_0) + g(n_k)$ is true by induction.
+%
+%This fact, along with condition 1 then implies the statement is true by Theorem \ref{theorem:g_as_max}.
+%\end{proof}
+
+
+
+
+\begin{lemma}[Sufficient condition for corruption detection] 
+If $H$ is not neighborhood-consistent around $n$ then at least one of the states in $\{n\}\cup child(n)$ has a corrupted heuristic value. 
+\label{lem:sufficient-condition}
+\end{lemma}
+Lemma~\ref{lem:sufficient-condition} provides a sufficient condition for detecting a corrupted heuristic value, and it can be easily computed whenever a node is expanded. For PDB heuristic, an even more refined condition exists, as the difference in the heuristic values of neighboring states cannot be larger than the cost of the edge between them. This is because neighboring states in the original state space are either mapped to the same abstract state, in which case they will have the same heuristic value, or mapped to neighboring abstract states. The difference between the heuristic values of neighboring abstract states is at most the cost of the edge between them, as the heuristic is the shortest path from an abstract state to an abstract goal state. This is formalized in the following Lemma. 
+\begin{lemma}
+If $H$ is a PDB heuristic then for every node $n$ and $c$ such that $c\in child(n)$ if $H(n)$ and $H(c)$ are uncorrupted then 
+\[ H(c)\in [H(n)-\kappa(n,c),H(n)+\kappa(n,c)] \]
+\label{lem:sufficient-condition-pdb}
+\end{lemma}
+Lemma~\ref{lem:sufficient-condition-pdb} can be used to detect corrupted PDB entries. For instance, in the example shown in Figure~\ref{fig:corruption_example} we can infer that either $n_0$ or $n_1$ have a corrupted heuristic, since $H(n_1)=6\notin [3,5]$.
+Unfortunately, both Lemmas~\ref{lem:sufficient-condition}and~\ref{lem:sufficient-condition-pdb} only provide sufficient conditions for a corruption to be detected.  Corrupted heuristic values that do not violate consistency on a particular edge will not be detected. 
+For example, assume that in Figure \ref{corruption_example} $H(n_1)$ was $5$ instead of $6$ (which is also a possible due to a single bit flip). This corruption will not be detected by 
+Lemma~\ref{lem:sufficient-condition} or~\ref{lem:sufficient-condition-pdb}.

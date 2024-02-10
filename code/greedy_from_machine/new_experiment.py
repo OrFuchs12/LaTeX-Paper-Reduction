@@ -954,7 +954,7 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
         iteration = 0
         total_cost = 0
         starting_lines = lines
-        
+        count_operators = 0
 
         print("begin lines:", lines)
         print("begin pages:", pages)
@@ -1032,11 +1032,11 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
 
         end = time.time()
         print("RESULTS: simple, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
-
-        return iteration, end - start, reduced, total_cost
+        count_operators = iteration
+        return iteration, end - start, reduced, total_cost,count_operators
     except Exception as e:
         print(e)
-        return -1, -1, reduced, -1
+        return -1, -1, reduced, -1,-1
 
 
 """ 
@@ -1066,6 +1066,7 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
         index = 0
         reduced = False
         iteration = 0
+        count_operators = 0
         LINE_WIDTH = 10
         total_cost = 0
         starting_lines = lines
@@ -1101,6 +1102,7 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
 
             # condition to apply the operator
             if res[index][0] >= LINE_WIDTH:
+                count_operators += 1
                 latex_after_operator = res[index][1]
                 # write the file after operator to file
                 after_path = os.path.join("code/~/results/new_files/", paper_name)
@@ -1142,13 +1144,14 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
                 index = 0
             else:
                 index += 1
+                count_operators += 1
 
         end = time.time()
         print("RESULTS: heuristic, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
-        return iteration, end - start, reduced, total_cost
+        return iteration, end - start, reduced, total_cost,count_operators
     except Exception as e:
         print(e)
-        return -1, -1, reduced, -1
+        return -1, -1, reduced, -1,-1
     
     
 def non_stop_heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
@@ -1171,6 +1174,7 @@ def non_stop_heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_nam
         # define stop condition and some variables
         target = lines - 2
         index = 0
+        count_operators = 0
         reduced = False
         iteration = 0
         LINE_WIDTH = 10
@@ -1213,6 +1217,7 @@ def non_stop_heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_nam
 
             # condition to apply the operator
             if res[index][0] >= LINE_WIDTH or start_check_operators_that_faild:
+                count_operators += 1
                 latex_after_operator = res[index][1]
                 # write the file after operator to file
                 operators_done.append(oper)
@@ -1255,6 +1260,7 @@ def non_stop_heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_nam
                 index = 0
             else:
                 index += 1
+                count_operators += 1
                 if index >= (len(res)):
                     print("Out of operators, starts checking operators again.")
                     start_check_operators_that_faild = True
@@ -1262,10 +1268,10 @@ def non_stop_heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_nam
 
         end = time.time()
         print("RESULTS: non stop heuristic, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
-        return iteration, end - start, reduced, total_cost
+        return iteration, end - start, reduced, total_cost,count_operators
     except Exception as e:
         print(e)
-        return -1, -1, reduced, -1
+        return -1, -1, reduced, -1,-1
 
 
 """
@@ -1353,6 +1359,7 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
         target = lines - 2
         index = 0
         reduced = False
+        count_operators = 0
         iteration = 0
         total_cost = 0
         starting_lines = lines
@@ -1403,6 +1410,7 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
 
             # condition to apply the operator
             if prediction > 0 and res[index][0] >= 10:
+                count_operators += 1
                 latex_after_operator = res[index][1]
 
                 after_path = os.path.join("code/~/results/new_files/", paper_name)
@@ -1453,13 +1461,14 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
                     reduced = True
             else:
                 index += 1
+                count_operators += 1
 
         end = time.time()
         print("RESULTS: classification, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
-        return iteration, end - start, reduced, total_cost
+        return iteration, end - start, reduced, total_cost, count_operators
     except Exception as e:
         print(e)
-        return -1, -1, reduced, -1
+        return -1, -1, reduced, -1,-1
     
     
 def non_stop_classification_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
@@ -1490,6 +1499,7 @@ def non_stop_classification_greedy(path_to_pdf, path_to_latex, models,num_of_pag
         index = 0
         reduced = False
         iteration = 0
+        count_operators = 0
         total_cost = 0
         starting_lines = lines
 
@@ -1544,6 +1554,7 @@ def non_stop_classification_greedy(path_to_pdf, path_to_latex, models,num_of_pag
 
             # condition to apply the operator
             if prediction or start_check_operators_that_faild:
+                count_operators += 1
                 latex_after_operator = res[index][1]
                 operators_done.append(model_to_predict)
                 after_path = os.path.join("code/~/results/new_files/", paper_name)
@@ -1594,6 +1605,7 @@ def non_stop_classification_greedy(path_to_pdf, path_to_latex, models,num_of_pag
                     reduced = True
             else:
                 index += 1
+                count_operators += 1
                 if index >= (len(res)):
                     print("Out of operators, starts checking operators again.")
                     start_check_operators_that_faild = True
@@ -1603,10 +1615,10 @@ def non_stop_classification_greedy(path_to_pdf, path_to_latex, models,num_of_pag
 
         end = time.time()
         print("RESULTS: non stop classification, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
-        return iteration, end - start, reduced, total_cost
+        return iteration, end - start, reduced, total_cost,count_operators
     except Exception as e:
         print(e)
-        return -1, -1, reduced, -1
+        return -1, -1, reduced, -1,-1
     
     
 def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
@@ -1636,6 +1648,7 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
         target = lines - 2
         index = 0
         reduced = False
+        count_operators = 0
         iteration = 0
         total_cost = 0
         starting_lines = lines
@@ -1685,6 +1698,7 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
                 continue
            
             if prediction > 0 :
+                count_operators += 1
                 latex_after_operator = res[index][1]
                 operators_done.append(model_to_predict)
                 after_path = os.path.join("code/~/results/new_files/", paper_name)
@@ -1735,13 +1749,14 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
                     reduced = True
             else:
                 index += 1
+                count_operators += 1
 
         end = time.time()
         print("RESULTS: regression, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
-        return iteration, end - start, reduced, total_cost
+        return iteration, end - start, reduced, total_cost, count_operators
     except Exception as e:
         print(e)
-        return -1, -1, reduced, -1
+        return -1, -1, reduced, -1,-1
 
 
 def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
@@ -1773,6 +1788,7 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
         reduced = False
         iteration = 0
         total_cost = 0
+        count_operators = 0
         starting_lines = lines
         start_check_operators_that_faild = False
 
@@ -1825,6 +1841,7 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
                 continue
            
             if prediction > 0 or start_check_operators_that_faild:
+                count_operators += 1
                 latex_after_operator = res[index][1]
                 operators_done.append(model_to_predict)
                 after_path = os.path.join("code/~/results/new_files/", paper_name)
@@ -1874,14 +1891,15 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
                 if (lines <= target or pages < 2 or lines > starting_lines):
                     reduced = True
             else:
+                count_operators += 1
                 index += 1
 
         end = time.time()
         print("RESULTS: non stop regression, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
-        return iteration, end - start, reduced, total_cost
+        return iteration, end - start, reduced, total_cost,count_operators
     except Exception as e:
         print(e)
-        return -1, -1, reduced, -1
+        return -1, -1, reduced, -1,-1
 
 
 """ 
@@ -1941,17 +1959,17 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
 
                 # whether you want to run the model-based greedy algorithm
         if models: 
-            iterations, time_taken, reduced, cost = variant_function(last_pages_pdf_path, path_to_latex, models,num_of_pages, paper_directory)
+            iterations, time_taken, reduced, cost,count_operators = variant_function(last_pages_pdf_path, path_to_latex, models,num_of_pages, paper_directory)
 
         # whether you want to run other greedy algorithms
         else: 
-            iterations, time_taken, reduced, cost = variant_function(last_pages_pdf_path, path_to_latex,num_of_pages, paper_directory)
+            iterations, time_taken, reduced, cost,count_operators = variant_function(last_pages_pdf_path, path_to_latex,num_of_pages, paper_directory)
 
         if iterations != -1:
-            results.append(( paper_dir.name, variant_name, reduced, iterations, time_taken, cost))
+            results.append(( paper_dir.name, variant_name, reduced, iterations, time_taken, cost,count_operators))
             try:
             # write the results every document finished (just in case)
-                df = pd.DataFrame(results, columns=["Directory", "Name", "Algorithm", "Reduced", "Iterations", "Time", "Cost"])
+                df = pd.DataFrame(results, columns=["Directory", "Name", "Algorithm", "Reduced", "Iterations", "Time", "Cost","Total_operators"])
                 df.to_csv(f'{results_dir}/{dir_name}_{variant_file_name}.csv', index=False)
             except Exception as e:
                 print(e)
@@ -1960,7 +1978,7 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
             done += 1
 
     # write the final results
-    df = pd.DataFrame(results, columns=["Name", "Algorithm", "Reduced", "Iterations", "Time", "Cost"])
+    df = pd.DataFrame(results, columns=["Name", "Algorithm", "Reduced", "Iterations", "Time", "Cost","Total_operators"])
     df.to_csv(f'{results_dir}/{dir_name}_{variant_file_name}.csv', index=False)  # change here
 
 
