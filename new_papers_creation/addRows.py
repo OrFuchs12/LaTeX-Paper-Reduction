@@ -11,7 +11,7 @@ from lorem_text import lorem
 
 
 
-NUMBER_OF_LINES_ON_LAST_PAGE = 2
+NUMBER_OF_LINES_ON_LAST_PAGE = 3
 ESTIMATED_LINES_PER_PAGE = 10
 def clean_latex_line(helpline):
     regex = re.compile('[^a-zA-Z]')
