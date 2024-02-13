@@ -187,6 +187,57 @@ allowed_operators = [('1', '1', '10', '1'), ('1', '1', '10', '2'),
 ('8', '1', '4')]
 
 
+"""
+    This function load the models and stores them in dictionary, parameters:
+    models_path - path to the models directory (string)
+"""
+def load_models():
+    # Load models
+    models = {}
+    directory = Model_Classification_Path
+    for file in os.scandir(directory):
+        if file.is_file():
+            n = re.findall('\d+\.?\d*', file.name)
+            if n[0] == '1':
+                i = (n[0], n[4], n[5], n[6]) # key for vspace
+            else:
+                i = (n[0], n[4], n[5]) # key for other operators
+
+            file_path = directory + '/' + file.name
+            clf = xg.XGBClassifier() # in this case we used the XGBClassifier models
+            booster = xg.Booster()
+            booster.load_model(file_path)
+            clf._Booster = booster
+            print(i)
+            models[i] = clf
+
+    return models
+
+
+def load_regression_models_cat():
+    #Load models
+    models = {}
+    directory = Model_Regressor_Path
+    #print(directory)
+    for file in os.scandir(directory):
+        if file.is_file():
+            n = re.findall('\d+\.?\d*', file.name)
+            if n[0] == '1':
+                i = (n[0], n[4], n[5], n[6])
+            else:
+                i = (n[0], n[4], n[5])
+            
+            file_path = directory + '/' + file.name
+            clf = CatBoostRegressor()
+            clf.load_model(file_path)
+            print(i)
+            #print(file_path)
+            models[i] = clf
+
+            
+    print("total models in memory:", len(models))
+    return models
+
 def get_closest_operators(operators):
     """ Get the closest operators by cost to the  first operator in the list"""
     threshold = THRESHOLD
@@ -927,38 +978,88 @@ def check_lines(file_path):
     path_to_pdf - path to the pdf file 
     path_to_latex - path to the latex file 
 """
+
+def feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name):
+    df, lidor = features_single.run_feature_extraction(path_to_latex, path_to_pdf, '/code/greedy_from_machine/bibliography.bib',
+                                                    "code/~/results/dct0",
+                                                    "code/~/results/new_files/dct0", "test", pd.DataFrame())
+    lines, pages = check_lines(path_to_pdf)
+    #check whether the file is not good for the algorithm:
+    if lines < 2:
+        print("Less then 2 lines")
+        return df, lidor, lines, pages, False
+    if pages < 2:
+        print("Less then 2 pages")
+        return df, lidor, lines, pages, False
+    
+    return df, lidor, lines, pages, True
+
+
+def handle_new_operator_and_check_reduced(latex_after_operator, paper_name,iteration,target,previous_num_of_pages,algorithm_number):
+    # write the file after operator to file
+            reduced = False
+            after_path = os.path.join("code/~/results/new_files/", paper_name)
+            after_path = os.path.join(after_path, f"after_operator{algorithm_number}.tex")
+            f = open(after_path, "w")
+            f.write(latex_after_operator)
+            f.close()
+
+            # compile the file
+            # cmd_line_act = 'tectonic -X compile ' + "code/~/results/new_files/after_operator1.tex"
+            dir_path = os.path.join("code/~/results/new_files", paper_name)
+            base_name = os.path.basename(after_path)
+            # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+            subprocess.run(['pdflatex', '-interaction=nonstopmode', base_name], cwd=dir_path) #On mac
+            after_pdf = os.path.join("code/~/results/new_files/", paper_name)
+            after_pdf = os.path.join(after_pdf, f"after_operator{algorithm_number}.pdf")
+            last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
+            
+            
+            # os.system(cmd_line_act)
+            new_number_of_pages = check_lines(after_pdf)[1]
+            # check the new current number of lines
+            lines, pages = check_lines(last_pages_pdf)
+            fullLines , fullPages = check_lines(after_pdf)
+            print("current lines:", lines)
+            print("current pages:", pages)
+
+            path_to_latex = after_path
+
+            if (lines <= target or pages < 2 or new_number_of_pages < previous_num_of_pages): # lines > starting_lines is for the case that we get the last 2 pages after we made it shoreter
+                reduced = True
+
+            return reduced, path_to_latex, last_pages_pdf
+
+def get_operator(res, index):
+    if str(res[index][2]) == '1':
+        oper = (str(res[index][2]), str(res[index][3]), str(res[index][4]), res[index][5])
+    else:
+        oper = (str(res[index][2]), str(res[index][3]), res[index][5])
+    
+    return oper
+
 def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
     reduced = False
     try:
         operators_done = []
-        #perform feature extraction to the file
-        
-        df, lidor = features_single.run_feature_extraction(path_to_latex, path_to_pdf, '/code/greedy_from_machine/bibliography.bib',
-                                                    "code/~/results/dct0",
-                                                    "code/~/results/new_files/dct0", "test", pd.DataFrame())
-        lines, pages = check_lines(path_to_pdf)
-
-
-        #check whether the file is not good for the algorithm:
-        if lines < 2:
-            print("Less then 2 lines")
-            return -1, -1, False, -1
-        if pages < 2:
-            print("Less then 2 pages")
-            return -1, -1, False, -1
-        
-        # define stop condition and some variables
-        target = lines - 2
-        index = 0
-        reduced = False
         iteration = 0
         total_cost = 0
-        starting_lines = lines
+        index = 0
+        reduced = False
         count_operators = 0
 
+        #perform feature extraction to the file
+        df, lidor, lines, pages, valid = feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name)
+        if not valid:
+            return -1, -1, False, -1   
+             
+        # define stop condition and some variables
+        target = lines - 2
+        starting_lines = lines
         print("begin lines:", lines)
         print("begin pages:", pages)
         print("target lines:", target)
+        
         start = time.time()
         while ( not reduced ): # if we manage to short the paper
             print("lines : --------------", lines, "pages: --------------", pages)
@@ -975,10 +1076,7 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
                 print("Out of operators")
                 break
 
-            if str(res[index][2]) == '1':
-                oper = (str(res[index][2]), str(res[index][3]), str(res[index][4]), res[index][5])
-            else:
-                oper = (str(res[index][2]), str(res[index][3]), res[index][5])
+            oper = get_operator(res, index)
 
             # whether we applied the operator before
             if oper in operators_done or oper not in allowed_operators:
@@ -988,39 +1086,11 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
                 operators_done.append(oper)
 
             latex_after_operator = res[index][1]
-            # write the file after operator to file
-            after_path = os.path.join("code/~/results/new_files/", paper_name)
-            after_path = os.path.join(after_path, "after_operator0.tex")
-            f = open(after_path, "w")
-            f.write(latex_after_operator)
-            f.close()
-
-            # compile the file
-            # cmd_line_act = 'tectonic -X compile ' + "code/~/results/new_files/after_operator1.tex"
-            dir_path = os.path.join("code/~/results/new_files", paper_name)
-            base_name = os.path.basename(after_path)
-            # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
-            subprocess.run(['pdflatex', '-interaction=nonstopmode', base_name], cwd=dir_path) #On mac
-            after_pdf = os.path.join("code/~/results/new_files/", paper_name)
-            after_pdf = os.path.join(after_pdf, "after_operator0.pdf")
-            last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
             
-            
-            # os.system(cmd_line_act)
-            new_number_of_pages = check_lines(after_pdf)[1]
-            # check the new current number of lines
-            lines, pages = check_lines(last_pages_pdf)
-            fullLines , fullPages = check_lines(after_pdf)
-            print("current lines:", lines)
-            print("current pages:", pages)
-
-            path_to_latex = after_path
-
-            if (lines <= target or pages < 2 or new_number_of_pages < num_of_pages): # lines > starting_lines is for the case that we get the last 2 pages after we made it shoreter
-                reduced = True
+            reduced, path_to_latex, last_pages_pdf = handle_new_operator_and_check_reduced(latex_after_operator, paper_name,iteration,target,num_of_pages,0)
 
             if not reduced:
-                df, lidor = features_single.run_feature_extraction(after_path, 
+                df, lidor = features_single.run_feature_extraction(path_to_latex, 
                         last_pages_pdf, 'code/~/results/bibliography.bib',
                         "code/~/results/dct0", "code/~/results/new_files/dct0", "test", pd.DataFrame())
 
@@ -1028,7 +1098,7 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
             index = 0 
             iteration += 1
 
-            # if we manage to short the paper
+            
 
         end = time.time()
         print("RESULTS: simple, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
@@ -1048,34 +1118,28 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
     reduced = False
     try:
         operators_done = []
-        #perform feature extraction to the file
-        df, lidor = features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
-                                                    "code/~/results/dct0",
-                                                    "code/~/results/new_files/dct0", "test", pd.DataFrame())
-        lines, pages = check_lines(path_to_pdf)
-        #check whether the file is not good for the algorithm:
-        if lines < 2:
-            print("Less then 2 lines")
-            return -1, -1, False, -1
-        if pages < 2:
-            print("Less then 2 pages")
-            return -1, -1, False, -1
-        
-        # define stop condition and some variables
-        target = lines - 2
         index = 0
         reduced = False
         iteration = 0
         count_operators = 0
         LINE_WIDTH = 10
         total_cost = 0
+        #perform feature extraction to the file
+        
+        df, lidor, lines, pages, valid = feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name)
+        if not valid:
+            return -1, -1, False, -1
+        
+
+        # define stop condition and some variables
+        target = lines - 2
         starting_lines = lines
         print("begin lines:", lines)
         print("begin pages:", pages)
+
+
         start = time.time()
-        while (not reduced):
-            print("index:", index)
-            
+        while (not reduced):            
             # get the dictionary of the file
             with open('code/~/results/dct0', 'rb') as dct_file:
                 dct = pickle.load(dct_file)
@@ -1088,10 +1152,7 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
                 print("Out of operators")
                 break
 
-            if str(res[index][2]) == '1':
-                oper = (str(res[index][2]), str(res[index][3]), str(res[index][4]), res[index][5])
-            else:
-                oper = (str(res[index][2]), str(res[index][3]), res[index][5])
+            oper = get_operator(res, index)
 
             # whether we applied the operator before
             if oper in operators_done or oper not in allowed_operators:
@@ -1104,35 +1165,8 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
             if res[index][0] >= LINE_WIDTH:
                 count_operators += 1
                 latex_after_operator = res[index][1]
-                # write the file after operator to file
-                after_path = os.path.join("code/~/results/new_files/", paper_name)
-                after_path = os.path.join(after_path, "after_operator1.tex")
-                f = open(after_path, "w")
-                f.write(latex_after_operator)
-                f.close()
-
-                # compile the file
-                dir_path = os.path.join("code/~/results/new_files", paper_name)
-                base_name =  os.path.basename(after_path)
-                # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
-                subprocess.run(['pdflatex', '-interaction=nonstopmode', base_name], cwd=dir_path) #On mac
-                after_pdf = os.path.join("code/~/results/new_files/", paper_name)
-                after_pdf = os.path.join(after_pdf, "after_operator1.pdf")
-                last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
-
-                new_number_of_pages = check_lines(after_pdf)[1]
-
-                # check the new current number of lines
-                lines, pages = check_lines(last_pages_pdf)
-                fullLines , fullPages = check_lines(after_pdf)
-                print("current lines:", lines)
-                print("current pages:", pages)
-
-                path_to_latex = after_path
-
-                # if we manage to short the paper
-                if (lines <= target or pages < 2 or new_number_of_pages < num_of_pages): 
-                    reduced = True
+                
+                reduced, path_to_latex, last_pages_pdf = handle_new_operator_and_check_reduced(latex_after_operator, paper_name,iteration,target,num_of_pages,1)
 
                 if not reduced:
                     df , lidor = features_single.run_feature_extraction(path_to_latex, 
@@ -1158,21 +1192,6 @@ def non_stop_heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_nam
     reduced = False
     try:
         operators_done = []
-        #perform feature extraction to the file
-        df, lidor = features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
-                                                    "code/~/results/dct0",
-                                                    "code/~/results/new_files/dct0", "test", pd.DataFrame())
-        lines, pages = check_lines(path_to_pdf)
-        #check whether the file is not good for the algorithm:
-        if lines < 2:
-            print("Less then 2 lines")
-            return -1, -1, False, -1
-        if pages < 2:
-            print("Less then 2 pages")
-            return -1, -1, False, -1
-        
-        # define stop condition and some variables
-        target = lines - 2
         index = 0
         count_operators = 0
         reduced = False
@@ -1180,6 +1199,13 @@ def non_stop_heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_nam
         LINE_WIDTH = 10
         total_cost = 0
         start_check_operators_that_faild = False
+        #perform feature extraction to the file
+        df, lidor, lines, pages, valid = feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name)
+        if not valid:
+            return -1, -1, False, -1
+        
+        # define stop condition and some variables
+        target = lines - 2
         starting_lines = lines
         print("begin lines:", lines)
         print("begin pages:", pages)
@@ -1204,10 +1230,7 @@ def non_stop_heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_nam
                 print("Out of operators, also out of operators that failed.")
                 break
 
-            if str(res[index][2]) == '1':
-                oper = (str(res[index][2]), str(res[index][3]), str(res[index][4]), res[index][5])
-            else:
-                oper = (str(res[index][2]), str(res[index][3]), res[index][5])
+            oper = get_operator(res, index)
 
             # whether we applied the operator before
             if oper in operators_done or oper not in allowed_operators:
@@ -1219,39 +1242,11 @@ def non_stop_heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_nam
             if res[index][0] >= LINE_WIDTH or start_check_operators_that_faild:
                 count_operators += 1
                 latex_after_operator = res[index][1]
-                # write the file after operator to file
-                operators_done.append(oper)
-                after_path = os.path.join("code/~/results/new_files/", paper_name)
-                after_path = os.path.join(after_path, "after_operator2.tex")
-                f = open(after_path, "w")
-                f.write(latex_after_operator)
-                f.close()
-
-                # compile the file
-                dir_path = os.path.join("code/~/results/new_files", paper_name)
-                base_name =  os.path.basename(after_path)
-                # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
-                subprocess.run(['pdflatex', '-interaction=nonstopmode', base_name], cwd=dir_path) #On mac
-                after_pdf = os.path.join("code/~/results/new_files/", paper_name)
-                after_pdf = os.path.join(after_pdf, "after_operator2.pdf")
-                last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
-
-                new_number_of_pages = check_lines(after_pdf)[1]
-
-                # check the new current number of lines
-                lines, pages = check_lines(last_pages_pdf)
-                fullLines , fullPages = check_lines(after_pdf)
-                print("current lines:", lines)
-                print("current pages:", pages)
-
-                path_to_latex = after_path
-
-                # if we manage to short the paper
-                if (lines <= target or pages < 2 or new_number_of_pages < num_of_pages): 
-                    reduced = True
+                
+                reduced, path_to_latex, last_pages_pdf = handle_new_operator_and_check_reduced(latex_after_operator, paper_name,iteration,target,num_of_pages,2)
 
                 if not reduced:
-                    df , lidor = features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
+                    df , lidor = features_single.run_feature_extraction(path_to_latex, last_pages_pdf, 'code/greedy_from_machine/bibliography.bib',
                                                         "code/~/results/dct0",
                                                         "code/~/results/new_files/dct0", "test", pd.DataFrame())
 
@@ -1274,56 +1269,7 @@ def non_stop_heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_nam
         return -1, -1, reduced, -1,-1
 
 
-"""
-    This function load the models and stores them in dictionary, parameters:
-    models_path - path to the models directory (string)
-"""
-def load_models():
-    # Load models
-    models = {}
-    directory = Model_Classification_Path
-    for file in os.scandir(directory):
-        if file.is_file():
-            n = re.findall('\d+\.?\d*', file.name)
-            if n[0] == '1':
-                i = (n[0], n[4], n[5], n[6]) # key for vspace
-            else:
-                i = (n[0], n[4], n[5]) # key for other operators
 
-            file_path = directory + '/' + file.name
-            clf = xg.XGBClassifier() # in this case we used the XGBClassifier models
-            booster = xg.Booster()
-            booster.load_model(file_path)
-            clf._Booster = booster
-            print(i)
-            models[i] = clf
-
-    return models
-
-
-def load_regression_models_cat():
-    #Load models
-    models = {}
-    directory = Model_Regressor_Path
-    #print(directory)
-    for file in os.scandir(directory):
-        if file.is_file():
-            n = re.findall('\d+\.?\d*', file.name)
-            if n[0] == '1':
-                i = (n[0], n[4], n[5], n[6])
-            else:
-                i = (n[0], n[4], n[5])
-            
-            file_path = directory + '/' + file.name
-            clf = CatBoostRegressor()
-            clf.load_model(file_path)
-            print(i)
-            #print(file_path)
-            models[i] = clf
-
-            
-    print("total models in memory:", len(models))
-    return models
 
 
 """ 
@@ -1336,42 +1282,30 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
     reduced = False
     try:
         operators_done = []
-        lines, pages = check_lines(path_to_pdf) 
-
-        #check whether the file is not good for the algorithm:
-        if lines < 2:
-            print("Less then 2 lines")
-            return -1, -1, False, -1
-        if pages < 2:
-            print("Less then 2 pages")
-            return -1, -1, False, -1
-
+        index = 0
+        reduced = False
+        count_operators = 0
+        iteration = 0
+        total_cost = 0
+       
         #perform feature extraction to the file
-        df1,lidor = features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
-                                                        "code/~/results/dct0",
-                                                        "code/~/results/new_files/dct0", "test",
-                                                        pd.DataFrame())
+        df1, lidor, lines, pages, valid = feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name)
+        if not valid:
+            return -1, -1, False, -1
+        
+
         df1 = df1.T
         df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
                     'num_of_object'], axis=1, inplace=True)
 
         # define stop condition and some variables
         target = lines - 2
-        index = 0
-        reduced = False
-        count_operators = 0
-        iteration = 0
-        total_cost = 0
         starting_lines = lines
-
         print("begin lines:", lines)
         print("begin pages:", pages)
 
         start = time.time()
         while (not reduced):
-
-            print("index:", index)
-
             # get the dictionary of the file
             with open('code/~/results/dct0', 'rb') as dct_file:
                 dct = pickle.load(dct_file)
@@ -1385,26 +1319,9 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
                 print("Out of operators")
                 break
 
-            if str(res[index][2]) == '1':
-                model_to_predict = (str(res[index][2]), str(res[index][3]), str(res[index][4]), res[index][5])
-            else:
-                model_to_predict = (str(res[index][2]), str(res[index][3]), res[index][5])
- 
-            # whether we applied the operator before
-            if model_to_predict in operators_done:
-                index += 1
-                continue
-            else:
-                operators_done.append(model_to_predict)
-
-            print("model_to_predict:", model_to_predict)
-
-            try:
-                # get the prediction from the model
-                prediction = models[model_to_predict].predict(df1.to_numpy())[0]
-
-            except Exception as e:
-                print("not found model:", e)
+            
+            prediction, model_to_predict = get_prediction(operator=res[index],operators_done=operators_done, models=models,df1=df1)
+            if prediction == -1:
                 index += 1
                 continue
 
@@ -1412,34 +1329,8 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
             if prediction > 0:
                 count_operators += 1
                 latex_after_operator = res[index][1]
-
-                after_path = os.path.join("code/~/results/new_files/", paper_name)
-                after_path = os.path.join(after_path, "after_operator3.tex")
-                f = open(after_path, "w")
-                # write the file after operator to file
-                f.write(latex_after_operator)
-                f.close()
-
-                # compile the file
-                dir_path =os.path.join("code/~/results/new_files", paper_name)
-                base_name = os.path.basename(after_path)
-                # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
-                subprocess.run(['pdflatex', '-interaction=nonstopmode', base_name], cwd=dir_path) #On mac
-                after_pdf = os.path.join("code/~/results/new_files/", paper_name)
-                after_pdf = os.path.join(after_pdf, "after_operator3.pdf")
-                last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
-
-                new_number_of_pages = check_lines(after_pdf)[1]
-                lines_before = lines
-                # check the new current number of lines
-                lines, pages = check_lines(last_pages_pdf)
-                print("current lines:", lines)
-                print("current pages:", pages)
-
-                path_to_latex = after_path
-
-                if (lines <= target or pages < 2 or new_number_of_pages < num_of_pages): # lines > starting_lines is for the case that we get the last 2 pages after we made it shoreter
-                    reduced = True
+                operators_done.append(model_to_predict)
+                reduced, path_to_latex, last_pages_pdf = handle_new_operator_and_check_reduced(latex_after_operator, paper_name,iteration,target,num_of_pages,3)
                 
                 if not reduced:
 
@@ -1456,9 +1347,6 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
                 index = 0
                 iteration += 1
                 
-                # if we manage to short the paper
-                if (lines <= target or pages < 2 or lines > starting_lines):
-                    reduced = True
             else:
                 index += 1
                 count_operators += 1
@@ -1475,41 +1363,28 @@ def non_stop_classification_greedy(path_to_pdf, path_to_latex, models,num_of_pag
     reduced = False
     try:
         operators_done = []
-        lines, pages = check_lines(path_to_pdf) 
-
-        #check whether the file is not good for the algorithm:
-        if lines < 2:
-            print("Less then 2 lines")
+        index = 0
+        reduced = False
+        iteration = 0
+        count_operators = 0
+        total_cost = 0
+        start_check_operators_that_faild = False
+        
+        df1, lidor, lines, pages, valid = feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name)
+        if not valid:
             return -1, -1, False, -1
-        if pages < 2:
-            print("Less then 2 pages")
-            return -1, -1, False, -1
 
-        #perform feature extraction to the file
-        df1,lidor = features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
-                                                        "code/~/results/dct0",
-                                                        "code/~/results/new_files/dct0", "test",
-                                                        pd.DataFrame())
         df1 = df1.T
         df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
                     'num_of_object'], axis=1, inplace=True)
 
         # define stop condition and some variables
         target = lines - 2
-        index = 0
-        reduced = False
-        iteration = 0
-        count_operators = 0
-        total_cost = 0
         starting_lines = lines
-
         print("begin lines:", lines)
         print("begin pages:", pages)
-        start_check_operators_that_faild = False
         start = time.time()
         while (not reduced):
-
-            print("index:", index)
 
             # get the dictionary of the file
             with open('code/~/results/dct0', 'rb') as dct_file:
@@ -1529,67 +1404,23 @@ def non_stop_classification_greedy(path_to_pdf, path_to_latex, models,num_of_pag
                 break
                 
 
-            if str(res[index][2]) == '1':
-                model_to_predict = (str(res[index][2]), str(res[index][3]), str(res[index][4]), res[index][5])
-            else:
-                model_to_predict = (str(res[index][2]), str(res[index][3]), res[index][5])
-
-            # whether we applied the operator before
-            if model_to_predict in operators_done:
+            prediction, model_to_predict = get_prediction(operator=res[index],operators_done=operators_done, models=models,df1=df1)
+            if prediction == -1:
                 index += 1
                 continue
-            
-                
 
-            print("model_to_predict:", model_to_predict)
-
-            try:
-                # get the prediction from the model
-                prediction = models[model_to_predict].predict(df1.to_numpy())[0]
-
-            except Exception as e:
-                print("not found model:", e)
-                index += 1
-                continue
 
             # condition to apply the operator
             if prediction or start_check_operators_that_faild:
                 count_operators += 1
                 latex_after_operator = res[index][1]
                 operators_done.append(model_to_predict)
-                after_path = os.path.join("code/~/results/new_files/", paper_name)
-                after_path = os.path.join(after_path, "after_operator4.tex")
-                f = open(after_path, "w")
-                # write the file after operator to file
-                f.write(latex_after_operator)
-                f.close()
-
-                # compile the file
-                dir_path =os.path.join("code/~/results/new_files", paper_name)
-                base_name = os.path.basename(after_path)
-                # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
-                subprocess.run(['pdflatex', '-interaction=nonstopmode', base_name], cwd=dir_path) #On mac
-
-                after_pdf = os.path.join("code/~/results/new_files/", paper_name)
-                after_pdf = os.path.join(after_pdf, "after_operator4.pdf")
-                last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
-
-                new_number_of_pages = check_lines(after_pdf)[1]
-                lines_before = lines
-                # check the new current number of lines
-                lines, pages = check_lines(last_pages_pdf)
-                print("current lines:", lines)
-                print("current pages:", pages)
-
-                path_to_latex = after_path
-
-                if (lines <= target or pages < 2 or new_number_of_pages < num_of_pages): # lines > starting_lines is for the case that we get the last 2 pages after we made it shoreter
-                    reduced = True
+                
+                reduced, path_to_latex, last_pages_pdf = handle_new_operator_and_check_reduced(latex_after_operator, paper_name,iteration,target,num_of_pages,4)
                 
                 if not reduced:
-
                     df1, lidor = features_single.run_feature_extraction(
-                        path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
+                        path_to_latex, last_pages_pdf, 'code/greedy_from_machine/bibliography.bib',
                                                         "code/~/results/dct0",
                                                         "code/~/results/new_files/dct0", "test", pd.DataFrame())
                     df1 = df1.T
@@ -1600,9 +1431,6 @@ def non_stop_classification_greedy(path_to_pdf, path_to_latex, models,num_of_pag
                 index = 0
                 iteration += 1
                 
-                # if we manage to short the paper
-                if (lines <= target or pages < 2 or lines > starting_lines):
-                    reduced = True
             else:
                 index += 1
                 count_operators += 1
@@ -1611,8 +1439,6 @@ def non_stop_classification_greedy(path_to_pdf, path_to_latex, models,num_of_pag
                     start_check_operators_that_faild = True
                     index = 0
                 
-                
-
         end = time.time()
         print("RESULTS: non stop classification, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
         return iteration, end - start, reduced, total_cost,count_operators
@@ -1625,42 +1451,28 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
     reduced = False
     try:
         operators_done = []
-        lines, pages = check_lines(path_to_pdf) 
+        index = 0
+        reduced = False
+        count_operators = 0
+        iteration = 0
+        total_cost = 0
 
-        #check whether the file is not good for the algorithm:
-        if lines < 2:
-            print("Less then 2 lines")
+        df1, lidor, lines, pages, valid = feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name)
+        if not valid:
             return -1, -1, False, -1
-        if pages < 2:
-            print("Less then 2 pages")
-            return -1, -1, False, -1
-
-        #perform feature extraction to the file
-        df1,lidor = features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
-                                                        "code/~/results/dct0",
-                                                        "code/~/results/new_files/dct0", "test",
-                                                        pd.DataFrame())
+        
         df1 = df1.T
         df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
                     'num_of_object'], axis=1, inplace=True)
 
         # define stop condition and some variables
         target = lines - 2
-        index = 0
-        reduced = False
-        count_operators = 0
-        iteration = 0
-        total_cost = 0
         starting_lines = lines
-
         print("begin lines:", lines)
         print("begin pages:", pages)
 
         start = time.time()
         while (not reduced):
-
-            print("index:", index)
-
             # get the dictionary of the file
             with open('code/~/results/dct0', 'rb') as dct_file:
                 dct = pickle.load(dct_file)
@@ -1674,7 +1486,6 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
                 print("Out of operators")
                 break
             
-           
             oparators_to_check = res[index:] # all the operators that we need to check
             closest_operators = get_closest_operators(oparators_to_check) # get the closest operators to the current operator
             sorted_by_prediction_operators =  []
@@ -1697,38 +1508,12 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
                 index += 1
                 continue
            
-            if prediction > 0 :
+            if prediction > 10 :
                 count_operators += 1
                 latex_after_operator = res[index][1]
                 operators_done.append(model_to_predict)
-                after_path = os.path.join("code/~/results/new_files/", paper_name)
-                after_path = os.path.join(after_path, "after_operator5.tex")
-                f = open(after_path, "w")
-                # write the file after operator to file
-                f.write(latex_after_operator)
-                f.close()
-
-                # compile the file
-                dir_path =os.path.join("code/~/results/new_files", paper_name)
-                base_name = os.path.basename(after_path)
-                # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
-                subprocess.run(['pdflatex', '-interaction=nonstopmode', base_name], cwd=dir_path) #On mac
-
-                after_pdf = os.path.join("code/~/results/new_files/", paper_name)
-                after_pdf = os.path.join(after_pdf, "after_operator5.pdf")
-                last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
-
-                new_number_of_pages = check_lines(after_pdf)[1]
-                lines_before = lines
-                # check the new current number of lines
-                lines, pages = check_lines(last_pages_pdf)
-                print("current lines:", lines)
-                print("current pages:", pages)
-
-                path_to_latex = after_path
-
-                if (lines <= target or pages < 2 or new_number_of_pages < num_of_pages): # lines > starting_lines is for the case that we get the last 2 pages after we made it shoreter
-                    reduced = True
+                
+                reduced, path_to_latex, last_pages_pdf = handle_new_operator_and_check_reduced(latex_after_operator, paper_name,iteration,target,num_of_pages,5)
                 
                 if not reduced:
 
@@ -1763,35 +1548,24 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
     reduced = False
     try:
         operators_done = []
-        lines, pages = check_lines(path_to_pdf) 
+        index = 0
+        reduced = False
+        iteration = 0
+        total_cost = 0
+        count_operators = 0
+        start_check_operators_that_faild = False
 
-        #check whether the file is not good for the algorithm:
-        if lines < 2:
-            print("Less then 2 lines")
+        
+        df1, lidor, lines, pages, valid = feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name)
+        if not valid:
             return -1, -1, False, -1
-        if pages < 2:
-            print("Less then 2 pages")
-            return -1, -1, False, -1
-
-        #perform feature extraction to the file
-        df1,lidor = features_single.run_feature_extraction(path_to_latex, path_to_pdf, 'code/greedy_from_machine/bibliography.bib',
-                                                        "code/~/results/dct0",
-                                                        "code/~/results/new_files/dct0", "test",
-                                                        pd.DataFrame())
         df1 = df1.T
         df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
                     'num_of_object'], axis=1, inplace=True)
 
         # define stop condition and some variables
         target = lines - 2
-        index = 0
-        reduced = False
-        iteration = 0
-        total_cost = 0
-        count_operators = 0
         starting_lines = lines
-        start_check_operators_that_faild = False
-
         print("begin lines:", lines)
         print("begin pages:", pages)
 
@@ -1840,38 +1614,12 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
                 index += 1
                 continue
            
-            if prediction > 0 or start_check_operators_that_faild:
+            if prediction > 10 or start_check_operators_that_faild:
                 count_operators += 1
                 latex_after_operator = res[index][1]
                 operators_done.append(model_to_predict)
-                after_path = os.path.join("code/~/results/new_files/", paper_name)
-                after_path = os.path.join(after_path, "after_operator6.tex")
-                f = open(after_path, "w")
-                # write the file after operator to file
-                f.write(latex_after_operator)
-                f.close()
-
-                # compile the file
-                dir_path =os.path.join("code/~/results/new_files", paper_name)
-                base_name = os.path.basename(after_path)
-                # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
-                subprocess.run(['pdflatex', '-interaction=nonstopmode', base_name], cwd=dir_path) #On mac
-
-                after_pdf = os.path.join("code/~/results/new_files/", paper_name)
-                after_pdf = os.path.join(after_pdf, "after_operator6.pdf")
-                last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
-
-                new_number_of_pages = check_lines(after_pdf)[1]
-                lines_before = lines
-                # check the new current number of lines
-                lines, pages = check_lines(last_pages_pdf)
-                print("current lines:", lines)
-                print("current pages:", pages)
-
-                path_to_latex = after_path
-
-                if (lines <= target or pages < 2 or new_number_of_pages < num_of_pages): # lines > starting_lines is for the case that we get the last 2 pages after we made it shoreter
-                    reduced = True
+                
+                reduced, path_to_latex, last_pages_pdf = handle_new_operator_and_check_reduced(latex_after_operator, paper_name,iteration,target,num_of_pages,6)
                 
                 if not reduced:
 
@@ -1994,18 +1742,18 @@ if __name__ == "__main__":
     #0 -> simple greedy algorithm.
     #1 -> heuristic greedy algorithm.
     #2 -> model greedy algorithm.
-    for x in range(5,7):
-        if x==0:  
-            run_greedy_experiment(simple_greedy, "simple greedy", "results_simple_greedy", pdf_tex_files_dir, dir_to_results)
-        elif x==1:
-            run_greedy_experiment(heuristic_greedy, "heuristic greedy", "results_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
-        elif x==2:
-            run_greedy_experiment(non_stop_heuristic_greedy, "non stop heuristic greedy", "results_non_stop_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
-        elif x == 3:
-            run_greedy_experiment(model_greedy, "model greedy", "results_model_greedy", pdf_tex_files_dir, dir_to_results, load_models())
-        elif x == 4:
-            run_greedy_experiment(non_stop_classification_greedy, "non stop classification greedy", "non_stop_results_classification_greedy", pdf_tex_files_dir, dir_to_results, load_models())
-        elif x == 5:
-            run_greedy_experiment(regreession_model_greedy, "regreession model greedy", "results_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat())
-        elif x == 6:
-            run_greedy_experiment(non_stop_regreession_model_greedy, "non stop regreession model greedy", "results_non_stop_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat())
+    
+    if x==0:  
+        run_greedy_experiment(simple_greedy, "simple greedy", "results_simple_greedy", pdf_tex_files_dir, dir_to_results)
+    elif x==1:
+        run_greedy_experiment(heuristic_greedy, "heuristic greedy", "results_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
+    elif x==2:
+        run_greedy_experiment(non_stop_heuristic_greedy, "non stop heuristic greedy", "results_non_stop_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
+    elif x == 3:
+        run_greedy_experiment(model_greedy, "model greedy", "results_model_greedy", pdf_tex_files_dir, dir_to_results, load_models())
+    elif x == 4:
+        run_greedy_experiment(non_stop_classification_greedy, "non stop classification greedy", "non_stop_results_classification_greedy", pdf_tex_files_dir, dir_to_results, load_models())
+    elif x == 5:
+        run_greedy_experiment(regreession_model_greedy, "regreession model greedy", "results_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat())
+    elif x == 6:
+        run_greedy_experiment(non_stop_regreession_model_greedy, "non stop regreession model greedy", "results_non_stop_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat())
