@@ -25,7 +25,7 @@ import cv2
 from pdf2image import convert_from_path
 import numpy as np
 NUMBER_OF_LAST_PAGES = 2
-THRESHOLD = 5
+THRESHOLD = 6.5
 
 Model_Classification_Path = "code/greedy_from_machine/classification_models"
 Model_Regressor_Path = "code/greedy_from_machine/regression_models"
