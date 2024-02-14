@@ -25,7 +25,7 @@ import cv2
 from pdf2image import convert_from_path
 import numpy as np
 NUMBER_OF_LAST_PAGES = 2
-THRESHOLD = 6.5
+THRESHOLD = 5
 
 Model_Classification_Path = "code/greedy_from_machine/classification_models"
 Model_Regressor_Path = "code/greedy_from_machine/regression_models"
@@ -1098,14 +1098,15 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
             index = 0 
             iteration += 1
 
-            
-
         end = time.time()
         print("RESULTS: simple, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
         count_operators = iteration
         return iteration, end - start, reduced, total_cost,count_operators
     except Exception as e:
         print(e)
+        if iteration > 0:
+            end = time.time()
+            return iteration, end - start, reduced, total_cost,count_operators
         return -1, -1, reduced, -1,-1
 
 
@@ -1185,6 +1186,9 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
         return iteration, end - start, reduced, total_cost,count_operators
     except Exception as e:
         print(e)
+        if iteration > 0:
+            end = time.time()
+            return iteration, end - start, reduced, total_cost,count_operators
         return -1, -1, reduced, -1,-1
     
     
@@ -1266,6 +1270,9 @@ def non_stop_heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_nam
         return iteration, end - start, reduced, total_cost,count_operators
     except Exception as e:
         print(e)
+        if iteration > 0:
+            end = time.time()
+            return iteration, end - start, reduced, total_cost,count_operators
         return -1, -1, reduced, -1,-1
 
 
@@ -1356,6 +1363,9 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
         return iteration, end - start, reduced, total_cost, count_operators
     except Exception as e:
         print(e)
+        if iteration > 0:
+            end = time.time()
+            return iteration, end - start, reduced, total_cost,count_operators
         return -1, -1, reduced, -1,-1
     
     
@@ -1444,6 +1454,9 @@ def non_stop_classification_greedy(path_to_pdf, path_to_latex, models,num_of_pag
         return iteration, end - start, reduced, total_cost,count_operators
     except Exception as e:
         print(e)
+        if iteration > 0:
+            end = time.time()
+            return iteration, end - start, reduced, total_cost,count_operators
         return -1, -1, reduced, -1,-1
     
     
@@ -1508,7 +1521,7 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
                 index += 1
                 continue
            
-            if prediction > 10 :
+            if prediction > 0 :
                 count_operators += 1
                 latex_after_operator = res[index][1]
                 operators_done.append(model_to_predict)
@@ -1541,6 +1554,9 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
         return iteration, end - start, reduced, total_cost, count_operators
     except Exception as e:
         print(e)
+        if iteration > 0:
+            end = time.time()
+            return iteration, end - start, reduced, total_cost,count_operators
         return -1, -1, reduced, -1,-1
 
 
@@ -1614,7 +1630,7 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
                 index += 1
                 continue
            
-            if prediction > 10 or start_check_operators_that_faild:
+            if prediction > 0 or start_check_operators_that_faild:
                 count_operators += 1
                 latex_after_operator = res[index][1]
                 operators_done.append(model_to_predict)
@@ -1647,6 +1663,9 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
         return iteration, end - start, reduced, total_cost,count_operators
     except Exception as e:
         print(e)
+        if iteration > 0:
+            end = time.time()
+            return iteration, end - start, reduced, total_cost,count_operators
         return -1, -1, reduced, -1,-1
 
 
@@ -1663,6 +1682,7 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
     directory = files_dir
     results = []
     idx = 0
+    done = 1
     #get last name of files_dir
     dir_name = files_dir.split('\\')[-1]
     for paper_dir in os.scandir(directory):
@@ -1670,7 +1690,6 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
         names = []
         paper_directory = paper_dir.name
         idx += 1
-        done = 1
         path_to_latex = None
         path_to_pdf = None
         for file in os.scandir(paper_dir):
@@ -1682,8 +1701,6 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
                     path_to_pdf = os.path.join(destination_dir, file.name)
                 if file.name.lower().endswith("_changed.tex") :
                     path_to_latex = os.path.join(destination_dir, file.name)
-                    
-
                 source_path = file.path
                 destination_path = os.path.join(destination_dir, file.name)
                 shutil.copy(source_path, destination_path)
@@ -1692,6 +1709,7 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
                 if path_to_pdf:
                     num_of_pages = check_lines(path_to_pdf)[1]
                     last_pages_pdf_path = copy_last_pages(path_to_pdf,NUMBER_OF_LAST_PAGES, 0)
+
             elif file.is_dir():
                 # move all the directories in 'code/greedy_from_machine/files' directory to 'code/~/results/new_files' directory
                 source_dir = os.path.join("code/greedy_from_machine/files", paper_directory)
@@ -1702,10 +1720,8 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
                 # if directory already exists in destination, do not copy it
                 if not os.path.exists(destination_path):
                     shutil.copytree(source_path, destination_path)
-                
 
-
-                # whether you want to run the model-based greedy algorithm
+        # whether you want to run the model-based greedy algorithm
         if models: 
             iterations, time_taken, reduced, cost,count_operators = variant_function(last_pages_pdf_path, path_to_latex, models,num_of_pages, paper_directory)
 
@@ -1717,7 +1733,7 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
             results.append(( paper_dir.name, variant_name, reduced, iterations, time_taken, cost,count_operators))
             try:
             # write the results every document finished (just in case)
-                df = pd.DataFrame(results, columns=["Directory", "Name", "Algorithm", "Reduced", "Iterations", "Time", "Cost","Total_operators"])
+                df = pd.DataFrame(results, columns=["Name", "Algorithm", "Reduced", "Iterations", "Time", "Cost","Total_operators"])
                 df.to_csv(f'{results_dir}/{dir_name}_{variant_file_name}.csv', index=False)
             except Exception as e:
                 print(e)
