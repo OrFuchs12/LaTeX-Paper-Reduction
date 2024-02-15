@@ -252,7 +252,7 @@ def receive_lines_version_1(lines):
             begins["subsection"] = 1
             order.append([str(begins["section"]) + " " + new_line, ("Section", new_line,new_line,new_line),("Section", new_line,new_line), i])
         if new_line.startswith("\\subsection"):
-            new_line = new_line.split("{")[1].split("}")[0]
+            new_line = new_line.split("{", 1)[1].rsplit("}", 1)[0]
             order.append([str(begins["section"]) + "." + str(begins["subsection"]) + " " + new_line, ("SubSection",new_line,new_line,new_line), ("SubSection",new_line,new_line), i])
             begins["subsection"] += 1
 

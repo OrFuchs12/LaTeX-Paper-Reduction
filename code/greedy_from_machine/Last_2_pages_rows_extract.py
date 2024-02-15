@@ -19,6 +19,14 @@ def remove_math_patterns(text):
         replacement = re.sub(r'_(\w)', '_', original_match)
         replacement = re.sub(r'_\{.*?\}', '_', replacement)
         replacement = re.sub(r'\\mathcal', '', replacement)
+        replacement = re.sub(r'\\sigma', '', replacement)
+        replacement = re.sub(r'\\mathbb', '', replacement)
+        replacement = re.sub(r'\\mathbf', '', replacement)
+        replacement = re.sub(r'\\mathfrak', '', replacement)
+        replacement = re.sub(r'\\mathscr', '', replacement)
+        replacement = re.sub(r'\\mathsf', '', replacement)
+        replacement = re.sub(r'\\mathit', '', replacement)
+        replacement = re.sub(r'\\hat', '', replacement)
         text = text.replace(original_match, replacement, 1)  # Replace only the first occurrence
 
 
@@ -42,6 +50,12 @@ def clean_latex_line(helpline):
     helpline = helpline.replace(r'\textbf', '')
     helpline = helpline.replace(r'\phi', '') 
     helpline = helpline.replace(r'\cdot', '')
+    helpline = helpline.replace(r'\alpha', '')
+    helpline = helpline.replace(r'\beta', '')
+    helpline = helpline.replace(r'\gamma', '')
+    helpline = helpline.replace(r'\delta', '')
+    helpline = helpline.replace(r'\epsilon', '')
+    helpline = helpline.replace(r'\itshape', '')
     helpline = helpline.replace(r'\em', '')
     helpline = helpline.replace(r'\underline', '')
     helpline = helpline.replace(r'\protect', '')
@@ -60,22 +74,43 @@ def find_first_row_in_last_page(pdf_file_path, latex_path):
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
         # Define the x-coordinate ranges for each column
         left_column = (0, 0, page.width / 2, page.height)
+        right_column = (page.width / 2, 0, page.width, page.height)
+
         # Extract text only from the left column
         text = page.within_bbox(left_column).extract_text()
         text = text.split('\n')
         iteration =0
         last_iteration = False
         return_index = 0
+        left_col = True
         while(len(text) > 1):
             if last_iteration:
                 break
-            return_index = find_first_line(pdf_file_path, latex_path, return_index)
-            first_line, is_start_table, is_start_figure, return_index, last_iteration = check_if_text_inside_table(pdf_file_path, latex_path, iteration, return_index)
-            if is_start_table==False or is_start_figure==True:
-                first_line, is_start_image, return_index, last_iteration = check_if_text_inside_image(pdf_file_path, text, latex_path, is_start_figure)
+            return_index = find_first_line(pdf_file_path, latex_path, return_index, left_col)
+            if return_index == len(text):
+                text = page.within_bbox(right_column).extract_text()
+                text = text.split('\n')
+                return_index = 0
+                left_col = False
+                first_line = text[return_index]
+            first_line, is_start_table, is_start_figure, return_index, last_iteration = check_if_text_inside_table(pdf_file_path, latex_path, iteration, return_index, left_col)
+            if is_start_table == True and first_line == None:
+                text = page.within_bbox(right_column).extract_text()
+                text = text.split('\n')
+                return_index = 0
+                left_col = False
+                first_line = text[return_index]
+            if is_start_table==False or is_start_figure==True or first_line.startswith('Figure'):
+                first_line, is_start_image, ret_index, last_iteration = check_if_text_inside_image(pdf_file_path, text[return_index:], latex_path, is_start_figure)
+                return_index += ret_index
+                if first_line == None:
+                    text = page.within_bbox(right_column).extract_text()
+                    text = text.split('\n')
+                    return_index = 0
+                    left_col = False
+                    first_line = text[return_index]
             if is_start_table or is_start_figure or is_start_image:
                 #the first line is different from the first line in text_in_page and we need to check again if the first line is inside table or image
-                text= text[return_index:]
                 iteration+=1
             else:
                 break
@@ -189,13 +224,16 @@ def convert_Latex_to_rows_list(latex_path,pdf_path):
         rows_list = check_tables_images_last_pages_pdf(pdf_path, rows_list, latex_path, 'Figure')
         rows_list = check_tables_images_last_pages_pdf(pdf_path, rows_list, latex_path , 'Table')
         
+        if rows_list[-1] != '\\end{document}':
+            raise Exception("Problem finding latex text for last pages")
+        
         return rows_list
                     
     #check for missing tables and images
     except Exception as e:
             print(f"An error occurred: {e}")
 
-def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
+def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0, left_col = True):
     is_table = False
     is_figure = False
     text = ""
@@ -232,9 +270,17 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
             #get the first y_coordinate of table
             first_y_coordinate = table_bbox[1]
             table_text = ""
-            left_column = (0, 0, page.width / 2, page.height)
+            if left_col == True:
+                col_to_check = (0, 0, page.width / 2, page.height)
+            else:
+                col_to_check = (page.width / 2, 0, page.width, page.height)
             # Extract text only from the left column and separate by lines
-            text = page.within_bbox(left_column).extract_text_lines()
+            text = page.within_bbox(col_to_check).extract_text_lines()
+            if text[return_index]['text'].startswith('Figure'):
+                first_line = None
+                is_figure = True
+                is_table = False
+                return  first_line, is_table, is_figure, return_index, last_iteration
             #extract text only from after the table so from y_coordinate
             y_coordinate = table_bbox[3]
             bbox = (0, y_coordinate, page.width / 2, page.height)
@@ -271,10 +317,10 @@ def extract_text_from_tables(pdf_path, latex_path, iteration, return_index=0):
                     break
         return first_line, is_table, is_figure, return_index, last_iteration
     
-def check_if_text_inside_table(pdf_path, latex_path, iteration=0, return_index=0):
+def check_if_text_inside_table(pdf_path, latex_path, iteration=0, return_index=0, left_column=True):
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
-        text_after_table, is_table, is_figure, return_index, last_iteration = extract_text_from_tables(pdf_path, latex_path,iteration,return_index)
+        text_after_table, is_table, is_figure, return_index, last_iteration = extract_text_from_tables(pdf_path, latex_path,iteration,return_index, left_column)
         return text_after_table, is_table, is_figure, return_index, last_iteration
                             
 def remove_caption(text_in_page, latex_path , caption_type):
@@ -282,6 +328,7 @@ def remove_caption(text_in_page, latex_path , caption_type):
         lines = f.readlines()
     #find all lines that start with \caption
     caption_lines = []
+    min_cpation_lines = []
     temp_line= ""
     pattern = r'^\s*\\caption'
     for i, line in enumerate(lines):
@@ -329,8 +376,15 @@ def remove_caption(text_in_page, latex_path , caption_type):
         caption_lines = list(filter(None, caption_lines))
         text_index+=1
         beginning_of_caption = text_in_page[text_index]
+        if len(caption_lines) > 1:
+            min_cpation_lines = []
+            for i in caption_lines:
+                min_cpation_lines.append(i)
     if (len(caption_lines) == 0):
-        raise Exception("No caption found")
+        if len(min_cpation_lines) > 0: #captions with the same beginning and cant tell the difference- choose last one
+            caption_lines.append(min_cpation_lines[-1])
+        else:
+            raise Exception("No caption found")
     caption_line = caption_lines[0]
     clean_caption_line = re.sub(r'[^a-zA-Z0-9]+', '', caption_line)
     clean_caption_line = clean_caption_line.lower()
@@ -350,7 +404,7 @@ def remove_caption(text_in_page, latex_path , caption_type):
     text_in_page = list(filter(None, text_in_page))
     
     if len(text_in_page) == 0:
-        raise Exception("go to next column")
+        return None, index
     return text_in_page[0], index
 
 def check_tables_images_last_pages_pdf(pdf_path, rows_list ,latex_path , caption_type) :  
@@ -430,7 +484,7 @@ def extract_tables_from_latex(latex_path):
         tables_dict[table_id] = clean_table_lines
     return tables_dict
  
-def find_first_line(pdf_path,latex_path, return_index):
+def find_first_line(pdf_path,latex_path, return_index, left_column = True):
     tables_dict = extract_tables_from_latex(latex_path)
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[-NUMBER_OF_LAST_PAGES]
@@ -438,10 +492,15 @@ def find_first_line(pdf_path,latex_path, return_index):
         text = text.split('\n')
     line = text[return_index]
     if line.startswith('Table'):
-        left_column = (0, 0, page.width / 2, page.height)
-        rel_text = page.within_bbox(left_column).extract_text()
+        if left_column == True:
+            col_to_check = (0, 0, page.width / 2, page.height)
+        else:
+            col_to_check = (page.width / 2, 0, page.width, page.height)
+        rel_text = page.within_bbox(col_to_check).extract_text()
         rel_text = rel_text.split('\n')
         line, return_index = remove_caption(rel_text, latex_path, 'Table')
+    if line == None:
+        return return_index
     clean_pdf_line = re.sub(r'[^a-zA-Z0-9]+', '', line)
     clean_pdf_line = clean_pdf_line.lower()
     for table_id, table_lines in tables_dict.items():

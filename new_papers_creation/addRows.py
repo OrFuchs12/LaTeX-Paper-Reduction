@@ -11,7 +11,7 @@ from lorem_text import lorem
 
 
 
-NUMBER_OF_LINES_ON_LAST_PAGE = 2
+NUMBER_OF_LINES_ON_LAST_PAGE = 3
 ESTIMATED_LINES_PER_PAGE = 10
 def clean_latex_line(helpline):
     regex = re.compile('[^a-zA-Z]')
@@ -28,6 +28,12 @@ def clean_latex_line(helpline):
     helpline = helpline.replace(r'\textbf', '')
     helpline = helpline.replace(r'\phi', '') 
     helpline = helpline.replace(r'\cdot', '')
+    helpline = helpline.replace(r'\alpha', '')
+    helpline = helpline.replace(r'\beta', '')
+    helpline = helpline.replace(r'\gamma', '')
+    helpline = helpline.replace(r'\delta', '')
+    helpline = helpline.replace(r'\epsilon', '')
+    helpline = helpline.replace(r'\itshape', '')
     helpline = helpline.replace(r'\em', '')
     helpline = helpline.replace(r'\underline', '')
     helpline = helpline.replace(r'\protect', '')
@@ -52,6 +58,14 @@ def remove_math_patterns(text):
         replacement = re.sub(r'_(\w)', '_', original_match)
         replacement = re.sub(r'_\{.*?\}', '_', replacement)
         replacement = re.sub(r'\\mathcal', '', replacement)
+        replacement = re.sub(r'\\sigma', '', replacement)
+        replacement = re.sub(r'\\mathbb', '', replacement)
+        replacement = re.sub(r'\\mathbf', '', replacement)
+        replacement = re.sub(r'\\mathfrak', '', replacement)
+        replacement = re.sub(r'\\mathscr', '', replacement)
+        replacement = re.sub(r'\\mathsf', '', replacement)
+        replacement = re.sub(r'\\mathit', '', replacement)
+        replacement = re.sub(r'\\hat', '', replacement)
         text = text.replace(original_match, replacement, 1)  # Replace only the first occurrence
 
 

@@ -20,6 +20,8 @@ def run(latex_path,pdf_path,bib_path):
         # lidor = Lidor_part.read_file(latex_path, bib_path)
         print("starting converting Latex to rows list")
         lidor = convert_Latex_to_rows_list(latex_path, pdf_path)
+        if lidor is None:
+            return [], None
         print("Finished converting Latex to rows list")
         # lidor = []
         # with open(latex_path, encoding='UTF-8') as f:
@@ -124,9 +126,8 @@ def run(latex_path,pdf_path,bib_path):
         #         print(f"{key}[]{k[key]}")
         return adi, lidor
     except Exception as e:
-        traceback.print_exc()
         print(e)
-        return []
+        return [], None
 
 if __name__=="__main__":
 
