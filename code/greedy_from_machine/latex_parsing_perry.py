@@ -252,6 +252,13 @@ def count_paragraphs(lines,ans,new_dict):
                     count_def, counter_def = get_definition_par(lines, line_number, count+1)
                     count = count_def
                     counter.update(counter_def)
+                if str_line.startswith("\\begin{theorem}") or str_line.startswith("\\begin{lemma}") or str_line.startswith("\\begin{proposition}") or str_line.startswith("\\begin{corollary}") or str_line.startswith("\\begin{proof}") or str_line.startswith("\\begin{example}"):
+                    if flag:
+                        if line_number != counter[count][0] + 1:
+                            counter[count].append(line_number)
+                        flag=False
+                        count+=1
+                    counter[count] = [line_number]
                 if flag:
                     counter[count].append(line_number)
                     flag=False
@@ -260,6 +267,9 @@ def count_paragraphs(lines,ans,new_dict):
             if is_in_begin>0:
                 if str_line.startswith("\\end"):
                     is_in_begin-=1
+                    if str_line.startswith("\\end{theorem}") or str_line.startswith("\\end{lemma") or str_line.startswith("\\end{proposition}") or str_line.startswith("\\end{corollary}") or str_line.startswith("\\end{proof}") or str_line.startswith("\\end{example}"):
+                        counter[count].append(line_number)
+                        count+=1
                 else:
                     continue
             if not str_line.startswith("\\begin") and not str_line.startswith("$\\begin") and is_in_begin==0 and not str_line.startswith("\\end") and not str_line.startswith("\\bibliography") and not str_line.startswith("\\setlength") and not str_line.startswith("\\section") and not str_line.startswith("\\subsection") and not str_line.startswith("\\subsubsection") and not str_line.startswith("\\end{abstract}") and not str_line.startswith("\\end{definition}") and not str_line.startswith("\\vspace"):
