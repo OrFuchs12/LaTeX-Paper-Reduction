@@ -484,12 +484,6 @@ This is done by reasoning about all the specific possible worlds explicitly.
 The state description in the classical translation contains the current state of the world given every possible initial state, in the form of $Kp|s$, where $p$ is a proposition, and $s$ is a possible state. It also contains actions that allow deducing new knowledge facts, called {\em merge} and {\em refutation} actions~\citep{PalaciosG09}. Thus, the agent can also obtain $Kp$ if for every currently possible state $s$, $Kp|s$ holds.
 
 
-\commentout{ \guy{Commenting out the below, because it is relevant for the discussion of soundness and completeness, not agent specific knowledge}
-If the agent models all possible states of the world, this mechanism is sound, that is, if the planner concludes that $Kp$ holds, then $p$ holds in the current belief state. It is also complete w.r.t.~literals and their conjunction. That is, if $Kp$ holds, the planner can deduce this fact using its inference actions.
-
-Reasoning about the explicit set of possible worlds, which is often exponential, is impractical. Therefore, SDR sub-samples the set of possible worlds, and hence its reasoning is complete, but unsound. CPOR then fixes
-this issue by performing regression before inserting any action into its plan, to verify that its preconditions hold in all possible worlds. Because regression is complete, this ensures the overall soundness of the planner.
-}
 
 Because QDec-FP solves the team problem as a single-agent planning problem, the planner treats all agents as part of a single centralized agent, and the knowledge of this agent reflects the combined knowledge of all agents. Thus, when one agent observes that $p$ holds, other agents can use this knowledge, without observing the value of $p$ themselves. This is inconsistent with the real plan tree, where each agent must independently ensure that $p$ holds, before executing an action that requires $p$ as precondition.
 
@@ -529,57 +523,6 @@ the more complex team problem QDec-FPS generates. Solving this more complex prob
 making it unsolvable in the given time.
 In a sense, QDec-FP solves a more abstract,
 and hence a simpler problem. When most abstract solutions are extendable to full solutions, as in the case of homogeneous agents, this is more efficient for large problems. When the problem's structure is more complicated, as in the case of heterogeneous agents, many solutions to the more abstract problem cannot be extended to a full solution.
-
-
-
-\commentout{
-\subsection{Agent Specific Knowledge [OLD]}
-%%%
-A sound contingent plan is one in which an agent never executes an action in a state in which its preconditions may not hold.
-SDR, and consequently, CPOR and QDec-FP/S, use two levels of reasoning to ensure both efficient plan generation and soundness.
-%our planner has two levels of reasoning that ensure soundness.
-%First, the planning problem that it generates models the set of states each agent considers possible, and consequently, its knowledge, explicitly. However, for efficiency reasons, the model uses only a small sample of these states. While this does not ensure soundness, it does help the planner prune many unsound plans. Then,
-%prior to the execution of each action, a complete regression step ensures that the preconditions indeed hold. If they do not, SDR replans.
-
-%regression mechanism that ensures soundness, it relies on a translation to a classical solver to generate plans.
-%To help ensure that these plans are executable, the translated problem contains some epistemic information that models the knowledge of the agent, as well as planning actions that perform simple inference to deduce additional knowledge.
-%As explained above, QDec-FP works by calling the CPOR planner, which makes numerous calls to the SDR online contingent planner.
-SDR works by translating the contingent problem into a a classical problem that models the knowledge of the agent. The translation transforms each precondition $p$ of an action to $Kp$, denoting knowing that $p$ holds.
-That is, in addition to requiring that the action will be executable only when $p$ is satisfied in the current (assumed) world, the planner also requires that the agent will {\em know} that $p$ holds.
-The translation ensures that $Kp$ holds in a belief state only  if $p$ holds in all possible worlds.
-This is done by reasoning about all the specific possible worlds explicitly, i.e., the underlying classical planner's state description contains the current state of the world given every possible initial state, and some of its actions allow deducing new knowledge facts (called {\em merge} and {\em refutation} actions~\citep{PalaciosG09}).
-If the agent models all possible states of the world, this mechanism is sound. It is also complete w.r.t.~literals and their conjunction. That is, if $Kp$ holds, the planner can deduce this fact using its inference actions.
-
-Reasoning about the explicit set of possible worlds, which is often exponential, is impractical. Therefore, SDR sub-samples the set of possible worlds, and hence its reasoning is complete, but unsound. CPOR then fixes
-this issue by performing regression before inserting any action into its plan, to verify that its preconditions hold in all possible worlds. Because regression is complete, this ensures the overall soundness of the planner.
-
-%Because the number of possible states is exponential, SDR considers only a (small) sample of possible states, which means that an agent's knowledge is over-estimated. Thus, the use of knowledge preconditions prunes many plans that are not sound,
-%but it does not guarantee soundness.
-%Therefore, on top of this, CPOR uses
-% sound and complete regression mechanism to ensure that the preconditions of any action inserted into the plan hold in all possible worlds.
-%\ronen{need to understand if this is true for CPOR.}
-
-Because QDec-FP solves the team problem as a single-agent planning problem, the planner treats all agents as part of a single meta-agent, and the knowledge of this agent reflects the combined knowledge of all agents.
-In QDec-FPS, we replaced the translation that is used by SDR with a new translation that is agent aware. That is, instead of having propositions of the form $Kp$, we have propositions of the form $K_{\varphi}p$, where $\varphi$ is an agent. Now, the precondition $p$ of an action that is executed by agent $\varphi$ is replaced by $K_{\varphi}p$. The effect of a sensing action executed by $\varphi$ is that only the sensing agent $\varphi$ knows the value of $p$, i.e., either $K_{\varphi}p$ or $K_{\varphi}\neg p$.
-The same holds for the merge and refutation actions, which now provide  agent-specific knowledge.
-
-%\ronen{The main problem here is that this may not be complete. We need to rule out the possibility that an agent knows the value of some proposition not through sensing or signaling, but through additional knowledge implicit in the plan itself. For example, an agent may know, based on the part of the plan it is in now, that some other actions where executed previously, and therefore, some proposition must be true.}
-This modification forces the underlying planner to insert sensing actions by different agents to ensure they have the knowledge required to perform their actions, whereas in QDec-FP, because all agents are treated as one, it was enough if some other agent performed this sensing action.
-On its own, it does not guarantee that the generated team plan is indeed executable, as this team plan may still require agents to execute different actions under different branches among which they cannot differentiate.
-However, if an agent has an action with a precondition $p$, the team plan will ensure that the agent first senses or learns the value of $p$.
-If the agent cannot sense or learn the value of $p$, such an action will not be part of a generated team plan.
-
-This leads to the generation of much better team plans that better account for agent abilities, and are therefore less likely to lead to a failure in the next stage where each agent extends the team plans. Consequently, it reduces the number of backtracks needed.
-
-However, as the number of agents increases, it also makes the classical problem generated by SDR larger and more difficult to solve.
-In some cases, such problems are solvable by QDec-FP
-but not by QDec-FPS.
-%In these cases, QDec-FP succeeds because it
-In these latter cases, the situation is usually as follows: the QDec-FP generates a simple team solution that lacks many actions, which are then added when the projected single-agent planning problems are solved.
-QDec-FP succeeds here either because this team solution is legal for it, but not for QDec-FPS, or
-simply because the classical problem QDec-FPS generates is too hard for the planner.
-In a sense, QDec-FP solves a simpler, more abstract problem that ignores some agent specific details, and compensates for it by inserting more actions at the local-agent level, which is relatively easy, too.
-}
 
 
 
@@ -657,48 +600,7 @@ As above, the team plan is post-processed to ensure that $\varphi_i$ does indeed
 %Alternatively, we can force this by adding suitable effects and preconditions to sensing and signaling actions, so that we cannot add the macro for signaling $p$ if $p$ was sensed earlier.
 
 
-\commentout{
-\subsection{Backtracking}
-\guy{this is a very minor improvement, consider removing if we lack space}
 
-Not all team solutions correspond to truly distributed solutions that are executable by the agents. More specifically, as CPOR treats the team plan as a single agent problem, it may create plans where an agent $\varphi$ may need to perform different action in two branches, that $\varphi$ does not have a sensing action to distinguish between.
-The enhanced encoding of knowledge leads to much better performance of the planner, requiring fewer, and often no backups on problems solved by QDec-FP. However, backtracks are still required on larger and more difficult problems.
-
-In principle, with a backtracking mechanism for the single-agent contingent solver, we could generate new team solutions until we find one that can be extended to a fully distributed solution.
-Unfortunately, CPOR, which is the only off-line contingent solver that can scale to the problems that we are solving, does not have such a mechanism.
-QDec-FP overcame this by identifying the failure in the team plan and adding a constraint to the team planning problem that makes the generation of this plan impossible.
-That is, QDec-FP adds constraints that make previously generated failed plans non-solutions.
-
-%The team plan fails when it requires the agent to act differently based on information it cannot sense.
-%For example, suppose that the agent needs to perform action $a$ if $p$ is {\em true} and a \emph{noop} otherwise, and agent cannot sense $p$.
-%In that case, we add a constraint to the planning problem that requires the agent to either do $a$ under both branches, or not do $a$ at all.
-%Note that, in principle, this constraint can be added from the onset.
-%However, there are many such constraints and their encoding in the planning problem makes it more complex.
-%Hence, QDec-FP takes a lazy approach and adds the constraint only if a plan that violates it was generated.
-%
-%%\textbf{MORE INFORMATION ON THE EXACT TECHNIQUE TO BE ADDED}
-%---SHASHANK--- $\big \downarrow$
-
-We now briefly review the backtracking technique addressed in Shekhar, Brafman, and Shani~(\citeyear{ShekharBS19}), and then explain an enhancement in QDec-FPS.
-For a given team plan, suppose we have an asymmetric sub-tree rooted at an observation of $p$ such that an action $a$ appears in one branch following the observation, but not in the other branch.  If the agent that performs $a$ cannot differentiate between these branches
-this plan is not executable and hence QDec-FP needs to backtrack.
-In the next iteration we would add a constraint that forces $a$ to appear either in both branches, or not to appear at all.
-We add a synthetic action {\em commit-$p$} that can only appear before an agent can sense $p$.
-This action has a special effect that is added as a precondition to $a$.
-Thus, if $p$ was observed, $a$ cannot be executed unless, {\em commit-$p$} was executed earlier.  Given
-that {\em commit-$p$} was executed earlier,  $a$ must appear in all branches following the observation because
-it reinstates a goal condition that {\em commit-$p$} deletes.
-With this constraint, we guarantee that the current team plan will not be regenerated.
-
-QDec-FPS has a somewhat stronger mechanism that can handle more complex cases.
-%\guy{again, I suggest moving from $a$ for agent to $\varphi_i$ - this will avoid similar notations for agents and actions}
-Suppose that the team plan requires agent $\varphi_i$ to perform action $a_1$ followed by action $a_2$ when $p$ is {\em true} and $a_2$ followed by $a_1$ when $p$ is {\em false}, but agent $\varphi_i$ cannot observe $p$.
-Agent $\varphi_i$ can still preform the actions in a different order even with the new translation (which requires knowledge of action preconditions) if neither $a_1$ nor $a_2$ has $p$ as a precondition.
-Such a policy is not executable by $\varphi_i$ because it cannot distinguish between the two cases.
-However, the backtracking constraint of QDec-FP is insufficient, as it does not enforce action order, only that both $a_1$ and $a_2$ are executed in both branches.
-Instead, we add a similar constraint that allows us to force that not only a single action occurs under both values of $p$, but also that a specific branch will occur under both values of $p$.
-The technical details are similar to the above, where additional propositions are used to enforce the ordering.
-}
 %
 %Suppose that there is a case where an agent, which cannot observe $p$ but, it has to perform both actions $a_1$ and $a_2$ in both the branches under $p$, but they appear in different orders.
 %We note that they are two distinct branches under $p$.
@@ -740,46 +642,7 @@ Second, the planner's ability to reason about the knowledge of separate agents, 
 %But assuming a contingent solver that is able to enumerate solutions, instead, a similar completeness argument to QDec-FP holds. We note that signaling does not make the planner theoretically more powerful, in that case, but it does make it more powerful in practice.
 
 
-\commentout{
-\subsection{QDec-FPS Properties}
-We now discuss the soundness and completeness of
-QDec-FPS. We rely on results for QDec-FP~\citep{ShekharBS19}.
 
-A sound contingent plan is one in which an agent never executes an action in a state in which its preconditions may not hold.
-SDR, and consequently, CPOR and QDec-FP/S, use two levels of reasoning to ensure both efficient plan generation and soundness.
-First, the SDR translation requires that an action is executed only if the preconditions of the action are known to hold. However, reasoning about the explicit set of possible worlds, which is often exponential, is often impractical. Therefore, SDR sub-samples the set of possible worlds, and hence its reasoning is complete, but unsound. CPOR then fixes
-this issue by performing regression before inserting any action into its plan, to verify that its preconditions hold in all possible worlds. Because regression is complete, this ensures the overall soundness of the planner.
-
-
-\noindent{\bf Soundness w/o signaling:}
- At the level of the team plan, an action $a$ is inserted only if the regression step succeeds. Due to the soundness of regression, the preconditions of $a$ are implied by the initial belief state, the actions carried out, and the observations. In QDec-FPS we regress through the entire set of actions executed by all agents, but the observations of the acting agent only, ignoring observations of other agents. Thus, underestimating the team's knowledge at this branch. From the soundness proof of QDec-FP, we know that if the team plan is sound, then the plan returned after the single-agent planning problems are solved must also be sound.
-
-\noindent{\bf Soundness with signaling:}
-The addition of a macro cannot impact soundness, as long as the macro's representation as a single-action reflects the precise effect of its implementation. As described, the macro ensures that $p$ is sensed first, then a single public action affecting the value of $q$ only is allowed, and then $q$ is sensed by the second agent.
-It is not difficult to see that at the end of the process, $p$ and $q$ are correlated, both agents know their values, and no other variable is impacted.
-In the process, no other public variable except for $q$ is impacted. When the local plans are generated, no public propositions are impacted, as in QDec-FP.
-
-
-\noindent{\bf Completeness:}
-QDec-FPS is incomplete due to CPOR lack of backtracking mechanism. Thus, this proof is under the assumption that we have a mechanism to generate all
-plans that a complete offline contingent planner can generate. For this, it is sufficient to show that given a legal multi-agent (MA) plan $\pi$ for our problem, the contingent planner would be able to generate it. Such an MA plan (i.e., the joint-policy) is a legal team plan because any legal MA plan is a legal team plan. We want to show that it could be generated by the contingent planner with the new translation.
-
-In principle, SDR's translation, if used with all possible initial states could not rule out any action in $\pi$ because all actions are executed when the agent knows their precondition, and the inference actions used by SDR are complete.
-SDR over-approximates the knowledge by ignoring some of the possible states, but over approximation does not rule out legal solutions. The regression step, too, is sound and complete, as the agent can only rely on actions it knows others have executed, its actions, and its observations.
-Note that the agent does not necessarily know what actions other agents have executed because it is not sure on which global execution branch it is within $\pi$. Thus, per-branch, SDR also over-approximates the knowledge of the agent.
-This implies that $\pi$ can be generated as a team plan.
-For the single agent plan trees projected from $\pi$ --- the agent's actions in $\pi$ are a possible solution to the single-agent projected problems.%
-
-This may seem to contradict the soundness. But note two things. (1) In the soundness proof we only wanted to show that the team plan is legal.
-Here, we have a full, MA plan. (2) As an agent must execute the same action
-in all branches that are indistinguishable, this means that the regression of
-the preconditions would return true under all branches, if $\pi$ is a legal multi-agent plan.
-
-Signaling does not impact this result. Signaling is a technique that allows us to generate additional solutions. In principle, a solution with signaling is compatible with the algorithm used without signaling, but a vanilla contingent planner that generates all possible plans will take a long time to accidentally stumble upon a solution that contain signaling.
-
-We note that, in practice, to make signaling work efficiently, we restrict its application contexts using preconditions that require certain lack of knowledge by the signaling agent, even though this is
-not necessary by the theory.
-}
 %As with the original QDec-FP, QDec-FPS is complete provided that we have a complete underlying single-agent solver. We need to claim that eventually, QDec-FPS will generate a solution. For this we need to bound the number of plans that it can generate, i.e., the number of needed backtracks. Since the constraints we add are weak, it is not clear that we can capture all the possible information, and it may be the case that the planner will always generate illegal solutions.
 %Soundness: This should follow from the single-agent soundness of the team problem together with the correct ex- tension by the agents to a MA plan.
 
@@ -1243,14 +1106,6 @@ When backtracking maybe required since the rovers are non-homogeneous (instances
 
 %The problems are similar to each other (with almost similar configurations) while we see that QDec-FPS needs  extra backtracks to find the solution.
 
-\commentout{
-QDec-FPS is configured to first
-try to solve a problem without signaling.
-Therefore, if the planner fails to find a solution (e.g., when there is a solution in which an agent needs to act differently under $p$ such that the agent cannot sense $p$), we enable a signaling flag ({\em SigFlag}) which adds all possible signaling macros to augment the current problem description, and QDec-FPS solves this augmented planning problem from the beginning.
-
-\ronen{Is it the case that the running times include both failing to solve with the flag off and then solving with the flag on?}
-\shashank{No, when the flag is on, the time starts from zero. Perhaps these are very small problems and FPS finds it in negligible time that it cannot solve the problems without signaling.}
-}
 
 
 %For these problems, QDec-FPS returned no solution when the {\em SigFlag} was disabled. In the future, we intend to augment QDec-FPS with an ability to automatically turn on {\em SigFlag} by using  approximate reachability analysis.
@@ -1314,26 +1169,6 @@ The number of instances of signaling macros in the team solutions range from 1 t
 %The only exception is R16 since it is a more complex problem than R15 and R17. For R21 having an additional agent than R20, the run-time is almost double.
 %An increase in the total number of objects does not impact the overall runtime much in general, e.g., R21 and R22.
 
-\commentout{
-\subsection{Limitations of CPOR}
-
-The underlying planner used in both QDec-FP and QDec-FPS planners is CPOR --- an offline contingent planner that operates by calling the SDR
-online replanner.
-SDR takes a contingent planning problem as an input and translates it to a classical planning problem, and solves it using a classical planner.
-The classical problem generated by SDR is based on the assumption that some state $s$,
-sampled from the initial belief state, is the true initial state in the real world.
-SDR executes the solution generated by the classical solver until either the goal was reached
-or a sensing action returns an unexpected result. A result is unexpected if it is not what would have been sensed
-if $s$ was indeed the true initial state. At that point, SDR replans using the new information.
-%Based on this assumption, Fast-Forward (FF) finds a classical plan. SDR executes it unless, by sensing the actual environment, the plan breaks the made-up assumptions.
-%Eventually SDR refutes that selected state, rectifies the assumptions and replans online by sampling a new state from the current belief state.
-SDR repeats this process until it reaches the goal.
-Therefore every successful execution from the initial belief to the goal generates a branch of a sound plan tree.
-CPOR exploits this online replanning technique to generate a complete plan tree considering all possible initial world states as the guessed \emph{true} state.
-CPOR is sound and complete if  the underlying planner is sound and complete.
-%It is also the fastest contingent planner but it suffers a major weakness.
-However, CPOR cannot handle avoidable dead-ends as it performs no backtracking.  Sometimes this causes problems to our QDec-FPS planner while handling signaling actions, making QDec-FPS wrongly conclude that a problem is unsolvable.
-}
 %We illustrated in the previous section that
 %As we addressed earlier the correspondence between the values of propositions $p$ and $q$ must hold.
 %For that the underlying planner must ensure that the signaling macro occurs before agent $a$ branches on the value of $p$ and is done by a precondition $\neg K_ap \land \neg K_a\neg p$ to the signaling action.
