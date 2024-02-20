@@ -535,7 +535,10 @@ def find_tables_to_add_adjust_box(latex_path, pdf_path):
     with pdfplumber.open(pdf_path) as pdf:
         # extract tables from the pdf
         page = pdf.pages[0]
-        pdf_tables = page.find_tables()            
+        pdf_tables = page.find_tables()    
+        if not pdf_tables:
+            pdf_tables = page.find_tables(table_settings={"vertical_strategy": "text",
+                "horizontal_strategy": "lines"})        
 
     
     # find all the tables environments in the latex file

@@ -29,7 +29,10 @@ def tables(path):
     for page_number in range(len(mypdf.pages)):
 
         p0 = mypdf.pages[page_number]
-        tables1=p0.find_tables(table_settings={}) #print details
+        tables1 = p0.find_tables()
+        if not tables1:
+            tables1=p0.find_tables(table_settings={"vertical_strategy": "text",
+                "horizontal_strategy": "lines"}) #print details
         # tables2=p0.extract_tables(table_settings={}) #cells values (content of table)
         arr= {0:[]}
         for t in tables1:
