@@ -1,3 +1,4 @@
+import re
 import pdfplumber
 
 
@@ -26,14 +27,23 @@ def pictures(path):
 def tables(path):
     dict={}
     mypdf=pdfplumber.open(path)
+    algorithm_pattern = r'^Algorithm\d+:'
     for page_number in range(len(mypdf.pages)):
 
         p0 = mypdf.pages[page_number]
         tables1 = p0.find_tables()
         if not tables1:
+            
             tables1=p0.find_tables(table_settings={"vertical_strategy": "text",
-                "horizontal_strategy": "lines"}) #print details
-        # tables2=p0.extract_tables(table_settings={}) #cells values (content of table)
+                "horizontal_strategy": "lines"})
+            #check if any bbox has Algorithm instead of table
+            table_text = p0.extract_tables(table_settings={"vertical_strategy": "text","horizontal_strategy": "lines"})
+            for index, t in enumerate(table_text):
+                #check if t[0] ,matches the algorithm pattern
+                word = t[0][0]
+                if len(t)>0 and re.match(algorithm_pattern,t[0][0]):
+                    #remove that table from tables
+                    tables1.pop(index)
         arr= {0:[]}
         for t in tables1:
             arr[0].append(t.bbox)

@@ -53,9 +53,9 @@ def create_objects_list(tags,figures,tables,algorithms,lines_to_search,pdf_extra
             for i in pdf_extract[k][j]:  # left_column_page_0
                 # print(i)
                 index_line += 1
-                if index_line == 12:
-                    print("here")
                 box, line = i
+                
+                
 
                 if i[1].startswith("TABLETABLE"):  # it's a table
                     

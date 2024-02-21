@@ -224,6 +224,28 @@ def get_definition_par(lines, line_number, count):
     return count, new_counter
 
 
+allowed_beginnings = [
+  '\\textbf',
+  '\\textit',
+  '\\underline',
+  '\\texttt',
+  '\\textsc',
+  '\\textsf',
+  '\\noindent',
+  '\\citeauthor',
+  '\\alg',
+  '\\emph',
+   '\\cite',
+   '\\phi',
+   '\\alpha',
+    '\\beta',
+    '\\gamma',
+    '\\delta',
+    '\\epsilon'
+]
+
+
+
 def count_paragraphs(lines,ans,new_dict):
     """_summary_
 
@@ -267,12 +289,12 @@ def count_paragraphs(lines,ans,new_dict):
             if is_in_begin>0:
                 if str_line.startswith("\\end"):
                     is_in_begin-=1
-                    if str_line.startswith("\\end{theorem}") or str_line.startswith("\\end{lemma") or str_line.startswith("\\end{proposition}") or str_line.startswith("\\end{corollary}") or str_line.startswith("\\end{proof}") or str_line.startswith("\\end{example}"):
+                    if str_line.startswith("\\end{theorem}") or str_line.startswith("\\end{lemma}") or str_line.startswith("\\end{proposition}") or str_line.startswith("\\end{corollary}") or str_line.startswith("\\end{proof}") or str_line.startswith("\\end{example}"):
                         counter[count].append(line_number)
                         count+=1
                 else:
                     continue
-            if not str_line.startswith("\\begin") and not str_line.startswith("$\\begin") and is_in_begin==0 and not str_line.startswith("\\end") and not str_line.startswith("\\bibliography") and not str_line.startswith("\\setlength") and not str_line.startswith("\\section") and not str_line.startswith("\\subsection") and not str_line.startswith("\\subsubsection") and not str_line.startswith("\\end{abstract}") and not str_line.startswith("\\end{definition}") and not str_line.startswith("\\vspace"):
+            if not str_line.startswith("\\") or any(str_line.startswith(prefix) for prefix in allowed_beginnings):
                 if flag == False and not (str_line.isspace()):
                     count += 1
                     counter[count] = [line_number]
@@ -283,7 +305,7 @@ def count_paragraphs(lines,ans,new_dict):
                 if flag and (str_line.isspace()) :
                     counter[count].append(line_number)
                     flag = False
-            if flag and (str_line.startswith("\\bibliography") or str_line.startswith("\\vspace")):
+            if flag and (str_line.startswith("\\bibliography") or str_line.startswith("\\vspace") or str_line.startswith("\\clearpage")):
                 flag = False
                 
                 

@@ -617,7 +617,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
             if (index_to_edit != -1):  # there is a special positional char
                 new_string_to_edit = re.sub("[\(\[].*?[\)\]]", "", string_to_edit)
                 new_list_2[chosen_index_to_insert] = new_string_to_edit
-                object_name_key_new_latex_list_value[key] = (new_list_2, 11, 0)
+                object_name_key_new_latex_list_value[key] = (new_list_2, 11, 5) #TODO!!!! check cost 
 
         if (key.startswith('Table')):
             chosen_index_to_insert = mapping_dict[key][0]  # index where the figure starts
@@ -670,13 +670,13 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
             heuristic = 0
             for i in range(4):
                 if (i == 0):
-                    heuristic = 0
+                    heuristic = value['height'] * 0.1
                 elif (i == 1):
-                    heuristic = value['height'] * 0.1111
+                    heuristic = value['height'] * 0.2
                 elif (i == 2):
-                    heuristic = value['height'] * 0.2222
+                    heuristic = value['height'] * 0.3
                 elif (i == 3):
-                    heuristic = value['height'] * 0.3333
+                    heuristic = value['height'] * 0.4
                 new_width = options[i] 
                 if width == 0:
                     #  in the begin adjust box there is no width. we have begin{adjubox}{}, we need to find the index of the second {
