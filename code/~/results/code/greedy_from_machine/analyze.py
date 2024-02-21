@@ -19,7 +19,7 @@ file_paths = [
 dfs = [pd.read_csv(os.path.join(current_directory, csv_directory, file)) for file in file_paths]
 
 for df in dfs:
-    df['Reduced'] = df['Reduced'].astype(int) * 23
+    df['Reduced'] = df['Reduced'].astype(int) * 20
 
 
 for df in dfs:
@@ -40,6 +40,7 @@ means_df = pd.DataFrame(modified_means)
 
 
 summary_stats = means_df.describe()
+means_df.to_csv('code/~/results/code/greedy_from_machine/means.csv')
 
 plt.figure(figsize=(10, 6))
 means_df.plot(kind='bar', rot=45, ax=plt.gca())
@@ -49,5 +50,4 @@ plt.ylabel('Value')
 plt.legend(title='Algorithm')
 plt.tight_layout()
 plt.show()
-
 
