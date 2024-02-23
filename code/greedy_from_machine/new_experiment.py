@@ -707,7 +707,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
             if (index_to_edit != -1):  # there is a special positional char
                 new_string_to_edit = re.sub("[\(\[].*?[\)\]]", "", string_to_edit)
                 new_list_2[chosen_index_to_insert] = new_string_to_edit
-                object_name_key_new_latex_list_value[key] = (new_list_2, 4, 0)
+                object_name_key_new_latex_list_value[key] = (new_list_2, 4, 5)
 
         if (key.startswith('Figure')):  # changing size of figure
             chosen_index_to_insert = mapping_dict[key][0]  # index where the figure starts
@@ -815,7 +815,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
             if (index_to_edit != -1):  # there is a special positional char
                 new_string_to_edit = re.sub("[\(\[].*?[\)\]]", "", string_to_edit)
                 new_list_2[chosen_index_to_insert] = new_string_to_edit
-                object_name_key_new_latex_list_value[key] = (new_list_2, 2, 0)
+                object_name_key_new_latex_list_value[key] = (new_list_2, 2, 5)
 
         if (
                 indexer == 0):  # in this if we wanted to skip the first object for the vspace but we need the first element for the other operators.
