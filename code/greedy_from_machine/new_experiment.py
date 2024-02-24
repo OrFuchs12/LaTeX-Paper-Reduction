@@ -1059,7 +1059,8 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
         print("begin lines:", lines)
         print("begin pages:", pages)
         print("target lines:", target)
-        
+        not_allowed = []
+
         start = time.time()
         while ( not reduced ): # if we manage to short the paper
             print("lines : --------------", lines, "pages: --------------", pages)
@@ -1081,6 +1082,8 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
             # whether we applied the operator before
             if oper in operators_done or oper not in allowed_operators:
                 index += 1
+                if oper not in allowed_operators:
+                    not_allowed.append(oper)
                 continue
             else:
                 operators_done.append(oper)
@@ -1101,6 +1104,8 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name ):
         end = time.time()
         print("RESULTS: simple, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
         count_operators = iteration
+        print("not allowed operators:", not_allowed)
+        print("operators done:", operators_done)
         return iteration, end - start, reduced, total_cost,count_operators
     except Exception as e:
         print(e)
@@ -1360,6 +1365,7 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name):
 
         end = time.time()
         print("RESULTS: classification, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
+        print("operators done:",operators_done)
         return iteration, end - start, reduced, total_cost, count_operators
     except Exception as e:
         print(e)
