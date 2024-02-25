@@ -1567,7 +1567,7 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
         count_operators = 0
         iteration = 0
         total_cost = 0
-
+        states = []
         df1, lidor, lines, pages, valid = feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name)
         if not valid:
             return -1, -1, False, -1
@@ -1596,7 +1596,7 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
             if index >= (len(res)):
                 print("Out of operators")
                 break
-            
+            states.append((res, index))
             oparators_to_check = res[index:] # all the operators that we need to check
             closest_operators = get_closest_operators(oparators_to_check) # get the closest operators to the current operator
             sorted_by_prediction_operators =  []
@@ -1646,7 +1646,72 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
             else:
                 index += 1
                 count_operators += 1
+        if reduced:
+            end = time.time()
+            print("RESULTS: regression, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
+            return iteration, end - start, reduced, total_cost, count_operators
+        while not reduced and states:
+            res,index = states.pop()
+            while index+1>=len(res) and states:
+                print("rolling back")
+                res,index = states.pop()
+            if index+1>=len(res) and not states:
+                print("Out of operators")
+                break
+            index+=1
+            latex_prev = res[index][1]
+            reduced, path_to_latex, last_pages_pdf = handle_new_operator_and_check_reduced(latex_prev, paper_name,iteration,target,num_of_pages,5) 
+            while index < len(res):
+                oparators_to_check = res[index:] # all the operators that we need to check
+                closest_operators = get_closest_operators(oparators_to_check) # get the closest operators to the current operator
+                sorted_by_prediction_operators =  []
+                for operator in closest_operators:
+                    prediction, model_to_predict = get_prediction(operator=operator,operators_done=operators_done, models=models,df1=df1)
+                    if prediction != -1:                
+                        sorted_by_prediction_operators.append((operator,prediction, model_to_predict))
+                # sort from highest to lowest prediction
+                sorted_by_prediction_operators = sorted(sorted_by_prediction_operators, key=lambda x: x[1], reverse=True)
 
+                if len(sorted_by_prediction_operators) == 0:
+                    index += 1
+                    continue
+
+                operator = sorted_by_prediction_operators[0][0]
+                prediction = sorted_by_prediction_operators[0][1]
+                model_to_predict = sorted_by_prediction_operators[0][2]
+
+                if model_to_predict in operators_done:
+                    index += 1
+                    continue
+            
+                if prediction > -1 :
+                    count_operators += 1
+                    latex_after_operator = res[index][1]
+                    operators_done.append(model_to_predict)
+                    
+                    reduced, path_to_latex, last_pages_pdf = handle_new_operator_and_check_reduced(latex_after_operator, paper_name,iteration,target,num_of_pages,5)
+                    
+                    if not reduced:
+
+                        df1, lidor = features_single.run_feature_extraction(
+                            path_to_latex, last_pages_pdf, 'code/greedy_from_machine/bibliography.bib',
+                                                            "code/~/results/dct0",
+                                                            "code/~/results/new_files/dct0", "test", pd.DataFrame())
+                        df1 = df1.T
+                        df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
+                                    'num_of_object'], axis=1, inplace=True)
+
+                    total_cost += res[index][0]
+                    index  = 0
+                    iteration += 1
+                    res = perform_operators(dct, 0, path_to_latex, path_to_pdf, "code/~/results/new_files/", paper_name, lidor)
+
+                # if we manage to short the paper
+                if (lines <= target or pages < 2 or lines > starting_lines):
+                    reduced = True
+                else:
+                    index += 1
+                    count_operators += 1 
         end = time.time()
         print("RESULTS: regression, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
         return iteration, end - start, reduced, total_cost, count_operators
