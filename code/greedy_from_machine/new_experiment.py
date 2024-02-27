@@ -1547,10 +1547,7 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
                 total_cost += res[index][0]
                 index  = 0
                 iteration += 1
-                
-                # if we manage to short the paper
-                if (lines <= target or pages < 2 or lines > starting_lines):
-                    reduced = True
+
             else:
                 index += 1
                 count_operators += 1
@@ -1656,10 +1653,7 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
                 total_cost += res[index][0]
                 index = 0 
                 iteration += 1
-                
-                # if we manage to short the paper
-                if (lines <= target or pages < 2 or lines > starting_lines):
-                    reduced = True
+
             else:
                 count_operators += 1
                 index += 1
