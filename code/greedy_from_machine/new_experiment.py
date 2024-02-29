@@ -933,13 +933,13 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
             (par[2], latex_string, 6, 1, 1, num_of_object))  # type, value, object_used_on, num_of_object
         index_for_all_operators += 1
 
-    for key, value in object_name_key_new_latex_list_value.items():
-        x_list = value[0]
-        latex_string = ''.join(x_list)
-        num_of_object = re.findall('\d+', key)[0]
-        operators_dict.append(
-            (value[2], latex_string, 8, 1, value[1], num_of_object))  # type, value, object_used_on, num_of_object
-        index_for_all_operators += 1
+    # for key, value in object_name_key_new_latex_list_value.items():
+    #     x_list = value[0]
+    #     latex_string = ''.join(x_list)
+    #     num_of_object = re.findall('\d+', key)[0]
+    #     operators_dict.append(
+    #         (value[2], latex_string, 8, 1, value[1], num_of_object))  # type, value, object_used_on, num_of_object
+    #     index_for_all_operators += 1
 
     for key, value in dict_for_removing_last_2_words_operator.items():
         x_list = value[0]
