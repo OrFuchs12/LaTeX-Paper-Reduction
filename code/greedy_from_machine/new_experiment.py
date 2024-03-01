@@ -232,9 +232,7 @@ def load_regression_models_cat():
             clf.load_model(file_path)
             print(i)
             #print(file_path)
-            models[i] = clf
-
-            
+            models[i] = clf 
     print("total models in memory:", len(models))
     return models
 
@@ -250,6 +248,24 @@ def get_closest_operators(operators):
         else:
             break
     return closest_opartors
+
+def sort_by_prediction(res, index, operators_done, models, df1):
+    oparators_to_check = res[index:] # all the operators that we need to check
+    closest_operators = get_closest_operators(oparators_to_check) # get the closest operators to the current operator
+    sorted_by_prediction_operators =  []
+    for operator in closest_operators:
+        prediction, model_to_predict = get_prediction(operator=operator,operators_done=operators_done, models=models,df1=df1)
+        if prediction != -1:                
+            sorted_by_prediction_operators.append((operator,prediction, model_to_predict))
+    # sort from highest to lowest prediction
+    sorted_by_prediction_operators = sorted(sorted_by_prediction_operators, key=lambda x: x[1], reverse=True)
+    if len(sorted_by_prediction_operators) > 0:
+        operator = sorted_by_prediction_operators[0][0]
+        prediction = sorted_by_prediction_operators[0][1]
+        model_to_predict = sorted_by_prediction_operators[0][2]
+        return model_to_predict, prediction, operator
+    else:
+        return None, -1, None
 
 
 def get_prediction(operator,operators_done, models,df1):
@@ -1529,7 +1545,7 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
            
             if prediction > 0 :
                 count_operators += 1
-                latex_after_operator = res[index][1]
+                latex_after_operator = operator[1]
                 operators_done.append(model_to_predict)
                 
                 reduced, path_to_latex, last_pages_pdf = handle_new_operator_and_check_reduced(latex_after_operator, paper_name,iteration,target,num_of_pages,5)
@@ -1544,7 +1560,7 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
                     df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
                                 'num_of_object'], axis=1, inplace=True)
 
-                total_cost += res[index][0]
+                total_cost += operator[0]
                 index  = 0
                 iteration += 1
 
@@ -1635,7 +1651,7 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
            
             if prediction > 0 or start_check_operators_that_faild:
                 count_operators += 1
-                latex_after_operator = res[index][1]
+                latex_after_operator = operator[1]
                 operators_done.append(model_to_predict)
                 
                 reduced, path_to_latex, last_pages_pdf = handle_new_operator_and_check_reduced(latex_after_operator, paper_name,iteration,target,num_of_pages,6)
@@ -1650,7 +1666,7 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
                     df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
                                 'num_of_object'], axis=1, inplace=True)
 
-                total_cost += res[index][0]
+                total_cost += operator[0]
                 index = 0 
                 iteration += 1
 
@@ -1744,6 +1760,102 @@ def classification_regression_greedy (path_to_pdf, path_to_latex, models_list ,n
                                 'num_of_object'], axis=1, inplace=True)
 
                 total_cost += res[index][0]
+                index = 0
+                iteration += 1
+                
+            else:
+                index += 1
+                count_operators += 1
+                if index >= (len(res)):
+                    print("Out of operators, starts checking operators again.")
+                    start_check_operators_that_faild = True
+                    index = 0
+                    models = models_list[1]
+
+        end = time.time()
+        print("RESULTS: non stop classification, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
+        return iteration, end - start, reduced, total_cost,count_operators
+    except Exception as e:
+        print(e)
+        if iteration > 0:
+            end = time.time()
+            return iteration, end - start, reduced, total_cost,count_operators
+        return -1, -1, reduced, -1,-1
+    
+    
+    
+def classification_regression_greedy_v2 (path_to_pdf, path_to_latex, models_list ,num_of_pages , paper_name):
+    reduced = False
+    try:
+        operators_done = []
+        index = 0
+        reduced = False
+        iteration = 0
+        count_operators = 0
+        total_cost = 0
+        start_check_operators_that_faild = False
+        models = models_list[0]
+        
+        df1, lidor, lines, pages, valid = feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name)
+        if not valid:
+            return -1, -1, False, -1
+
+        df1 = df1.T
+        df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
+                    'num_of_object'], axis=1, inplace=True)
+
+        # define stop condition and some variables
+        target = lines - 2
+        starting_lines = lines
+        print("begin lines:", lines)
+        print("begin pages:", pages)
+        start = time.time()
+        while (not reduced):
+
+            # get the dictionary of the file
+            with open('code/~/results/dct0', 'rb') as dct_file:
+                dct = pickle.load(dct_file)
+
+            # get list of all possible operators to apply on the file
+            res = perform_operators(dct, 0, path_to_latex, path_to_pdf, "code/~/results/new_files/", paper_name, lidor)
+            print("total operators:", len(res))
+            
+            # whether there are no more operators
+            if index >= (len(res)) and not start_check_operators_that_faild:
+                print("Out of operators, starts checking operators again.")
+                start_check_operators_that_faild = True
+                index = 0
+                models = models_list[1]
+            elif index >= (len(res)) and start_check_operators_that_faild:
+                print("Out of operators, also out of operators that failed.")
+                break
+                
+            if not start_check_operators_that_faild:
+                prediction, model_to_predict = get_prediction(operator=res[index],operators_done=operators_done, models=models,df1=df1)
+                operator = res[index]
+            else:
+                model_to_predict, prediction, operator = sort_by_prediction(res, index, operators_done, models, df1)  
+            if prediction == -1:
+                index += 1
+                continue
+            # condition to apply the operator
+            if (not start_check_operators_that_faild and prediction) or (start_check_operators_that_faild and prediction > 5):
+                count_operators += 1
+                latex_after_operator = operator[1]
+                operators_done.append(model_to_predict)
+                
+                reduced, path_to_latex, last_pages_pdf = handle_new_operator_and_check_reduced(latex_after_operator, paper_name,iteration,target,num_of_pages,8)
+                
+                if not reduced:
+                    df1, lidor = features_single.run_feature_extraction(
+                        path_to_latex, last_pages_pdf, 'code/greedy_from_machine/bibliography.bib',
+                                                        "code/~/results/dct0",
+                                                        "code/~/results/new_files/dct0", "test", pd.DataFrame())
+                    df1 = df1.T
+                    df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
+                                'num_of_object'], axis=1, inplace=True)
+
+                total_cost += operator[0]
                 index = 0
                 iteration += 1
                 
@@ -1872,3 +1984,5 @@ if __name__ == "__main__":
         run_greedy_experiment(non_stop_regreession_model_greedy, "non stop regreession model greedy", "results_non_stop_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat())
     elif x == 7:
         run_greedy_experiment(classification_regression_greedy, "classifciation and regreession model greedy", "results_classification_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, [load_models(), load_regression_models_cat()])
+    elif x == 8:
+        run_greedy_experiment(classification_regression_greedy_v2, "classifciation and regreession model greedy", "results_classification_regreession_v2_model_greedy", pdf_tex_files_dir, dir_to_results, [load_models(), load_regression_models_cat()])

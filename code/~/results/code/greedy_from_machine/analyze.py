@@ -14,7 +14,8 @@ file_paths = [
     "files_non_stop_results_classification_greedy.csv",
     "files_results_regreession_model_greedy.csv",
     "files_results_non_stop_regreession_model_greedy.csv",
-    "files_results_classification_regreession_model_greedy.csv"
+    "files_results_classification_regreession_model_greedy.csv",
+    "files_results_classification_regreession_v2_model_greedy.csv"
 ]
 
 dfs = [pd.read_csv(os.path.join(current_directory, csv_directory, file)) for file in file_paths]
