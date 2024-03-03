@@ -1,0 +1,216 @@
+\section{Experiment}
+In this section, we design experiments to answer the following research questions (RQs).
+\begin{enumerate}[label=\textbf{RQ\arabic*},leftmargin=0pt,itemindent=2.5em]
+  \item \emph{How do general code completion models perform on function call argument completion?} \\
+  We conjecture that general code completion models without project-specific context do not work well on the tasks where external context is critical. 
+  To this regard, we test several pretrained code language models on our \CallArgs dataset.
+  
+  \item \emph{To what extent are the analyzer-induced information helpful for pretrained language models to do function call argument completion?} \\
+  To explore this point, we conduct experiments under two settings. We first test if a general code completion model would perform better on our \CallArgs dataset under the CDI setting. Then, we test for unidirectional and in-filling prediction on our \CallArgs dataset after task-specific fine-tuning.
+  
+  \item \emph{What are the roles and contributions of different types of analyzer-induced information?} \\
+  Specifically, we study the impact of function implementation context and function usage context on our \CallArgs dataset. We conduct an ablation study to break down the performance gain from using function implementation context and function usage context. We further explore how the choice of the number and the length of usage context affect model performance. 
+\end{enumerate}
+
+\subsection{RQ1}
+\label{sec:code-completion-experiments}
+To answer RQ1, we evaluate various decoder-only models pretrained on Python source code: CodeGPT~\citep{lu2021codexglue}, CodeGPT-adapted \citep{lu2021codexglue} and CodeGen \citep{nijkamp2022conversational}. 
+Since the models are pretrained using different tokenization strategies and different pretraining datasets, 
+we fine-tune them using general code completion, aka next-token prediction at \emph{all} tokens, over \CallArgs to reduce the impact from data and domain shift.
+Specifically, we follow the preprocessing step in Py150 \citep{raychev2016probabilistic} to standardize the inputs, split the files from \CallArgs training set into code fragments of equal lengths of 1024 tokens, and use the standard causal language modeling loss. 
+Project-level information is not presented during this process.
+
+We train for 10 epochs with a batch size of 32 and a learning rate of 5e-5 using AdamW optimizer \citep{loshchilov2018decoupled}. 
+We apply early stopping when validation set perplexity does not improve for 3 epochs, and chose the checkpoint with the best validation set perplexity.
+We evaluate the token-level accuracy for general code completion on the files from \CallArgs test set. For each argument completion instance, we ask the model to generate arguments from the left local context only (unidirectional prediction).
+We use beam search of size 5 until a matching parenthesis is generated. 
+We measure the exact match accuracy (EM) and Levensthein edit similarity (EditSim) between the ground truths and the model completions. 
+
+
+The results are shown in Table \ref{tab:autoregressive}. 
+We find that, with only local context, although general code completion models can achieve good token-level accuracy (Token-level Acc 72 -- 79), they do not perform well on call argument completion (EM 36 -- 45). 
+This suggests that call arguments are more difficult to predict than general locations~\citep[cf.][]{rahman2019natural}.
+One possible reason is that general code completion on average involves easier prediction locations such as boiler-plate code and code idioms.
+
+\ifaaai
+\begin{table}[ht]
+\centering
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{cccc}
+\toprule
+ Model (Token-level Acc)   & Context         &  EM & EditSim \\
+\midrule
+ CodeGPT (72.18) & local context    & 36.29 & 63.50    \\
+         & w/ implementation        & 37.40 & 64.75     \\
+         & w/ usages                & 44.99  & 73.15   \\
+ CodeGPT-adapted (72.59) & local context     & 37.24 & 64.76    \\
+                 & w/ implementation         & 38.25 & 65.98     \\
+                 & w/ usages                 & 46.58 & 74.36   \\
+ UnixCoder-base (75.88) & local context    & 38.45 & 66.11    \\
+                 & w/ implementation       & 40.04 & 67.85     \\
+                 & w/ usages               & 47.93 & 75.40   \\
+ CodeGen-MONO (78.73)  & local context    & 43.45 & 69.69    \\
+                 & w/ implementation      & 46.26 & 72.46     \\
+                 & w/ usages              & 52.99 & 78.52   \\
+\bottomrule
+\end{tabular}
+}
+\caption{The call-argument completion performance of several general code completion models on \CallArgs. 
+The token-level accuracy is for general code completion. 
+}
+\label{tab:autoregressive}
+\end{table}
+\fi
+\ifamlc
+\begin{table}[ht]
+\centering
+
+\hspace{-1em}
+\begin{minipage}{0.4\columnwidth}
+\caption{Statistics of the \CallArgs dataset. }
+\label{tab:generalstat}
+
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{ccccc}
+\toprule
+{} & No. of  & No. of  & No. of  & No. of  \\
+Split & projects & files & tokens & function calls \\
+\midrule
+Train & 1578 & 13790    & 36.2M  & 364752 \\
+Validation   & 145  & 2496     & 5.2M   & 42841  \\
+Test  & 145  & 1701     & 2.5M   & 49085  \\   
+\bottomrule
+\end{tabular}
+}
+\end{minipage}
+\begin{minipage}{0.55\columnwidth}
+\caption{The call-argument completion performance of several general code completion models on \CallArgs. 
+The token-level accuracy is for general code completion. 
+}
+\label{tab:autoregressive}
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{cccc}
+\toprule
+ Model (Token-level Acc)   & Context         &  EM & EditSim \\
+\midrule
+ CodeGPT (72.18) & local context    & 36.29 & 63.50    \\
+         & w/ implementation        & 37.40 & 64.75     \\
+         & w/ usages                & 44.99  & 73.15   \\
+ CodeGPT-adapted (72.59) & local context     & 37.24 & 64.76    \\
+                 & w/ implementation         & 38.25 & 65.98     \\
+                 & w/ usages                 & 46.58 & 74.36   \\
+ UnixCoder-base (75.88) & local context    & 38.45 & 66.11    \\
+                 & w/ implementation       & 40.04 & 67.85     \\
+                 & w/ usages               & 47.93 & 75.40   \\
+ CodeGen-MONO (78.73)  & local context    & 43.45 & 69.69    \\
+                 & w/ implementation      & 46.26 & 72.46     \\
+                 & w/ usages              & 52.99 & 78.52   \\
+\bottomrule
+\end{tabular}
+}
+\end{minipage}
+\end{table}
+\fi
+
+\subsection{RQ2}
+\label{sec:task-specific-experiments}
+We evaluate the performance of function call argument completion with the presence of analyzer-induced contexts.
+When incorporating those contexts, we fill in the respective input slots as described in \Secref{sec:method-incorporating}. 
+
+\subsubsection{Concatenating during inference.}
+
+We directly concatenate analyzer-induced context as input to the same models described in \Secref{sec:code-completion-experiments}. 
+We allocate at least a quarter of the total length budget for analyzer-induced context. 
+We use no more than 3 function usages for each instance unless otherwise specified.%
+The results are shown in Table \ref{tab:autoregressive}. 
+
+We find that both function implementation (w/ implementation) and function usages (w/ usages) universally improve the EM and EditSim across all the models tested, 
+indicating that pretrained code language models benefit from auxiliary contexts even without exposure to them during training.
+The gains from function usages is much greater (average EM improvements 9.27 vs 1.63), suggesting that if presented only at inference time, similar contexts help code completion more \citep[cf. similar observations from][]{lu2022reacc}.
+
+
+
+\subsubsection{Task-specific fine-tuning.}
+\label{sec:call-args-completion-results}
+
+Next, we fine-tune different pretrained code language models specifically for call argument completion, with or without the presence of auxiliary contexts.
+For decoder-only models, we use CodeGPT \citep{lu2021codexglue}, UnixCoder \citep{guo2022unixcoder} and CodeGen \citep{nijkamp2022conversational}. 
+For encoder-decoder models, we use CodeT5 \citep{wang2021codet5}, PLBART \citep{ahmad2021unified} and UnixCoder~\footnote{UnixCoder is pretrained with both denoising objectives and unidirectional language modeling so it can be used as both an encoder-decoder model and a decoder-only model.}~\citep{guo2022unixcoder}. 
+
+We conduct experiments for both the unidirectional and in-filling prediction. 
+For the latter, the length budget of the right local context is one-third of the length budget of the left local context. The length budget for function implementation and the average length of each function usage are set as one-eighth of the total input length. 
+We train our models for 10 epochs with a batch size of 64 and a learning rate of 2e-5.
+We use early stopping based on the perplexity over the validation set.
+The results are shown in \Tabref{tab:fc_all}. 
+
+Comparing the unidirectional results from decoder-only models (\Tabref{tab:fc_all}, top section) to those in \Tabref{tab:autoregressive}, we find that task-specific fine-tuning EM and EditSim are on average 4.49 and 5.52 higher across the models using local context only. 
+The presence of function implementations and function usages further greatly improves the argument completion performance compared to using local context only, with an average 13.28 gain for EM and an average 8.76 gain for EditSim across all models and settings. 
+The best results are achieved by CodeT5-base with 62.73 EM and 84.33 EditSim for unidirectional prediction, and by CodeT5-base with 69.28 EM and 88.08 EditSim for in-filling prediction.
+
+Compared to unidirectional prediction, the in-filling prediction metrics are on average 6.83 and 4.57 higher for EM and EditSim  using the same model and the same source of information. 
+We conjecture that this is because the right context reveal the use of the function call result, or because it provides more information for the model to relate to previously seen similar patterns.
+
+For models with similar numbers of trainable parameters, the results from the encoder-decoder models are usually better than the decoder-only models when using the same contexts. 
+For example, for unidirectional prediction, the encoder-decoder version of UnixCoder is better than its decoder-only version in both metrics. 
+This suggests that the encoder-decoder architecture can be a powerful design for code auto-completion, probably thanks to its better ability at leveraging the input contexts.
+The results also suggest that the pretraining objectives are important for model's performance. For example, CodeT5-small (60M) pretrained with mask span prediction is better than PLBART-base (139M) pretrained without it, despite that the former has fewer parameters.
+
+\begin{table*}[ht]
+\centering
+\resizebox{0.9\linewidth}{!}{
+\begin{tabular}{cccccc}
+\toprule
+Task (model type)      & Model (\# of trainable parameters)    & Context                     & EM   & EditSim & Input length \\
+\midrule
+Unidirectional & CodeGPT (124M) & local context            &  41.74   & 70.01    & 512     \\
+(decoder-only)                &         & +implementation\&usages &  54.19 &  78.88    & 924     \\
+  & CodeGPT-adapted (124M) & local context            &  41.65   & 70.05    & 512     \\
+                &         & +implementation\&usages &  54.20 &  79.03    & 924     \\
+                & UnixCoder-base (126M) & local context               &  42.52 &  71.33   & 512    \\
+                &                & +implementation\&usages &  58.22 &  81.46   & 924     \\
+                & CodeGen-MONO (355M) & local context          &  47.49  &  74.74   & 512    \\
+                &                & +implementation\&usages     & 62.55   &  83.71   & 924     \\
+\cmidrule{2-6}
+(encoder-decoder)            & CodeT5-small (60M) & local context               & 43.65 & 71.89     & 512                 \\
+           &              & +implementation\&usages & 59.16 & 82.34     & 1024                 \\
+           & CodeT5-base (223M) & local context               & 47.16 & 74.44     & 512                 \\
+           &              & +implementation\&usages & 62.73 & 84.33     & 1024                 \\
+           & PLBART-base (139M) & local context               & 38.96 & 68.17     & 512                 \\
+           &              & +implementation\&usages & 51.26 & 76.77     & 1024                 \\   
+           & UnixCoder-base (126M) & local context            & 46.33 & 73.29     & 512                 \\
+           &              & +implementation\&usages & 60.53 & 82.85     & 924                 \\
+\midrule
+In-filling & CodeT5-small (60M) & local context               & 51.63 & 77.60      & 512                 \\
+(decoder-only)            &              & +implementation\&usages & 62.47 & 85.07     & 1024                 \\
+           & CodeT5-base (223M) & local context               & 56.59 & 80.44     & 512                 \\
+           &              & +implementation\&usages & 69.28 & 88.08     & 1024                 \\
+           & PLBART-base (139M) & local context               & 46.68 & 73.96    & 512                 \\
+           &              & +implementation\&usages & 57.25 & 80.94     & 1024                 \\        
+           & UnixCoder-base (126M) & local context               & 54.31 & 78.53  & 512                 \\
+           &              & +implementation\&usages & 66.20 & 86.05   & 924                 \\           
+\bottomrule
+\end{tabular}
+}
+\caption{Performance of different models with task-specific fine-tuning on \CallArgs.
+Unidirectional results are grouped by model types: decoder-only (top) and encoder-decoder (middle).
+In-filling results are from encoder-decoder models (bottom).
+}
+\label{tab:fc_all}
+\end{table*}
+
+\subsection{RQ3}
+\label{sec:ablation-study}
+\ifaaai
+\input{sec/ablation_study}
+\fi
+\ifamlc
+
+Due to space limit, we summarize findings here and leave detailed results and discussions in \Appref{app:ablation-study}.
+We find that
+\begin{enumerate*}[label=\itshape\roman*\upshape)]
+    \item both function implementation and function usage information are beneficial for call argument completion, where function definition is particularly beneficial in getting the number of arguments and the keyword prefixes right;
+    \item increasing input length from 512 to 1024 improves the argument completion, while increasing the number of function usages alone does not bring significant improvements;
+    \item similarity-based copying also improves call argument completion against local-context baselines, which confirms the existence and merit of exact matches, although the performance gap is clear against the best performing models.
+\end{enumerate*}
+
+\fi

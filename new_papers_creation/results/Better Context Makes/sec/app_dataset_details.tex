@@ -1,0 +1,170 @@
+\section{Details of Dataset Curation}
+\label{app:dataset_details}
+
+\subsection{Requests to language server}
+\label{sec:query}
+
+\begin{table*}[ht]
+\centering
+\begin{tabular}{ll}
+\toprule
+File content  \\
+\midrule
+\begin{tabular}[c]{l}
+\begin{lstlisting}
+import torch
+a = torch.zeros(5)
+\end{lstlisting}
+\end{tabular} \\
+\midrule
+Query & Response \\
+\midrule
+\begin{tabular}[c]{l}
+\begin{lstlisting}
+{
+  "jsonrpc": "2.0",
+  "id" : ...,
+  "method": "textDocument/definition",
+  "params": {
+    "textDocument": {
+      "uri": "file://path/to/file/"
+    },
+    "position": {
+      "line": 1, # start from 0
+      "character": 10
+    }
+  }
+}
+\end{lstlisting}
+\end{tabular} &
+\begin{tabular}[c]{l}
+\begin{lstlisting}
+{
+  "jsonrpc": "2.0",
+  "id" : ...,
+  "result": [{
+    "uri": "file://path_to_lib/torch/ \
+      _C/_VariableFunctions.pyi",
+    "range":{
+      "start": {
+        "line":1547,
+        "character":4
+      },
+      "end": {
+        "line":1547,
+        "character":9
+      }
+    }
+  }]
+}
+\end{lstlisting}
+\end{tabular}
+\\
+\bottomrule
+\end{tabular}
+\caption{Example request and response for resolving the definition location of \codeinline{zeros}. The header part is omitted.}
+\label{tab:ls_examples}
+\end{table*}
+
+Usually, development tools and IDE communicate with the server using the language protocol over JSON-RPC. 
+The base protocol consists of a header and a content part. The header part consists of two fields: ``Content-Length'' which denotes the length of the content part in bytes, and ``Content-Type'' which denotes the MIME type of the content part. 
+The content part describes requests, responses and notifications for the language server. 
+The content part of a request usually contains ``method'' and ``params''  fields which denote the method of the language server to be invoked and its parameters. 
+For each request, the language server must return a response, containing the result of the request or an error message. 
+Table \ref{tab:ls_examples} shows an example of the request and response for resolving the definition location of a symbol (textDocument/definition). 
+More details about the formats of other language capabilities can be found in the official website \footnote{https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/}.
+
+\subsection{Selection of target function calls}
+\label{sec:criteria}
+
+We use the following criteria to select function calls for constructing the function call argument completion dataset.
+\begin{enumerate}
+    \item Ignore function calls related to error messages and logging, e.g. \codeinline{raise VelueError(...)} and \codeinline{print(...)}.
+    \item Ignore function calls related to standard Python type constructions or conversions, e.g. \codeinline{int} and \codeinline{dict}.
+    \item Ignore function calls related to unit test, which usually starts with \codeinline{assert}.
+    \item Ignore function calls that occur outside of any function body.
+    \item Ignore function calls with no argument. They may make the task too easy.
+    \item Ignore function calls whose definitions cannot be found by the language server.
+    \item Ignore function calls whose ground truth arguments contains string literals. 
+    \item Ignore other special functions like \codeinline{sleep} and \codeinline{add\_argument}.
+\end{enumerate}
+
+\subsection{Information isolation} 
+\label{sec:isolation}
+
+One drawback of many existing dataset for code completion is that they do not provide or are not careful about project-level isolate between their training and test split. See discussion in \Secref{sec:related-work}.
+For a set of test projects $t$ and a set of training projects $s$, we define the  sets containing direct imports $t_1 = t \cup \{p_1 \mid \exists p \in t, p~\text{imports}~p_1\}$ and $s_1 = s \cup \{p_1 \mid \exists p \in s, p~\text{imports}~p_1\}$.
+We consider four levels of project isolation:
+\begin{enumerate}[label={Level~\arabic*:},leftmargin=0em,itemindent=4em]
+    \item $s \cap t = \emptyset$. This is the project-level isolation.
+    \item $s_1 \cap t = \emptyset$. It guarantees that the training projects would not see the information about the test projects.
+    \item $s_1 \cap t = \emptyset, s \cap t_1 = \emptyset$. It further guarantees that the test projects would not leverage the information about the training projects.
+    \item $s_1 \cap t_1 = \emptyset$. No information is shared between the training projects and test projects through their direct imports.
+\end{enumerate}
+Because function implementation often come from dependent packages, we enforce the strictest level-4 isolation when making the train/valid/test split for \CallArgs. 
+We first randomly sample a set of test projects and then select training projects that satisfy the isolation constraint.
+Read more about \CallArgs in  \Secref{sec:dataset-callargs}.
+
+We deem this level of isolation sufficient as we extract no information from beyond direct dependencies for the task of function call argument prediction.
+Enforcing isolation for all transitive dependencies would further reduce the number of available projects for \CallArgs, which is currently 1868 out of the 2814 available projects. 
+We will release the full set of \PyEnvs packages along with the scripts used to create \CallArgs. 
+Future work can thus apply different isolation strategies if it relies on incorporating information from transitive dependencies.
+
+\subsection{Context example}
+\begin{table*}[ht]
+\centering
+\begin{tabular}{p{\textwidth}}
+\toprule
+Local context. \codeinline{<PREDICT>} denotes the prediction location.  \\
+\midrule
+\begin{tabular}[c]{l}
+\begin{lstlisting}[]
+def _set_arguments(self,arguments,context):
+    positional, named = arguments
+    variables = context.variables
+    args, kwargs = self.arguments.map(
+\end{lstlisting}
+\end{tabular} \\
+\ContinueLineNumber
+\begin{tabular}[c]{l}
+\begin{lstlisting}
+        <PREDICT>
+\end{lstlisting}
+\end{tabular} \\
+\ContinueLineNumber
+\begin{tabular}[c]{l}
+\begin{lstlisting}[]
+    self._set_variables(args, kwargs, variables)
+    context.output.trace(lambda: self._trace_log_args_message(variables))
+\end{lstlisting}
+\end{tabular} \\
+\midrule
+Function implementation context. \\
+\midrule
+\begin{tabular}[c]{l}
+\begin{lstlisting}
+def map(self, positional, named, replace_defaults=True):
+    mapper = ArgumentMapper(self)
+    return mapper.map(positional, named, replace_defaults)
+\end{lstlisting}
+\end{tabular} \\
+\midrule
+One function usage context. \\
+\midrule
+\begin{tabular}[c]{l}
+\begin{lstlisting}
+def resolve_arguments(self, arguments, variables=None):
+    positional, named = super().resolve_arguments(arguments, variables)
+    if not self._supports_kwargs:
+        positional, named = self.arguments.map(positional, named)
+    return positional, named
+\end{lstlisting}
+\end{tabular} \\
+\bottomrule
+
+\end{tabular}
+\caption{An argument completion example for \codeinline{self.arguments.map()}. }
+\label{tab:full}
+\end{table*}
+
+In Table \ref{tab:full}, we give an example of the function implementation context and a function usage context extracted for the instance shown in Table \ref{tab:examples}.

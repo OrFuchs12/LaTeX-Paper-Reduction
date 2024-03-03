@@ -1,0 +1,47 @@
+\section{Model Hyperparameters and Training time}
+\label{sec:hyperparams}
+Table~\ref{tab:hyperparam} presents the hyperparameters used for the different models. For the base language model based on GPT2-small we use the default hyperparameters. For other baselines we perform separate hyperparameter grid search for Train-S and Train-M, and use the Train-M hyperparameters for Train-L. 
+Only exception to this rule is the Reformer model, which we found particularly difficult to train, for which we explain the details next.
+
+Reformer model uses a combination of local and LSH-based self attention layers. We borrow the attention layer configuration used for enwiki8 experiments in the original paper. \footnote{\url{https://cdn.huggingface.co/google/reformer-enwik8/config.json}} 
+For both the local and LSH attention, we use a chunk length of 50 tokens - the model divides the sequence into chunks with the causal attention limited to tokens within a chunk and one before.
+The transformers library implementation suggests not pre-specifying the number of hash buckets. The implementation sets the number of buckets on the fly based on the sequence length, which in this case it sets to 8 hash buckets. The original paper experiments with the number of hashing rounds and shows consistent improvement with more hashing rounds. However, we didn't find that to be the case, and hyperparameter tuning sometimes preferred lower number of hashing rounds. 
+We found it particularly difficult to train the model on Train-L where the training loss started increasing after only a couple of epochs which triggered early stopping. To alleviate this: (a) we experimented with a different learning rate decay mechanism, namely, the inverse square root decay schedule which lead to slightly better final results  \footnote{\url{https://fairseq.readthedocs.io/en/latest/_modules/fairseq/optim/lr_scheduler/inverse_square_root_schedule.html}}, and (b) perform a separate hyperparameter tuning for Train-L.  
+Note that all other experiments use the learning rate schedule described in Section~\ref{sec:setup} and use the hyperparameters for Train-M.  
+
+\paragraph{Training Time}
+Experiments with transformers take around 4 hrs for Train-S, less than 10 hrs for Train-M, and less than 24 hrs for Train-L on a single GeForce RTX 2080 Ti. For LSTMs it takes less than 2 hrs for Train-S, less than 4 hrs for Train-M, and less than 8 hrs for Train-L on a single GeForce RTX 2080 Ti.
+
+
+\begin{table*}
+	
+\centering{
+	\caption{Hyperparameters used for the different models.
+		Bold values are selected for all the training set sizes, otherwise, training set specific hyperparameter values are specified via parenthesis.
+	}
+	\label{tab:hyperparam}
+	\begin{tabular}{lllll}
+		\toprule
+	  Hyperparameters&	GPT2	 		& 	LSTM	  	& 	Reformer		&	 Performer \\\midrule
+\# of layers  &  	12		& 	3 (S), 4 (M, L), 5				& 12 & 12 \\
+\# of attention heads  & 12		& 	0	&  12 & 12\\
+Embedding size 	& 768	& \textbf{768}, 1024 	& 768 & 768 \\
+Hidden size		& 768	& 768, \textbf{1024}	& 768 & 768 \\
+Dropout probability & 0.1	& 0, 0.1, \textbf{0.2}, 0.5 & 0.05 (0 for LSH attn.) & 0.1\\
+\# of hash buckets	  & - & - & 8 & -\\
+\# rounds of hashing  & - & - & 1 (L), 2 (S), 4 (M) & - \\
+Axial position shape  & - & - & [14, 25] &- \\
+Axial position embedding size  & - & - & [256, 512] &- \\
+Generalized attention & - & - & - & \textbf{Yes}, No \\
+Feature redraw frequency  			& - & - & - & 1000 \\
+\# of local attention heads 		& - & - & -  & 0 (M, L), 6 (S) \\
+Local/LSH attn chunk size 				& - & - & 50 & - 				\\
+Local attn window size 				& - & - & - & 50 					\\\midrule
+\# of parameters (in millions) 	   	& 85	& 24 (S)/32 (M, L)  & 83 & 86\\
+				
+\bottomrule
+
+
+\end{tabular}
+}
+\end{table*}

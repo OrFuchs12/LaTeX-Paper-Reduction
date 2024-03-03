@@ -1,0 +1,126 @@
+\section{Task \& Method}
+\label{sec:method}
+In this section, we formulate the call-argument-completion task, and describe how we incorporate the static analyzer information as function implementation context and function usage context to code language models. 
+
+\subsection{Task Formulation}
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{p{0.97\columnwidth}}
+\toprule
+Example: \codeinline{<PREDICT>} denotes the prediction location.  \\
+\midrule
+\begin{tabular}[c]{l}
+\begin{lstlisting}[]
+def _set_arguments(self,arguments,context):
+  positional, named = arguments
+  variables = context.variables
+  args, kwargs = self.arguments.map(
+\end{lstlisting}
+\end{tabular} \\
+\ContinueLineNumber
+\begin{tabular}[c]{l}
+\begin{lstlisting}
+        <PREDICT>
+\end{lstlisting}
+\end{tabular} \\
+\ContinueLineNumber
+\begin{tabular}[c]{l}
+\begin{lstlisting}[]
+  self._set_variables(args, kwargs, variables)
+  context.output.trace(lambda: self._trace_log_args_message(variables))
+\end{lstlisting}
+\end{tabular} \\
+\bottomrule
+\end{tabular}
+\caption{An argument completion example for \codeinline{self.arguments.map()}. For unidirectional prediction, the local context consists of the left context (Line 1-4) only; for in-filling prediction, the local context is given as the left local context (Line 1-4) and right local context (Line 6-7). }
+\label{tab:examples}
+\end{table}
+
+We define our call argument completion task to be: given the available context (local, project-level, or beyond) of a given function call, predict the complete list of (positional and keyword) arguments to be passed to the function call. 
+
+We treat code as sequences of code tokens.
+We start with the base case where only the in-file local context around the function call location is available.
+Assume a code-token sequence $X = [x_1, x_2, ..., x_n] $ where $ X_{f} = [x_j, x_{j+1}, ... x_{l-1} ] $ is a function-call occurrence and $X_{a} = [x_l, x_{l+1}, ... x_{r} ] $ is the list of arguments passed to the function call. 
+In our task, we restrict $X$ to be a Python function that contains at least one function call. 
+We refer to the tokens before the target arguments $ X_L = [x_{i}]_{i<l} $ as the left local context, and the tokens after the target arguments $ X_R = [x_i]_{i>r} $ as the right local context of the function call $X_f$. 
+
+
+We consider two variations of the task.
+In \emph{unidirectional prediction}, we model $ P(X_a \mid X_L) $. This is a widely adopted scenario for code completion \citep[e.g. ][]{karampatsis2020big, lu2021codexglue, kim2021code, lu2022reacc}, which simulates the case that a developer is writing code from the beginning to end, where only the local context up to the prediction point is available. 
+In \emph{in-filling prediction}, we model $ P(X_a \mid X_L, X_R) $ which simulates the case that a developer is editing an existing piece of source code, where both the left and right context is present.
+This setting is similar to cloze tests \cite{feng2020codebert} which aim to predict the token for the blank with the context of the blank. 
+Our particular setting is more difficult, as the model needs to continuously generate more than one tokens.
+Table \ref{tab:examples} shows an example for the unidirectional prediction and the in-filling prediction.
+
+For both cases, we use a language model to generate predictions for the call arguments.
+For unidirectional prediction, a decoder-only model $ P(X_a \mid X_L) = \prod_{i=l}^{r} p(x_i \mid x_{<i}) $ can be used.
+For both unidirectional and in-filling prediction, an encoder-decoder model $ P(X_a \mid X_L, X_R) = \prod_{i=l}^{r} p(x_i \mid x_{<i}, X_L, X_R) $ where $ X_L $ and $ X_R $ (if available) are passed into the encoder.
+
+
+
+
+
+\subsection{Static Analyzer Information}
+With the presence of additional information from the static analyzer, we incorporate it as additional context $A$ into the models: $ P(X_a| X_L, A)$ for unidirectional prediction and $ P(X_a| X_L, X_R, A)$ for in-filling prediction.
+We use as context the function implementation information and function usage information for function call argument completion.
+
+Function implementation context $Imp$ is the Python function definition of the given function call $X_f$. 
+It reveals the formats, the constraints, and the intention of the current function call.  
+We retrieve this information with the function definition location from the language server.
+
+Function usage context $\{U_i\}$ collects local contexts surrounding the calls of the same function within the project. 
+Specifically, we include the in-file usages that occur before the prediction location and the in-project usages that occur in a different file.
+The usage context provides project-specific examples that helps the model to better induce the usage for the current function call. 
+We retrieve this context by grouping the function call instances that share the same definition.
+
+Some function calls, especially those defined in the Python standard libraries, can appear many times within the codebase of a project. 
+Therefore, we design a similarity-based ranking criteria and only select top usages to provide to a model. 
+For a target function call and a usage $u$ of the same call, we calculate the similarity as $ |S_l \cap S_{u}| / |S_l| $ where $S_l$ is the set of local call left context tokens and $S_{u}$ is the set of the left context tokens for $u$.
+
+\subsection{Incorporating Methods}
+\label{sec:method-incorporating}
+
+
+
+
+We concatenate analyzer-induced code context with the local context as the model input, which leverages the power of the pretrained language models to implicitly understand and extract information from each part. 
+\ifaaai
+\Tabref{tab:form} describes the input templates for the decoder-only models and the encoder-decoder models.
+\fi
+\ifamlc
+Specifically, the input template for the decoder-only models is
+``\textless{}s\textgreater~{$[Imp]$} \textless{}/s\textgreater~$[U_m]$ \textless{}/s\textgreater~ ... \textless{}/s\textgreater~$[U_1]$ \textless{}/s\textgreater~$[X_L]$''
+and the input template for the encoder-decoder models is
+``\textless{}s\textgreater~$[X_L]$  \textless{}PREDICT\textgreater~$[X_R]$ \textless{}/s\textgreater~{$[Imp]$} \textless{}/s\textgreater~$[U_1]$ \textless{}/s\textgreater~... \textless{}/s\textgreater~$[U_m]$ \textless{}/s\textgreater{}'',
+where 
+\textless{}s\textgreater{}, \textless{}/s\textgreater{}, and \textless{}PREDICT\textgreater{} are special tokens, and \textless{}PREDICT\textgreater{} suggests the location to fill in the call arguments.
+\fi
+We set a length budget for each piece of information so that the total input does not exceed model capacity.
+If a context exceeds the allocated length, we drop the function implementation and the right local context from the right, and drop the usage context and the left local context from the left
+to preserve the most relevant information.
+
+We consider the case both with or without task-specific fine-tuning. 
+We call the former setting \emph{concatenating during inference} (CDI). 
+In this setting, the model is never exposed to such auxiliary information.
+Since auxiliary information in our case can be efficiently retrieved by the static analyzer, we further consider fine-tuning a model with augmented inputs. 
+We hypothesize that this helps a model better understand the relationship between each piece of information.%
+
+\ifaaai
+
+\begin{table*}[ht]
+\centering
+
+\begin{tabular}{ll}
+\toprule
+Type            & Input format                                                                                                                                                                                                                                                              \\
+\midrule
+Decoder-only    & \textless{}s\textgreater~{$[Imp]$} \textless{}/s\textgreater~$[U_m]$ \textless{}/s\textgreater~ ... \textless{}/s\textgreater~$[U_1]$ \textless{}/s\textgreater~$[X_L]$                                                                        \\
+Encoder-Decoder & \textless{}s\textgreater~$[X_L]$  \textless{}PREDICT\textgreater~$[X_R]$ \textless{}/s\textgreater~{$[Imp]$} \textless{}/s\textgreater~$[U_1]$ \textless{}/s\textgreater~... \textless{}/s\textgreater~$[U_m]$ \textless{}/s\textgreater{} \\
+\bottomrule
+\end{tabular}
+\caption{The input formats for decoder-only and encoder-decoder models. \textless{}s\textgreater{}, \textless{}/s\textgreater{}, and \textless{}PREDICT\textgreater{} are special tokens. \textless{}PREDICT\textgreater{} suggests the location to fill in with the call arguments.}
+\label{tab:form}
+\end{table*}
+
+\fi

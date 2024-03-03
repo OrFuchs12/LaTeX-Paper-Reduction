@@ -1,0 +1,68 @@
+\section{Language Model Prompts as Board State Probes}
+\label{sec:probing}
+One attractive property of having a language model trained on chess games represented in UCI notation (as described in the previous section) is that the notation \textit{itself} allows us to probe the trained model's state tracking abilities. In particular, by feeding the trained language model a prefix of a game as a prompt, we can determine --- using the language model's next-token predictions --- what the model understands about the board state implied by this prefix.
+For example, consider the prompt ``\pos{\underline{e2e4 e7e5 g1f3 b8c6 d2d4 h7h6} f1},''  where the underlined move sequence leads to the left board state in Figure~\ref{fig:move_notation}. A language model's next-token prediction (after consuming the prompt) can be interpreted as the ending square predicted %
+for the bishop at \pos{f1}, which can be used to determine the level of board state awareness of the model. %
+If, for instance, the model predicts \pos{g1}, this may indicate that the model does not recognize that the piece type at \pos{f1} is a bishop, as such a move is not possible for a bishop.
+If, on the other hand, the model predicts \pos{g2}, that may indicate that the model is not aware that another piece is currently  at \pos{g2}.
+
+\subsection{Randomly Annotated Piece type (RAP)}
+\label{sec:rap_board}
+While predicting the token representing the ending-square of a move given a prompt allows us to assess the model's state tracking abilities, it also to some extent conflates the model's understanding of the board state with its understanding of chess strategy. If we could easily probe for where the model thinks a piece \textit{currently} is (rather than where it is likely to end up) given a game prefix, this would allow us to more directly probe the model's state tracking abilities. 
+In particular, we would like to give a language model a prompt such as ``\pos{e2e4 e7e5 g1f3 b8c6 d2d4 h7h6 \underline{N}}", where \pos{N} represents knight, and expect it to generate a valid starting position for a knight of the correct color. 
+While UCI notation does not ordinarily include these piece type tokens, to allow for testing the model with such prompts, 
+we propose to randomly include these piece types tokens in moves during training with some fixed probability $p$.
+We refer to this strategy as ``randomly annotated piece type'' (RAP) and 
+use the nomenclature ``UCI + RAP $p$'' to indicate that with $p\pct$ probability, piece type is part of the move notation during training.
+Note that for $p = 0$, the notation reduces to UCI. 
+
+When \emph{testing} with these starting square prediction prompts, we only include piece type for the prompt, not for any moves in the history.
+Thus, using RAP during training allows us to probe, at test time, where the model thinks each piece is, given any game history's prefix; by simply providing the desired piece type (e.g., \pos{N}) the model outputs the predicted starting square for a piece of that type.
+For example, given the prompt ``\pos{e2e4 e7e5 g1f3 b8c6 d2d4 h7h6 N}", a prediction of \pos{f3} or \pos{b1} shows that the model is aware of where the knights are.%
+
+We also experiment with an ``oracle" variant of RAP where piece types are added both during training and testing. We refer to this notation as ``UCI + \piecetype" where AP stands for ``always piece type".
+For our running example the equivalent prompt in this notation would be ``\pos{Pe2e4 Pe7e5 Ng1f3 Nb8c6 Pd2d4 Ph7h6 N}".
+
+In terms of the language modeling training objective, addition of RAP represents a distribution change between training and inference.
+Table~\ref{tab:token_seq} illustrates how the use of RAP changes the token sequence during training but not during inference.  
+While there's a distribution mismatch, we hypothesize that addition of RAP can aid the model in learning to track the pieces by providing additional supervision which, in turn, can improve language modeling performance as well.  
+
+
+
+
+
+\input{figures/prompt_tasks}
+\subsection{Board State Probing Tasks}
+\label{sec:cloze}
+In this subsection we describe the probing tasks introduced above more concretely. %
+In each probing task we feed the model a prefix of a game followed by a single prompt token, and the model is evaluated based on the highest probability next-token under the model given this context. We show an example of each probing task in Table~\ref{tab:tasks} (which we further describe below), assuming the model has been fed the move sequence prefix \pos{e2e4 e7e5 g1f3 b8c6 d2d4 h7h6}, %
+which is visualized as the left board in Figure~\ref{fig:move_notation}. The actual next move played in the game is \pos{f1b5}, which takes the white bishop at square \pos{f1} to square \pos{b5}, as shown in the right board of Figure~\ref{fig:move_notation}. 
+
+
+\subsection{Ending Square Tasks}
+In this set of tasks, the model is given a game prefix and prompted with the starting square of the next move (\pos{f1} in the example of Table~\ref{tab:tasks}). The model's next-token prediction represents its prediction for the ending square of this move,
+which
+tests the model's ability to track the board state and follow
+the rules of chess,
+as well as strategic awareness.\footnote{Strategic capabilities of a chess language model are strongly tied to the quality of training games.}  We consider two task variants: %
+\begin{enumerate}
+	\item \textbf{End-Actual}: Given a move sequence prefix, the model is prompted with the starting square of the actual piece moved next in the game. %
+	\item \textbf{End-Other}: Given a move sequence prefix, the model is prompted with the starting square of any piece on the board that can be legally moved according to the rules of chess. 
+\end{enumerate}
+We evaluate End-Actual predictions in terms of both exact move (\exactmove) accuracy (whether the model predicted the true ending square, \pos{b5} in our running example) and legal move (\legalmove) accuracy (whether the model predicted a legal ending square for the piece starting at the square in the prompt). 
+For \legalmove evaluation, we also calculate the R-Precision which is the Precision@R where R is the total number of legal ending squares~\cite{ir-book}. In our running example, there are 5 legal ending squares, and R-Precision will be calculated for the model's top-5 predictions.
+\exactmove accuracy evaluation is similar to the typical evaluation of language models on natural language data, while \legalmove is less stringent and focuses on testing just the model's understanding of chess rules and the board state. Note that for End-Other, only \legalmove evaluation is available. See Table~\ref{tab:tasks} for examples.
+
+
+\subsection{Starting Square Tasks}
+In this category of task, the model is again given a game prefix, but prompted with just the piece type of the next move, such as \pos{B} for bishop in the example in Table~\ref{tab:tasks}. The model's next-token prediction thus represents its prediction for where the prompted piece type currently is on the board. This task tests the model's ability to track pieces.\footnote{In certain cases, this task also tests understanding of chess rules. For example, in Figure~\ref{fig:move_notation} only the rook at \pos{h1} can be moved.}
+Note that only models which have seen piece types during training, i.e.\ ``UCI + RAP'' models, can actually be tested on this task.
+Also, no piece types are used in the game prefix. %
+We again have two variants of this task:
+\begin{enumerate}
+	\item \textbf{Start-Actual}: Given a move sequence prefix, the model is prompted with the piece type of the actual piece moved next in the game. 
+	\item \textbf{Start-Other}: Given a move sequence prefix, the model is prompted with the piece type of any piece on the board that can be legally moved according to the rules of chess. %
+\end{enumerate}
+We again evaluate Start-Actual %
+both in terms of \exactmove accuracy (whether the model predicts the starting square of the piece actually moved next in the game), as well as in terms of \legalmove accuracy (whether the model predicts the starting square of a legally movable piece of the given piece type) and \legalmove R-Precision (precision of the model's top-R predictions with respect to all of the R starting squares of legally movable pieces of the given piece type). For Start-Other, only \legalmove evaluation is applicable; see Table~\ref{tab:tasks} for examples.
+

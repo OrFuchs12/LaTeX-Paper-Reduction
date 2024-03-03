@@ -7,7 +7,7 @@ import time
 import func_timeout
 import sys
 from multiprocessing import Process
-sys.path.append(r'C:/Users/micha/OneDrive/שולחן העבודה/LaTeX-Paper-Reduction/code/greedy_from_machine')
+sys.path.append(r'C:\\Users\\orfuc\\OneDrive\\שולחן העבודה\\LaTeX-Paper-Reduction-4\\code\\greedy_from_machine')
 
 from Last_2_pages_rows_extract import check_invalid_chars
 

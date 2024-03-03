@@ -1,0 +1,429 @@
+\subsection{Problem Formulation}
+This section discusses a more generalized meta-learning framework, where we weigh all the data instances in the query set of a task. One of the significant purposes for considering weighted meta-learning is to make it more robust to adversaries during training.
+
+In meta-learning, the support and query datasets $\{\mathcal{D}_{i}^{S}, \mathcal{D}_{i}^{Q}\}$ for each task $\mathcal{T}_{i}$ are usually sampled from an underlying dataset $\mathcal{D}$. In \textit{instance-level weighting}, we associate each data instance $\{\mathcal{D}_{ik}^{Q} \mid k\in [K]\}$ in the query set of task $\mathcal{T}_{i}$ with a particular weight $w_{ik}$, where $K$ is the number of datapoints (instances) in the query set $\mathcal{D}_{i}^{Q}$. 
+% $\mathcal{A}lg_i(\boldsymbol{\theta}) = \mathcal{A}lg(\boldsymbol{\theta}, \mathcal{D}_i^{S})$
+The problem can be formulated as follows:
+% Let, $w_{ik}$ be the weight associated with $j^{th}$ data-point in the query dataset of the task $\mathcal{T}_{i}$
+\begin{equation}
+\small
+    \begin{aligned}
+    \label{instance-weighting}
+         \boldsymbol{\theta}^*_{ML}= \argmin_{\boldsymbol{\theta} \in \boldsymbol{\Theta}} {\mathcal{F}_w(\boldsymbol{\theta})}\text{\hspace{-3cm}}\\
+         \text{where\hspace{2mm}}\mathcal{F}_w(\boldsymbol{\theta}) &= \frac{1}{M}\sum\nolimits_{i=1}^{M} \sum\nolimits_{k=1}^{K}w_{ik}\ell(\mathcal{A}lg(\boldsymbol{\theta}, \mathcal{D}_{i}^{S}), \mathcal{D}_{ik}^{Q}) \\
+         &=\frac{1}{M}\sum\nolimits_{i=1}^{M} \mathbf{w}_{i}\mathcal{L}_{i}(\mathcal{A}lg(\boldsymbol{\theta}, \mathcal{D}_{i}^{S})) 
+        %  &=\frac{1}{M}\sum_{i=1}^{M} \boldsymbol{w}_{i}\mathcal{L}_{i}(\mathcal{A}lg_i(\boldsymbol{\theta}))
+    \end{aligned}
+\end{equation}
+In the expression above, 
+$$
+\small
+\mathcal{L}_{i}(\mathcal{A}lg(\boldsymbol{\theta},\mathcal{D}_i^{S})) = \begin{bmatrix} \ell(\mathcal{A}lg(\boldsymbol{\theta},\mathcal{D}_i^{S}), \mathcal{D}_{i1}^{Q}) \\ \dots \\ \ell(\mathcal{A}lg(\boldsymbol{\theta},\mathcal{D}_i^{S}), \mathcal{D}_{ik}^{Q}) \\ \dots \\ \ell(\mathcal{A}lg(\boldsymbol{\theta},\mathcal{D}_i^{S}), \mathcal{D}_{iK}^{Q}) \end{bmatrix}
+$$
+and $\mathbf{w}_{i} = [w_{i1}, \dots, w_{iK}]$ is the weight vector corresponding to the query set of task $\mathcal{T}_i$. The \textit{instance-level weighting} is useful in the scenarios where our underlying dataset $\mathcal{D}$ is prone to noisy labeled instances where an appropriate instance-level weighting can be used to distinguish the noisy samples with corrupted labels in the task. An ideal weight assignment is assigning large weight values to clean samples and small weight values to noisy samples in a task. 
+ 
+Likewise, we discuss a special case of the instance weighting scheme called \textit{task-level weighting}, where we assign equal weights to every instance in the query set of a single task. \textit{Task-level weighting} is applied in scenarios where every instance in a task's query set is from an OOD task distribution or an In-Distribution (ID) task. In this case, the optimal weight assignment assigns small weight values to an OOD task and large weight values to an ID task.
+\vspace{-1ex}
+\subsection{\textsc{\biopt{}} Optimization}
+Since we do not know the optimal weight assignment for real-world datasets, we need to learn the weights before training the \textit{instance-level weighting} model using the bi-level optimization problem defined in Eq.\eqref{instance-weighting}.
+
+\sysname{} solves for optimal weight assignments by posing them as hyper-parameters using the optimization problem defined in Eq.\eqref{inwt-opt}. As seen in the optimization equation, \sysname{} uses a clean held-out meta-validation task set $\{\mathcal{T}^{\mathcal{V}}_{j}= \{\mathcal{V}_{j}^{S}, \mathcal{V}_{j}^{Q}\} \}_{j = 1} ^ {N}$ that is assumed to be relevant to test task distribution for generalization performance. In practice, the meta-validation task set's size is small compared to that of the meta-training tasks set $(N \ll M)$.  Hence, \sysname{} tries to select the weight hyper-parameters minimizing the model's meta-validation loss after taking a few gradient steps from the initial model parameters set using the instance-level weighting scheme.
+
+%Let $\mathcal{L}(\boldsymbol{\theta}, \mathcal{V})$ be the validation loss characterized by the model parameters $\boldsymbol{\theta}$ and dataset $\mathcal{V}$.
+% We use clean validation tasks set to select hyper-parameters minimizing meta validation loss. 
+% We will consider the optimization for the instance-level (Eq:\eqref{instance-weighting}) weighting scheme.
+% \subsection{Weight Optimization for Instance Weighting Scheme}
+% In most meta-learning experiments, the support and query sets for training tasks come from a single underlying data source. If the underlying dataset has some adversaries, it seems logical to have an instance-based weighting scheme instead of a task weighting scheme. 
+
+% % \begin{equation}
+% \begin{align}
+% % \label{inwt-opt}
+%     \boldsymbol{\theta}_{\mathbf{w}}^{*} = \argmin_{\boldsymbol{\theta} \in \boldsymbol{\Theta}} \frac{1}{M}\sum_{i=1}^{M}\boldsymbol{w}_{i}^{*}\mathcal{L}(\boldsymbol{\phi}, \mathcal{D}_i^{Q}) \label{inwt-opt}\\
+%      \hspace{-1cm} s.t.\hspace{2mm} \boldsymbol{\phi}=\argmin \mathcal{L}(\boldsymbol{\theta}, \mathcal{D}_i^{S}) 
+% \end{align}
+% % \end{equation}
+% \vspace{-7mm}
+% \begin{align}
+%     \text{where\hspace{2mm}} \mathbf{w}^{*} = \argmin_{\mathbf{w}} \frac{1}{N} \sum_{j=1}^{N}\mathcal{L}(\boldsymbol{\phi}_{\mathbf{w}}, \mathcal{V}_{j}^{Q})  \\
+%     \hspace{-1cm} s.t.\hspace{2mm} \boldsymbol{\phi}_{\mathbf{w}}=\argmin \mathcal{L}(\boldsymbol{\theta}_{\mathbf{w}}^{*}, \mathcal{V}_j^{S}) 
+% \end{align}
+% The objective function for weight hyper-parameter optimization for instance weighting schema will be as follows:
+% \begin{equation}
+%     \begin{aligned}
+%     \label{inwt-opt}
+%         \mathbf{w}^{*} &= \underset{\mathbf{w}}{\operatorname{argmin\hspace{1mm}}} \frac{1}{N} \sum_{j=1}^{N}\mathcal{L}(\mathcal{A}lg(\boldsymbol{\theta}^{*}_{\mathbf{w}}, \mathcal{V}_{j}^{S}), \mathcal{V}_{j}^{Q}) \\
+%         &= \underset{\mathbf{w}}{\operatorname{argmin\hspace{1mm}}} \frac{1}{N} \sum_{j=1}^{N}\mathcal{L}_{V_j}(\mathcal{A}lg(\boldsymbol{\theta}^{*}_{\mathbf{w}},\mathcal{V}_j^{S})) \\
+%       \text{where\hspace{2mm}}\boldsymbol{\theta}^{*}_{\mathbf{w}} &= \underset{\boldsymbol{\theta} \in \boldsymbol{\Theta}}{\operatorname{argmin\hspace{1mm}}}\frac{1}{M}\sum_{i=1}^{M}\boldsymbol{w}_{i}\mathcal{L}_i(\mathcal{A}lg(\boldsymbol{\theta}, \mathcal{D}_i^{S}))
+%     \end{aligned}
+% \end{equation}
+% \text{where\hspace{2mm}}\theta^{*}_{\mathbf{w}} &= \underset{\theta \in \boldsymbol{\Theta}}{\operatorname{argmin\hspace{1mm}}}\frac{1}{M}\sum_{i=1}^{M} \sum_{k=1}^{K}w_{ik}\ell_{k}(\mathcal{A}lg(\boldsymbol{\theta}, \mathcal{D}_{i}^{S}), \mathcal{D}_{i}^{Q}) \\
+% $\mathcal{A}lg_{V_j}(\boldsymbol{\theta}) = \mathcal{A}lg(\boldsymbol{\theta}, \mathcal{V}_{j}^{S})$.
+The weight optimization objective for the instance-weighted MAML schema is as follows:
+\begin{equation}
+\small
+    \begin{aligned}
+    \label{inwt-opt}
+     {W}^{*} &= \argmin_{\mathbf{w}} \frac{1}{N} \sum\nolimits_{j=1}^{N}\mathcal{L}(\mathcal{A}lg(\boldsymbol{\theta}^{*}_{W}, \mathcal{V}_{j}^{S}), \mathcal{V}_{j}^{Q}) 
+     \\
+    \text{where\hspace{2mm}} \boldsymbol{\theta}^{*}_{W} &= \argmin_{\boldsymbol{\theta} \in \boldsymbol{\Theta}} \frac{1}{M}\sum\nolimits_{i=1}^{M}\mathbf{w}_{i}^{*}\mathcal{L}(\mathcal{A}lg(\boldsymbol{\theta}, \mathcal{D}_i^{S}), \mathcal{D}_i^{Q})
+    \end{aligned}
+\end{equation}
+and ${W}=[\mathbf{w}_1,\dots,\mathbf{w}_M]^{\intercal}$. Since the optimization problem for $\boldsymbol{\theta}_{W}^*$ is a standard bi-level optimization problem (\textit{i.e.} MAML), the complete optimization problem (Eq.\eqref{inwt-opt}) turns out to be a \textbf{\biopt{}} optimization problem. It involves solving a standard bi-level optimization problem for every weight configuration, and hence naively solving this \textbf{\biopt{}} optimization problem is intractable. Hence, we adopt an online and one-step meta-gradient based approach to solve the optimization problem more efficiently. 
+%($\theta_{W}^{*}$) and finding the optimal weights ($W^*$) using the optimal MAML initial parameters. Hence, \textbf{\biopt{}} optimization problem is more complex than MAML and is expensive to solve. Hence, we adopt an online framework to solve the optimization problem more efficiently. 
+
+\vspace{-1ex}
+\subsection{The \sysname{} Algorithm}
+To reduce the optimization problem's {(Eq.\eqref{inwt-opt})} computation complexity, we solve the optimization problem in an iterative manner where we optimize the model parameters and weight hyperparameter by taking a single gradient step. This process is repeated until we reach convergence. Hence, we approximate the solution to the model parameters optimization in Eq.\eqref{inwt-opt} first by adapting to each task using a single gradient step towards the inner task adaptation objective's descent direction and then taking a single gradient step towards the meta objective's descent direction. 
+
+Assuming that at every iterate $t$ of training, a mini-batch of training tasks $\{{\mathcal{T}_i} \mid 1 \leq i \leq m \}$ is sampled, where $m$ is the mini-batch size and $m \ll M$, the optimal model parameters update of the above problem is as follows: 
+\begin{equation}
+\small
+    \begin{aligned}
+    \label{online-equation}
+    \boldsymbol{\theta}^{(t)}_{W} = \boldsymbol{\theta}^{(t)} - \eta \frac{1}{m}\sum\nolimits_{i=1}^{m} \mathbf{w}_i^{(t)} \nabla_{\boldsymbol{\theta}} \mathcal{L}_i(\mathcal{A}lg(\boldsymbol{\theta},\mathcal{D}_i^{S}))|_{\boldsymbol{\theta}^{(t)}}
+    \end{aligned}
+\end{equation}
+where $\eta$ is meta objective's step-size and $\alpha$ is the inner objective's step-size. 
+%The model parameters update for instance weighting scheme will be as follows:
+% \begin{equation}
+%     \begin{aligned}
+%         \boldsymbol{\theta}^{t}_{\mathbf{w}} = \boldsymbol{\theta}^{t} - \eta\nabla_{\theta}\left(\frac{1}{M}\sum_{i=1}^{M} \sum_{k=1}^{K}w_{ik}^{t}\ell_{k}(\boldsymbol{\theta}^{t} - \alpha\nabla\mathcal{L}(\boldsymbol{\theta}^{t}, \mathcal{D}_{i}^{S}), \mathcal{D}_{i}^{Q})\right)
+% \end{aligned}
+%     \label{online-equation}
+% \end{equation}
+% \begin{equation}
+%     \begin{aligned}
+%         \mathbf{w}^{*} = \underset{\mathbf{w}}{\operatorname{argmin\hspace{1mm}}} \frac{1}{N} \sum_{j=1}^{N}\mathcal{L}_{V}(\boldsymbol{\theta}^{t}_{\mathbf{w}} - \alpha \nabla_{\boldsymbol{\theta}^{t}_{\mathbf{w}}}\mathcal{L}_{V}(\theta^{t}_{\mathbf{w}}, \mathcal{V}_{j}^{S}), \mathcal{V}_{j}^{Q})
+%     \end{aligned}
+% \end{equation}
+After this, the optimal weight optimization problem will be as follows:
+\begin{equation}
+\small
+    \begin{aligned}
+        W^{*} = {\operatorname*{arg\,min\hspace{1mm}}_{W}} \frac{1}{N} \sum\nolimits_{j=1}^{N}\mathcal{L}_{V_j}(\mathcal{A}lg(\boldsymbol{\theta}_{W}^{(t)},\mathcal{V}_j^{S}))
+    \end{aligned}
+\end{equation}
+Similarly, we optimize the weight hyperparameters by taking a single gradient step towards the meta-validation loss descent. We want to evaluate the impact of training a model on the weighted MAML objective against the meta-objective of sampled validation tasks $\{\mathcal{T}_{j}^{V} \mid 1 \leq j \leq n \}$ where, $n$ is the mini-batch size and $n \ll N$.
+The weight update equation for the instance weighting scheme is as follows:
+% \begin{equation}
+%     \begin{aligned}
+%         \mathbf{w}^{t+1} = \mathbf{w}^{t} - \frac{\gamma}{N} \sum_{j=1}^{N}\nabla_{\mathbf{w}}\mathcal{L}_{V}(\boldsymbol{\theta}^{t}_{\mathbf{w}} - \alpha \nabla_{\boldsymbol{\theta}^{t}_{\mathbf{w}}}\mathcal{L}_{V}(\theta^{t}_{\mathbf{w}}, \mathcal{V}_{j}^{S}), \mathcal{V}_{j}^{Q})
+%     \end{aligned}
+%     \label{online-equation}
+% \end{equation}
+\begin{equation}
+\small
+    \begin{aligned}
+        {W}^{(t+1)} = {W}^{(t)} - \frac{\gamma}{n} \sum\nolimits_{j=1}^{n}\nabla_{W}\mathcal{L}_{V_j}(\mathcal{A}lg(\boldsymbol{\theta}^{(t)}_{W},\mathcal{V}_j^{S}))
+    \end{aligned}
+    \label{online-equation-weight}
+\end{equation}
+where $\gamma$ is the weight update's step size.
+% \begin{lemma}
+% The functional form of the weight update for an individual weight $w_{ij}$ of the $j^{th}$ query point in the task $\mathcal{T}_i$ from time step $t$ to  $t+1$ is as follows:
+%     \begin{gather}
+%     \label{weight-update}
+%         w_{ij}^{t+1} = w_{ij}^{t} - \frac{\gamma}{N} \sum_{i=1}^{N}\nabla_{w^{t}_{ij}}\mathcal{L}_{V}(\boldsymbol{\theta}^{t}_{\mathbf{w}} - \alpha \nabla_{\boldsymbol{\theta}^{t}_{\mathbf{w}}}\mathcal{L}_{V}(\theta^{t}_{\mathbf{w}}, \mathcal{V}_{i}^{S}), \mathcal{V}_{i}^{Q})
+%     \end{gather}
+%     \begin{equation}
+%         \begin{aligned} 
+%         \label{weight-gradient}
+%             \sum_{i=1}^{N}\nabla_{w_{ij}}\mathcal{L}_{V}(\boldsymbol{\theta}^{t}_{\mathbf{w}} - \alpha \nabla_{\boldsymbol{\theta}^{t}_{\mathbf{w}}}\mathcal{L}_{V}(\theta^{t}_{\mathbf{w}}, \mathcal{V}_{i}^{S}), \mathcal{V}_{i}^{Q}) = \hspace{1cm}\\
+%             - \frac{\eta}{M} {\sum_{i \in \mathcal{V}} \nabla_{\hat{\theta}} \mathcal{L}_{V}(\boldsymbol{\hat{\theta}}_{i}^{t}, \mathcal{V}_{j}^{Q})}^{T}
+%             \bigg ( \nabla_{\theta}\mathcal{L}_{j}\Big(\theta^{t} - \alpha \nabla_{\theta}^{t}\mathcal{L}(\theta, D_i^{S}), D_i^Q\Big) - \\
+%              \alpha \nabla_{\theta_w}^{2}\mathcal{L}_{V}(\theta_{w}^{t}, \mathcal{V}_i^S)\nabla_{\theta}\mathcal{L}_{j}\Big(\theta^{t} - \alpha \nabla_{\theta}\mathcal{L}(\theta^{t}, D_i^S), D_i^{Q}\Big) \bigg )\text{,\hspace{0.3cm}}\\
+%             \text{where, } \hat{\theta}_{i}^{t} = \theta_{w}^{t} - \alpha \nabla_{\theta_{w}}\mathcal{L}_{V}(\theta_w^t, \mathcal{V}_i^S) \text{,\hspace{1.5cm}}\\
+%             \theta_{w}^{t} = \theta^{t} - \frac{\eta}{M}\sum_{i \in \mathcal{T}} \sum_{j \in k}w_{ij} \nabla_{\theta}\mathcal{L}_{j}\Big(\theta - \alpha \nabla_{\theta}\mathcal{L}(\theta, D_i^S), D_i^{Q}\Big)\\
+%     \end{aligned}
+%     \end{equation}
+% \end{lemma}
+The Lemma below provides the gradient of the meta-validation loss $\frac{1}{n} \sum_{j=1}^{n}\nabla_{W}\mathcal{L}_{V_j}(\mathcal{A}lg(\boldsymbol{\theta}^{(t)}_{W},\mathcal{V}_j^{S}))$ w.r.t. the weight vector $\mathbf{w}_{i}$, therefore giving the full update equation.% for the weight vector $\mathbf{w}_{i}$. 
+\begin{lemma}
+\label{weight-update-lemma} 
+The weight update for an individual weight vector $\mathbf{w}_{i}$ of the task $\mathcal{T}_i$ from time step $t$ to  $t+1$ is as follows:
+    % \begin{multline}
+\begin{align}
+% \begin{dmath}
+\small
+\label{weight-update}
+    \mathbf{w}_i^{(t+1)}&=\mathbf{w}_i^{(t)} + \frac{\eta \gamma}{mn} \sum\nolimits_{j=1}^{n} \nabla_{\phi_j} \mathcal{L}_{V_j}  \Big(\nabla_{\boldsymbol{\theta}}\mathcal{L}_i(\mathcal{A}lg(\boldsymbol{\theta}, \mathcal{D}_i^S))^{\intercal} \nonumber\\
+    &- \alpha  \nabla^2\widehat{\mathcal{L}}_{V_j}|_{\boldsymbol{\theta}_{W}^{(t)}} \nabla_{\boldsymbol{\theta}}\mathcal{L}_i(\mathcal{A}lg(\boldsymbol{\theta}, \mathcal{D}_i^S))^{\intercal} \Big) 
+    % \hspace{1.5cm}
+% \end{multline}
+% \end{dmath}
+\end{align}
+where $\phi_j=\mathcal{A}lg(\boldsymbol{\theta}, \mathcal{V}_{j}^{S})$.
+\end{lemma}
+The proof is in Appendix \ref{app:Lemma1proofs}.
+% For notation convenience, we write $\mathcal{L}_{V_j}(\phi):=\mathcal{L}(\phi, \mathcal{V}_j^{Q})$, $\widehat{\mathcal{L}}_{V_j}(\boldsymbol{\theta}) := \mathcal{L}(\boldsymbol{\theta}, \mathcal{V}_j^{S})$. 
+% $\widehat{\mathcal{L}}_i(\phi) := \mathcal{L}(\phi, \mathcal{D}_i^{S})$
+% Next, we constrain the weights to have a non-negative value in order to reduce the instabilities encountered during the optimization procedure.
+% \begin{equation}
+% \small
+%     {W}^{(t+1)} = \max(0, W^{(t+1)})
+% \end{equation}
+Once the optimal weights $\mathbf{w}^{(t+1)}$ at $t+1$ are achieved, we train the model using the new weights:
+\begin{equation}
+\small
+    \begin{aligned}
+        \boldsymbol{\theta}^{(t+1)} = \boldsymbol{\theta}^{(t)} - \frac{\eta}{m}\sum\nolimits_{i=1}^{m} \mathbf{w}_{i}^{(t+1)}\nabla_{\boldsymbol{\theta}}\mathcal{L}_i(\mathcal{A}lg(\boldsymbol{\theta}^{(t)}, \mathcal{D}_i^{S}))
+\end{aligned}
+    \label{model-update}
+\end{equation}
+% \begin{equation}
+%     \begin{aligned}
+%         \boldsymbol{\theta}^{t+1} = \boldsymbol{\theta}^{t} - \frac{\eta}{M}\sum_{i=1}^{M} \sum_{k=1}^{K}w_{ik}^{t+1}\nabla_{\theta}\ell_{k}(\boldsymbol{\theta}^{t} - \alpha\nabla\mathcal{L}(\boldsymbol{\theta}^{t}, \mathcal{D}_{i}^{S}), \mathcal{D}_{i}^{Q})
+% \end{aligned}
+%     \label{model-update}
+% \end{equation}
+We repeat the steps given in the equation \eqref{online-equation} from $t=1$ until convergence. See Algorithm~\ref{alg-RWMAML} for the full pseudo-code of \sysname.
+
+\noindent \textbf{First-Order Approximation (\sysname{}-FO).} Even after the one step gradient approximation, the weight gradient calculation involves calculating multiple Hessian vector products, which is expensive. Since the coefficient of the Hessian vector-product term in the weight update (Eq.~\eqref{weight-update}) involves the product of three learning rate terms $\eta\alpha\gamma$,  we can make an approximation that the term involving the Hessian vector-product term is close to 0, given that the above learning rates are small. 
+The approximated weight update takes the following form:
+\begin{equation}
+\small
+    \label{weight-update-appr}
+        \mathbf{w}_i^{(t+1)}=\mathbf{w}_i^{(t)} + \frac{\eta \gamma}{mn} \sum\nolimits_{j=1}^{n} \nabla_{\phi_j} \mathcal{L}_{V_j} \nabla_{\boldsymbol{\theta}}\mathcal{L}_i(\mathcal{A}lg(\boldsymbol{\theta}, \mathcal{D}_i^S))^{\intercal}
+\end{equation}
+This approximation is similar to the first-order approximation given in \citep{finn2017model} where the second and higher-order terms are neglected. We want to show a faster way to solve the \textit{\biopt{}} weight optimization problem with a tradeoff in performance. Our experimental results show that we achieve state-of-the-art performance using \sysname{}. Our results also show that \sysname{}-FO leads to a loss in performance with a commensurate gain in speed compared to the unmodified \sysname{} version. 
+% More details on training times and performance are given in the experimental Section.
+% ~\ref{sec:exp_task-level}.
+
+%Note that this first-order approximation version (i.e., \sysname{}-FO) is not our contribution.
+
+
+% \begin{gather}
+% \label{final-weight-update}
+%     w_{ij}^{t+1} = w_{ij}^{t} - \frac{\gamma}{N} \sum_{i=1}^{N}\nabla_{w^{t}_{ij}}\mathcal{L}_{V}(\boldsymbol{\theta}^{t}_{\mathbf{w}} - \alpha \nabla_{\boldsymbol{\theta}^{t}_{\mathbf{w}}}\mathcal{L}_{V}(\theta^{t}_{\mathbf{w}}, \mathcal{V}_{i}^{S}), \mathcal{V}_{i}^{Q})
+% \end{gather}
+% \begin{equation}
+%     \begin{aligned} 
+%     \label{final-weight-gradient}
+%         \sum_{i=1}^{N}\nabla_{w_{ij}}\mathcal{L}_{V}(\boldsymbol{\theta}^{t}_{\mathbf{w}} - \alpha \nabla_{\boldsymbol{\theta}^{t}_{\mathbf{w}}}\mathcal{L}_{V}(\theta^{t}_{\mathbf{w}}, \mathcal{V}_{i}^{S}), \mathcal{V}_{i}^{Q}) = \hspace{1cm}\\
+%         - \frac{\eta}{M} {\sum_{i \in \mathcal{V}} \nabla_{\hat{\theta}} \mathcal{L}_{V}(\boldsymbol{\hat{\theta}}_{i}^{t}, \mathcal{V}_{j}^{Q})}^{T}\nabla_{\theta}\mathcal{L}_{j}\Big(\theta^{t} - \alpha \nabla_{\theta}^{t}\mathcal{L}(\theta, D_i^{S}), D_i^Q\Big)\text{,\hspace{0.3cm}}\\
+%         \text{where, } \hat{\theta}_{i}^{t} = \theta_{w}^{t} - \alpha \nabla_{\theta_{w}}\mathcal{L}_{V}(\theta_w^t, \mathcal{V}_i^S) \text{,\hspace{1.5cm}}\\
+%         \theta_{w}^{t} = \theta^{t} - \frac{\eta}{M}\sum_{i \in \mathcal{T}} \sum_{j \in k}w_{ij} \nabla_{\theta}\mathcal{L}_{j}\Big(\theta - \alpha \nabla_{\theta}\mathcal{L}(\theta, D_i^S), D_i^{Q}\Big)\hspace{0.3cm}\\
+% \end{aligned}
+% \end{equation}
+\begin{algorithm}[t]
+\small
+\caption{\sysname{}}
+% \caption{The Re-Weighted MAML (\sysname{})}
+\begin{algorithmic}[1]
+\label{alg-RWMAML}
+% \textbf{Input}:
+\REQUIRE $p_{tr}, p_{val}$ distribution over training, validation tasks
+% \REQUIRE $p_{val}$ distribution over validation tasks
+\REQUIRE $m,n$ (batch sizes) and $\alpha, \eta, \gamma$ (learning rates)
+% \REQUIRE $\epsilon$ \hspace{0.1cm} Gradient clipping threshold parameter
+\STATE Randomly initialize $\boldsymbol{\theta}$ and $W$
+\WHILE{not done}
+\STATE Sample mini-batch of tasks $\{\mathcal{D}_i^{S},\mathcal{D}_i^{Q}\}_{i=1}^{m} \sim p_{tr}$
+\STATE Sample mini-batch of tasks $\{\mathcal{V}_j^{S},\mathcal{V}_j^{Q}\}_{j=1}^{n} \sim p_{val}$
+\FOR{each task $\mathcal{T}_i,\forall i\in [1,m]$ }
+\STATE Compute adapted parameters $\mathcal{A}lg(\boldsymbol{\theta},\mathcal{D}_i^{S})$ with gradient descent by Eq.~(\ref{param-adaptation}) 
+\STATE Compute the gradient $\nabla_{\boldsymbol{\theta}} \mathcal{L}_i(\mathcal{A}lg(\boldsymbol{\theta},\mathcal{D}_i^{S}))$ using $\mathcal{D}_i^{Q}$
+\STATE Formulate the $\boldsymbol{\theta}$ as a function of weights $\boldsymbol{\theta}_{W}^{(t)}$ by Eq.~(\ref{online-equation})
+\STATE Update $\mathbf{w}_i^{(t)}$ by Eq.(\ref{weight-update}) using $\{\mathcal{V}_j^{S},\mathcal{V}_j^{Q}\}_{j=1}^{n}$
+\ENDFOR
+\STATE Update $\boldsymbol{\theta}^{(t+1)}$ by Eq.~(\ref{model-update}) using $\{\mathcal{D}_i^{Q}\}_{i=1}^{m}$
+\ENDWHILE
+\end{algorithmic}
+\end{algorithm}
+\setlength{\textfloatsep}{5pt}% Remove \textfloatsep
+
+\noindent \textbf{Weights Sharing.} The number of weight hyper-parameters in the instance-level weighting scheme correlates to the number of data instances in the query sets of the meta-training tasks. We need to determine a significant amount of hyper-parameters if the number of training tasks or data instances is enormous, which in turn affects the hyper-parameter optimization algorithm, leading to instabilities during training. Accordingly, we seek to evaluate a smaller number of hyper-parameters by sharing the weights among instances. The task-weighting scheme is an occurrence of weight sharing where we share the same weight among all the instances in the query set. Apart from the task-level weighting scheme, we try to cluster tasks based on some similarity criteria to share the same weight among all the data instances in a cluster's query sets. We likewise present a sensitive analysis in the experiment section illustrating how the number of clusters in the training tasks or instances affects the \sysname{} algorithm's performance.
+
+\subsection{Convergence of \sysname{} Algorithm}
+\vspace{-1mm}
+% In this section, we provide the conditions for convergence of the \sysname{} algorithm. 
+Although the MAML algorithm's convergence rate is studied~\citep{balcan2019provable,fallah2020convergence,finn2019online}, those results do not directly hold in our case since we have a \textit{\biopt{}} optimization objective instead of standard bi-level objective of the MAML. Recall that in the case of strongly convex losses, MAML admits a convergence rate of $\mathcal{O}(1/\epsilon)$~\citep{balcan2019provable, finn2019online}. In contrast, for the non-convex case, \cite{fallah2020convergence} show a weaker convergence rate of $\mathcal{O}(1/\epsilon^2)$ to a first order stationary point. In this work, we show that \sysname{} achieves a convergence rate of $\mathcal{O}(1/\epsilon^2)$ in the case of convex losses, as long as the inner learning rate is not too high. Furthermore, we show that \sysname{} converges to a critical point of meta-validation loss and not the meta-training loss since we are optimizing the meta-validation loss in the \biopt{} setting. Table \ref{tab:convergence} shows the convergence rates of MAML and \sysname{} algorithms for strongly convex and non-convex loss functions. 
+
+\begin{table}[htbp]
+\small
+% \vspace{-3mm}
+%\captionsetup[subfigure]{aboveskip=-3pt,belowskip=-3pt}
+    \centering
+    \begin{tabular}{c|c|c}
+         \toprule
+         Algorithm &Strongly Convex Loss &Non-Convex Loss\\
+         \hline
+         MAML &$\mathcal{O}(1/\epsilon)$ &$\mathcal{O}(1/\epsilon^2)$\\ \hline
+         \sysname{} & $\mathcal{O}(1/\epsilon^2)$ &Open \\ \bottomrule
+    \end{tabular}
+    \vspace{-3mm}
+    \caption{Convergence Rates of MAML and \sysname{}}
+    \label{tab:convergence}
+\vspace{-5mm}
+\end{table}
+
+%The following theorem shows that \sysname{} algorithm converges to the critical point of meta-validation loss under some conditions in $\mathcal{O}(1/\epsilon^2)$ steps.
+\begin{theorem}
+\label{meta-validation-convergence}
+Suppose the loss function $\small \mathcal{L}(\cdot)$ is Lipschitz smooth with constant $L$, $\mu$-strongly convex, and is a twice differential function with a $\small \rho$-bounded gradient and $\mathcal{B}$-Lipschitz Hessian. Denote $\sigma$ as the variance of drawing uniformly mini-batch sample at random. Assume that the learning rate $\small \eta_t$ satisfies $\small \eta_t = \min{(1, k/T)}$ for some $ \small k>0$ such that $k/T < 1$ and $\small \gamma_t$, $1 \leq t \leq T$, is a monotone descent sequence. Let $\small \gamma_t = \min{(\frac{1}{L}, \frac{C}{\sigma \sqrt{T}})}$ for some $\small C > 0$ such that $\small \frac{\sigma\sqrt{T}}{C} \geq L$ and $ \small \sum_{t = 0}^{\infty}\gamma_t \leq \infty$, $\sum_{t = 0}^{\infty}\gamma_t^2 \leq \infty$. Then, \sysname{} satisfies: $\small \mathbb{E}\Bigg[\left\Vert\frac{1}{N}\sum_{j=1}^{N}\nabla_W\mathcal{L}(\mathcal{A}{lg}(\boldsymbol{\theta}_W^{(t)}, \mathcal{V}_j^S), \mathcal{V}_j^Q)\right\Vert^2\Bigg] \leq \epsilon$ in $\mathcal{O}(\frac{1}{\epsilon^2})$ steps. More specifically,
+\begin{equation*}
+\min_{0 \leq t \le T}\mathbb{E}\Bigg[\left\Vert\frac{1}{N}\sum\nolimits_{j=1}^{N}\nabla_W\mathcal{L}(\textit{Alg}(\boldsymbol{\theta}_W^{(t)}, \mathcal{V}_j^S), \mathcal{V}_j^Q)\right\Vert^2\Bigg] \leq \mathcal{O}(\frac{1}{\sqrt{T}})
+\end{equation*}
+%where $C$ is some constant independent of the convergence process, 
+\end{theorem}
+Proof is given in Appendix \ref{app:conRate}. %\sysname{} achieves a convergence rate of $\mathcal{O}(1/\epsilon^2)$ for strongly convex loss functions whereas MAML under same conditions achieves a convergence rate of $\mathcal{O}(1/\epsilon)$\citep{balcan2019provable}. 
+The difference in convergence rates between MAML and \sysname{} is due to the additional complexity involved in solving a \textit{\biopt{}} optimization problem. The convergence analysis of \sysname{} for non-convex functions is challenging and currently unknown. Even though most deep learning problems have a non-convex landscape, the algorithms initially developed for convex cases have shown promising empirical results in non-convex cases. Under this assumption, we provide an implementation that can be generalized to any deep learning architecture in Algorithm~\ref{alg-RWMAML}. 
+% \sysname{} can be implemented using popular deep learning frameworks such as Pytorch~\citep{NEURIPS2019_9015} by leveraging their automatic differentiation techniques.
+% according to the pipeline of our algorithm shown in Figure \ref{fig:overview}. 
+%{\color{red}add two lemmas here from appendix}
+% Let's call our weighted loss function on task $\mathcal{T}_i$ be $L_{W{\mathcal{T}}_i}(\theta, w)$ characterized by the model parameters $\theta$ and weights $w$.
+
+% In the case of instance weighting scheme,
+% \begin{equation}
+%     \mathcal{L}_{W{\mathcal{T}}_i}(\theta, w) = \sum_{k=1}^{K}w_{ik}\mathcal{L}_{k}(\theta, \mathcal{D}_{i}^{Q})
+% \end{equation}
+
+
+% \begin{algorithm}
+% \caption{The Re-Weighted MAML (\sysname{})}
+% \begin{algorithmic}[1]
+% \label{alg-RWMAML}
+% \REQUIRE $p(\mathcal{T})$ Distribution over tasks
+% \REQUIRE $\alpha, \eta, \gamma$ \hspace{0.1cm} Learning rate hyperparameters
+% \REQUIRE $\epsilon$ \hspace{0.1cm} Gradient clipping threshold parameter
+% \STATE Randomly initialize $\theta$ and $\mathbf{w}$
+% \WHILE{not done}
+% \STATE Sample batch of training tasks $\mathcal{D} \sim p(\mathcal{T})$ and validation tasks $\mathcal{V} \sim p(\mathcal{T})$
+% \STATE Sample $K$ data points $\mathcal{D}^S_{\mathcal{T}_i} = (X^{(k)}, Y^{(k)})$ and corresponding $\mathcal{D}^Q_{i}$ for each training task $\mathcal{T}_i$ in $\mathcal{D}$
+% \STATE Sample $K'$ data points $\mathcal{V}^S_{j} = (X^{(k')}, Y^{(k')})$ and corresponding $\mathcal{V}^Q_{j}$ for each validation task $\mathcal{T}_j$ in $\mathcal{V}$
+% \STATE $\mathbf{w}$  $\longleftarrow$ FixedWeightFun($\mathcal{D}$, $\mathcal{V}$, $\mathbf{w}$, $\gamma$, $\epsilon$)
+% \FOR{all $\mathcal{T}_i$ in $\mathcal{D}$}
+% \STATE Evaluate $\nabla_{\theta}\mathcal{L}_{\mathcal{T}_i}(f_{\theta})$
+% using $D^S_{\mathcal{T}_i}$.
+% \STATE Compute adapted parameters with gradient descent $\hat{\theta_i} = \theta - \alpha\nabla_{\theta}\mathcal{L}_({\theta})$
+% \ENDFOR
+% \STATE Update $\theta \longleftarrow \theta - \eta \nabla_{\theta}\sum_{\mathcal{T}_i \sim p(\mathcal{T})} \mathcal{L}_{W\mathcal{T}_i}(\hat{\theta_i}, \mathbf{w})$
+% \ENDWHILE
+% \end{algorithmic}
+% \end{algorithm}
+
+
+% \begin{algorithm}
+% \caption{FixedWeightFun($\mathcal{D}$, $\mathcal{V}$, $\mathbf{w}$, $\gamma$, $\epsilon$)}
+% \begin{algorithmic}[1]
+% \REQUIRE Training tasks $\mathcal{D}$, model parameters $\theta$ and validation tasks $\mathcal{V}$
+% \REQUIRE Weight hyperparameter values $\mathbf{w}$
+% \REQUIRE Learning rate $\gamma$
+% \REQUIRE Threshold value $\epsilon$ 
+% \STATE Evaluate weighted forward loss denoted by $WL(\theta) = \sum_{\mathcal{T}_i \sim p(\mathcal{T})}\mathcal{L}_{W\mathcal{T}_i}(\theta, \mathbf{w})$
+% \STATE Evaluate $\nabla_{\theta}WL(\theta) = \nabla_{\theta}\sum_{\mathcal{T}_i \sim p(\mathcal{T})}\mathcal{L}_{W\mathcal{T}_i}(\theta, \mathbf{w}) $
+% \STATE Compute one step adapted parameters with gradient descent $$\theta_{\mathbf{w}} = \theta - \beta\nabla_{\theta}{WL}(\theta)$$
+% \STATE Evaluate approximate meta validation loss gradients w.r.t $ \nabla_{\mathbf{w}}\hat{\mathcal{L}}_{\mathcal{V}}(\theta_{\mathbf{w}}, \mathcal{V} ) = \frac{1}{N}\sum_{i=1}^{N}\nabla_{\mathbf{w}} \mathcal{L}_{V}(\boldsymbol{\theta}_{\mathbf{w}} - \alpha \nabla_{\boldsymbol{\theta}_{\mathbf{w}}}\mathcal{L}_{V}(\theta_{\mathbf{w}}, \mathcal{V}_{i}^{S}), \mathcal{V}_{i}^{Q})$ using the weight gradient equation given in Eq: \eqref{final-weight-gradient}.
+% \STATE Clamp gradients $\nabla_{\mathbf{w}}\hat{\mathcal{L}}_{\mathcal{V}}(\theta_{\mathbf{w}}, \mathcal{V} )$ based on threshold value $\epsilon$ such that 
+% $$
+% \nabla_{\mathbf{w}}\hat{\mathcal{L}}_{\mathcal{V}}(\theta_{\mathbf{w}}, \mathcal{V} ) \longleftarrow \max{\bigg(-\mathbf{\epsilon}, \min\Big(\mathbf{\epsilon},\nabla_{\mathbf{w}}\hat{\mathcal{L}}_{\mathcal{V}}(\theta_{\mathbf{w}}, \mathcal{V} )\Big)\bigg)}
+% $$
+% \STATE Perform weight updates using SGD and rectify them
+% $$\mathbf{w}' \longleftarrow \max (\mathbf{w} - \gamma\nabla_{\mathbf{w}}\hat{\mathcal{L}}_{\mathcal{V}}(\theta_{\mathbf{w}}, \mathcal{V} ), 0)$$
+% %Perform Truncated SGD update:
+% %\IF{$\mathcal{L}(f_\theta) + \nabla_{\mathbf{w}} L_V(f_{\hat{\theta}}) \cdot (\mathbf{w}' - \mathbf{w}) \ge 0$}
+% \STATE $\mathbf{w} \longleftarrow \mathbf{w}'$  
+% %\ENDIF
+% \RETURN{} $\mathbf{w}$
+% \end{algorithmic}
+% \end{algorithm}
+
+
+% \begin{algorithm}
+% \caption{The Model-based \sysname{}: meta-training stage}
+% \begin{algorithmic}[1]
+% \REQUIRE $p(\mathcal{T})$ Noisy distribution over training tasks, $p'(\mathcal{T})$: clean distribution over validation tasks
+% \REQUIRE $\alpha, \beta, \gamma$ \hspace{0.1cm} Learning rate hyperparameters
+% \REQUIRE $\epsilon$ \hspace{0.1cm} Gradient clipping threshold parameter
+% \STATE Randomly initialize $\theta$ and $\mathbf{w}$
+% \WHILE{not done}
+% \STATE Sample batch of training tasks $\mathcal{D} \sim p(\mathcal{T})$ and validation tasks $\mathcal{V} \sim p(\mathcal{T})$
+% \STATE Sample K data points $\mathcal{D}^S_{\mathcal{T}_i}$ and corresponding $\mathcal{D}^Q_{\mathcal{T}_i}$ for each training task $\mathcal{T}_i$ in $\mathcal{D}$
+% \STATE Sample M data points $\mathcal{V}^{val}$ from $\mathcal{V}$
+% % \STATE $\mathbf{w}$  $\longleftarrow$ FixedWeightFun($\mathcal{D}$, $\mathcal{V}$, $\mathbf{w}$, $\gamma$, $\epsilon$)
+% \FOR{all $\mathcal{T}_i$ in $\mathcal{D}$}
+% \STATE $\hat{\theta_i}, \mathbf{w}_i =$MW-Net$(\theta, \mathbf{w};\mathcal{D}^S_{\mathcal{T}_i}, \mathcal{V}^{val})$.
+% \STATE Compute the loss for this task: \\$\mathcal{L'}_i(\hat{\theta_i}, \mathbf{w}_i)=$ \\ V-Net $(\mathbf{w}_i; \mathcal{L}_i(\hat{\theta_i}; \mathcal{D}_{\mathcal{T}_i}^Q))\mathcal{L}_i(\hat{\theta_i}; \mathcal{D}_{\mathcal{T}_i}^Q)$
+% \ENDFOR
+% \STATE Update $\theta \longleftarrow \theta - \beta \nabla_{\theta}\sum_{\mathcal{T}_i \sim p(\mathcal{T})} \mathcal{L'}_i(\hat{\theta_i}, \mathbf{w}_i)$
+% \ENDWHILE
+% \end{algorithmic}
+% \end{algorithm}
+
+% \subsection{Convergence of \sysname{} Algorithm}
+%The following theorem shows that under certain conditions, \sysname{} converges to the critical point of the meta-validation loss $\mathcal{O}(1/\epsilon^2)$ epochs. 
+% The proof is listed in Appendix \ref{app:conRate}.
+
+%\textcolor{red}{More discussion....}
+
+\begin{table*}[!htbp]
+\small
+
+    \vspace{-3mm}
+    \centering
+    \resizebox{15cm}{2.2cm}{
+    \begin{tabular}{l|ccc|cccc}
+        \toprule
+        & \multicolumn{6}{c}{\textbf{5-way 3-shot}}\\
+        $\mathcal{D}_{out}$ & \multicolumn{3}{c}{\textbf{SVHN}} & \multicolumn{3}{c}{\textbf{FashionMNIST}}\\
+        \midrule
+        OOD Ratio & 30\% & 60\% & 90\% & 30\% & 60\% & 90\%\\
+        \hline 
+        MAML-OOD-RM(Skyline) & 57.73$\scriptstyle{\pm 0.76}$ & 55.29$\scriptstyle{\pm 0.78}$ & 54.38$\scriptstyle{\pm 0.12}$ & 56.78$\scriptstyle{\pm 0.75}$ & 55.29$\scriptstyle{\pm 0.78}$ & 53.43$\scriptstyle{\pm 0.51}$ \\
+        \hline 
+        % OODrm+MAML & $\scriptstyle{\pm 0.}$ & $\scriptstyle{\pm 0.}$ & $\scriptstyle{\pm 0.}$ & $\scriptstyle{\pm 0.}$ & $\scriptstyle{\pm 0.}$ & $\scriptstyle{\pm 0.}$\\
+        % \hline
+        MAML & 55.41$\scriptstyle{\pm 0.75}$ & 53.93$\scriptstyle{\pm 0.76}$ & 44.10$\scriptstyle{\pm 0.68}$ & 54.65$\scriptstyle{\pm 0.77}$ & 54.52$\scriptstyle{\pm 0.76}$ & 41.52$\scriptstyle{\pm 0.74}$\\
+        MMAML & 51.04$\scriptstyle{\pm 0.87}$ & 50.28$\scriptstyle{\pm 0.97}$ & 41.56$\scriptstyle{\pm 0.96}$ & 50.32$\scriptstyle{\pm 0.93}$ & 47.54$\scriptstyle{\pm 1.05}$ & 42.09$\scriptstyle{\pm 0.97}$\\
+        B-TAML & 53.87$\scriptstyle{\pm 0.18}$ & 49.84$\scriptstyle{\pm 0.23}$ & 42.00$\scriptstyle{\pm 0.21}$ &  51.14$\scriptstyle{\pm 0.23}$ & 46.59$\scriptstyle{\pm 0.20}$ & 36.69$\scriptstyle{\pm 0.21}$\\
+        L2R  & 47.13$\scriptstyle{\pm 0.13}$ & 40.69$\scriptstyle{\pm 0.62}$ & 47.26$\scriptstyle{\pm 0.72}$ & 33.14$\scriptstyle{\pm 0.60}$ & 44.03$\scriptstyle{\pm 0.70}$ & 33.06$\scriptstyle{\pm 0.60}$ \\
+        Transductive Fine-tuning  & 55.36$\scriptstyle{\pm 0.73}$ & 54.08$\scriptstyle{\pm 0.47}$ & 45.21$\scriptstyle{\pm 0.54}$ & 55.34$\scriptstyle{\pm 0.45}$ & 51.12$\scriptstyle{\pm 0.65}$ & 47.42$\scriptstyle{\pm 0.82}$ \\
+        % \sysname{} (old ours) & \textbf{51.04}$\scriptstyle{\pm 0.78}$& \textbf{55.27}$\scriptstyle{\pm 0.75}$& \textbf{55.58}$\scriptstyle{\pm 0.58}$ & \textbf{51.90}$\scriptstyle{\pm 0.74}$& \textbf{55.58}$\scriptstyle{\pm 0.79}$& \textbf{54.03}$\scriptstyle{\pm 0.75}$\\
+        \sysname{}-FO (ours) & 54.76$\scriptstyle{\pm 1.19}$ & 45.86$\scriptstyle{\pm 1.19}$ & 
+        43.55$\scriptstyle{\pm 1.20}$ &  \textbf{57.00}$\scriptstyle{\pm 1.20}$ & 
+        55.18$\scriptstyle{\pm 1.16}$ & 
+        48.52$\scriptstyle{\pm 1.21}$\\
+        \sysname{} (ours) & \textbf{57.12}$\scriptstyle{\pm 0.81}$& \textbf{55.66}$\scriptstyle{\pm 0.78}$& 
+        \textbf{52.16}$\scriptstyle{\pm 0.76}$& 
+        56.66$\scriptstyle{\pm 0.78}$& 
+        \textbf{56.04}$\scriptstyle{\pm 0.79}$& 
+        \textbf{49.71}$\scriptstyle{\pm 0.78}$\\
+        \bottomrule
+    \end{tabular}}
+    \resizebox{15cm}{2.2cm}{
+    \begin{tabular}{l|ccc|cccc}
+        \toprule
+        & \multicolumn{6}{c}{\textbf{5-way 5-shot}}\\
+        $\mathcal{D}_{out}$ & \multicolumn{3}{c}{\textbf{SVHN}} & \multicolumn{3}{c}{\textbf{FashionMNIST}}\\
+        \midrule
+        OOD Ratio & 30\% & 60\% & 90\% & 30\% & 60\% & 90\%\\
+        \hline
+        MAML-OOD-RM(Skyline) & 61.89$\scriptstyle{\pm 0.69}$ & 61.31$\scriptstyle{\pm 0.75}$ & 57.79$\scriptstyle{\pm 0.69}$ & 59.83$\scriptstyle{\pm 0.76}$ & 61.31$\scriptstyle{\pm 0.75}$& 59.61$\scriptstyle{\pm 0.75}$\\
+        \hline
+        MAML  & 58.90$\scriptstyle{\pm 0.71}$ & 58.66$\scriptstyle{\pm 0.75}$ & 49.94$\scriptstyle{\pm 0.69}$ & 59.06$\scriptstyle{\pm 0.68}$ & 59.25$\scriptstyle{\pm 0.73}$ & 49.84$\scriptstyle{\pm 0.69}$\\
+        MMAML  & 52.45$\scriptstyle{\pm 1.00}$ & 52.17$\scriptstyle{\pm 1.05}$ & 46.51$\scriptstyle{\pm 1.09}$ & 51.46$\scriptstyle{\pm 0.91}$ & 54.13$\scriptstyle{\pm 0.93}$ & 50.27$\scriptstyle{\pm 1.00}$\\
+        B-TAML & 58.34$\scriptstyle{\pm 0.20}$  & 56.07$\scriptstyle{\pm 0.21}$ & 49.84$\scriptstyle{\pm 0.20}$ & 55.19$\scriptstyle{\pm 0.20}$ & 52.10$\scriptstyle{\pm 0.19}$ & 40.02$\scriptstyle{\pm 0.19}$\\
+        L2R & 47.11$\scriptstyle{\pm 0.51}$  & 48.01$\scriptstyle{\pm 0.70}$ &  51.53$\scriptstyle{\pm 0.71}$ & 46.03$\scriptstyle{\pm 0.30}$ & 49.15$\scriptstyle{\pm 0.68}$ & 55.03$\scriptstyle{\pm 0.46}$\\
+        Transductive Fine-tuning  & 59.16$\scriptstyle{\pm 0.76}$ & 57.84$\scriptstyle{\pm 0.58}$ & $53.64\scriptstyle{\pm 0.42}$ & 56.54$\scriptstyle{\pm 0.87}$ & 56.23$\scriptstyle{\pm 0.70}$ & 54.28$\scriptstyle{\pm 0.32}$ \\
+        % \sysname{} (old ours) & \textbf{56.75$\scriptstyle{\pm 0.70}$}& \textbf{60.18$\scriptstyle{\pm 0.75}$}& \textbf{55.51$\scriptstyle{\pm 0.01}$} & \textbf{57.97}$\scriptstyle{\pm 0.70}$& \textbf{59.34}$\scriptstyle{\pm 0.71}$& \textbf{55.72}$\scriptstyle{\pm 0.12}$  \\
+        \sysname{}-FO (ours) & 
+        57.96$\scriptstyle{\pm 0.94}$& 53.66$\scriptstyle{\pm 0.95}$& 47.58$\scriptstyle{\pm 0.96}$& 
+        \textbf{60.59}$\scriptstyle{\pm 0.99}$ & 
+        \textbf{60.55}$\scriptstyle{\pm 0.95}$& 
+        49.23$\scriptstyle{\pm 0.98}$  \\
+        \sysname{} (ours) & \textbf{60.76}$\scriptstyle{\pm 0.70}$& 
+        \textbf{60.53}$\scriptstyle{\pm 0.71}$& \textbf{57.88}$\scriptstyle{\pm 0.70}$& 
+        60.41$\scriptstyle{\pm 0.72}$ & 
+        \textbf{60.54}$\scriptstyle{\pm 0.72}$& 
+        \textbf{57.95}$\scriptstyle{\pm 0.71}$  \\
+        \bottomrule
+    \end{tabular}}
+    \vspace{-2mm}
+    \caption{Few-shot classification accuracies for the OOD experiment on various evaluation setups. \textbf{\textit{mini}-Imagenet} is used as an in-distribution dataset ($\mathcal{D}_{in}$) for all experiments. 
+    % We compare our proposed method \sysname{} with MAML-OOD-RM, MAML, MMAML, B-TAML, and L2R.
+    }
+    \label{tab:ood-classification}
+    \vspace{-3mm}
+
+\end{table*}
+

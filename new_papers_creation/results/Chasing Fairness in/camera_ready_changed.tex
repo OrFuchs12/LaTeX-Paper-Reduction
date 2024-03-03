@@ -1,0 +1,460 @@
+\documentclass[letterpaper]{article} % DO NOT CHANGE THIS
+% \usepackage[submission]{aaai24}  % DO NOT CHANGE THIS
+\usepackage[]{aaai24}  % DO NOT CHANGE THIS
+
+\usepackage{times}  % DO NOT CHANGE THIS
+\usepackage{helvet}  % DO NOT CHANGE THIS
+\usepackage{courier}  % DO NOT CHANGE THIS
+\usepackage[hyphens]{url}  % DO NOT CHANGE THIS
+\usepackage{graphicx} % DO NOT CHANGE THIS
+\urlstyle{rm} % DO NOT CHANGE THIS
+\def\UrlFont{\rm}  % DO NOT CHANGE THIS
+\usepackage{natbib}  % DO NOT CHANGE THIS AND DO NOT ADD ANY OPTIONS TO IT
+\usepackage{caption} % DO NOT CHANGE THIS AND DO NOT ADD ANY OPTIONS TO IT
+\frenchspacing  % DO NOT CHANGE THIS
+\setlength{\pdfpagewidth}{8.5in} % DO NOT CHANGE THIS
+\setlength{\pdfpageheight}{11in} % DO NOT CHANGE THIS
+
+\input{math_commands.tex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{amsthm,booktabs}
+\usepackage{algorithm,algorithmic}
+
+\usepackage{graphicx}
+\graphicspath{ {./figures/} }
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{extarrows}
+\usepackage{multirow,amssymb}
+\usepackage{amsmath}
+% \DeclareMathOperator{\sign}{sign}
+\usepackage{makecell}
+\usepackage{enumitem}
+\usepackage{pifont}
+\usepackage{bm}
+\input{pream_bm}
+
+
+\theoremstyle{plain}
+\usepackage{chngcntr}
+% \setcounter{proposition}{0}
+% \counterwithin{proposition}{section}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{assumption}[theorem]{Assumption}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\indep}{\perp \!\!\! \perp}
+\newcommand{\blink}{\vcenter{\hbox{\includegraphics[scale=0.2]{blue_link.pdf}}}}
+\newcommand{\rlink}{\vcenter{\hbox{\includegraphics[scale=0.2]{red_link.pdf}}}}
+
+\usepackage{url}
+
+\usepackage{newfloat}
+\usepackage{listings}
+\DeclareCaptionStyle{ruled}{labelfont=normalfont,labelsep=colon,strut=off} % DO NOT CHANGE THIS
+\lstset{%
+	basicstyle={\footnotesize\ttfamily},% footnotesize acceptable for monospace
+	numbers=left,numberstyle=\footnotesize,xleftmargin=2em,% show line numbers, remove this entire line if you don't want the numbers.
+	aboveskip=0pt,belowskip=0pt,%
+	showstringspaces=false,tabsize=2,breaklines=true}
+\floatstyle{ruled}
+\newfloat{listing}{tb}{lst}{}
+\floatname{listing}{Listing}
+%
+% Keep the \pdfinfo as shown here. There's no need
+% for you to add the /Title and /Author tags.
+
+\setcounter{secnumdepth}{0} %May be changed to 1 or 2 if section numbers are desired.
+
+\title{Chasing Fairness in Graphs: A GNN Architecture Perspective}
+
+
+\author{
+    %Authors
+    % All authors must be in the same font size and format.
+    Zhimeng Jiang\textsuperscript{\rm 1}, %\thanks{},
+    Xiaotian Han\textsuperscript{\rm 1},
+    Chao Fan\textsuperscript{\rm 2},
+    Zirui Liu\textsuperscript{\rm 3},
+    Na Zou\textsuperscript{\rm 4},
+    Ali Mostafavi\textsuperscript{\rm 1},
+    Xia Hu\textsuperscript{\rm 3}
+}
+\affiliations{
+    %Afiliations
+    \textsuperscript{\rm 1}Texas A\&M University,
+    \textsuperscript{\rm 2}Clemson University,
+    \textsuperscript{\rm 3}Rice University,
+    \textsuperscript{\rm 4}University of Houston,\\
+    \{zhimengj,han, amostafavi\}@tamu.edu, cfan@g.clemson.edu, \{zl105, xia.hu\}@rice.edu, nzou2@central.uh.edu
+
+%
+% See more examples next
+}
+
+%Example, Single Author, ->> remove \iffalse,\fi and place them surrounding AAAI title to use it
+\iffalse
+\title{My Publication Title --- Single Author}
+\author {
+    Author Name
+}
+\affiliations{
+    Affiliation\\
+    Affiliation Line 2\\
+    name@example.com
+}
+\fi
+
+\iffalse
+%Example, Multiple Authors, ->> remove \iffalse,\fi and place them surrounding AAAI title to use it
+\title{My Publication Title --- Multiple Authors}
+\author {
+    % Authors
+    First Author Name\textsuperscript{\rm 1},
+    Second Author Name\textsuperscript{\rm 2},
+    Third Author Name\textsuperscript{\rm 1}
+}
+\affiliations {
+    % Affiliations
+    \textsuperscript{\rm 1}Affiliation 1\\
+    \textsuperscript{\rm 2}Affiliation 2\\
+    firstAuthor@affiliation1.com, secondAuthor@affilation2.com, thirdAuthor@affiliation1.com
+}
+\fi
+
+
+% REMOVE THIS: bibentry
+% This is only needed to show inline citations in the guidelines document. You should not need it and can safely delete it.
+\usepackage{bibentry}
+
+
+\begin{document}
+
+
+\maketitle
+
+\begin{abstract}
+There has been significant progress in improving the performance of graph neural networks (GNNs) through enhancements in graph data, model architecture design, and training strategies. For fairness in graphs, recent studies achieve fair representations and predictions through either graph data pre-processing (e.g., node feature masking, and topology rewiring) or fair training strategies (e.g., regularization, adversarial debiasing, and fair contrastive learning). How to achieve fairness in graphs from the model architecture perspective is less explored. More importantly, GNNs exhibit worse fairness performance compared to multilayer perception since their model architecture (i.e., neighbor aggregation) amplifies biases. To this end, we aim to achieve fairness via a new GNN architecture. We propose \textsf{F}air \textsf{M}essage \textsf{P}assing (FMP) designed within a unified optimization framework for GNNs. Notably, FMP \textit{explicitly} renders sensitive attribute usage in \textit{forward propagation} for node classification task using cross-entropy loss without data pre-processing. In FMP, the aggregation is first adopted to utilize neighbors' information and then the bias mitigation step explicitly pushes demographic group node presentation centers together.
+In this way, FMP scheme can aggregate useful information from neighbors and mitigate bias to achieve better fairness and prediction tradeoff performance.
+Experiments on node classification tasks demonstrate that the proposed FMP outperforms several baselines in terms of fairness and accuracy on three real-world datasets. The code is available in {\url{https://github.com/zhimengj0326/FMP}}.
+\end{abstract}
+
+
+
+\section{Introduction}
+\label{sect:intro}
+Graph neural networks (GNNs) \citep{kipf2017semi,velivckovic2018graph,wu2019simplifying,ling2023graph,han2022g,han2022geometric} are widely adopted in various domains, such as social media mining \citep{hamilton2017inductive}, knowledge graph \citep{hamaguchi2017knowledge} and recommender system \citep{ying2018graph}, due to remarkable performance in learning representations. Graph learning, a topic with growing popularity, aims to learn node representation containing both topological and attribute information in a given graph. Despite the outstanding performance in various tasks, GNNs often inherit or even amplify societal bias from input graph data \citep{dai2021say}.
+The biased node representation largely limits the application of GNNs in many high-stake tasks, such as job hunting \citep{mehrabi2021survey} and crime ratio prediction \citep{suresh2019framework}. Hence, bias mitigation that facilitates the research on fair GNNs is in urgent need and we aim to achieve fair prediction for GNNs.
+
+Data, model architecture, and training strategy are the most popular aspects to improve deep learning performance. For fairness in graphs,
+many existing works achieving fair prediction in graphs either rely on graph pre-processing (e.g., node feature masking\citep{kose2021fairness}, and topology rewiring \citep{dong2022edits}) or fair training strategies (e.g., regularization \citep{jiang2022generalized}, adversarial debiasing \citep{dai2021say}, or contrastive learning \citep{Zhu:2020vf,zhu2021graph,agarwal2021towards,ling2023learning}). The GNNs architecture perspective to improve fairness in graphs is less explored. More importantly, GNNs are notorious in terms of fairness since GNN aggregation amplifies bias compared to multilayer perception (MLP) \citep{dai2021say}. From the GNNs architecture perspective, message passing is a critical component to improve fairness in graphs.
+Therefore, a natural question is raised:
+\begin{center}
+    \textit{Can we achieve fairness via fair message passing using vanilla training loss \footnote{The sensitive attributes are not adopted in vanilla training loss. We only consider node classification tasks and vanilla loss is cross-entropy loss in this paper.} without graph pre-processing?}
+\end{center}
+
+In this work, we provide a positive answer by designing a fair message-passing scheme guided by a unified optimization framework \footnote{Many aggregations in popular GNNs can be interpreted as gradient descent step for specific optimization problem with specific step size and initialization~\citep{ma2021unified,zhu2021graph}.} for GNNs. The key idea of achieving fair message passing is aggregation first and then conducting bias mitigation via explicitly chasing consistent demographic group representation centers. Specifically,
+we first formulate an optimization problem that integrates fairness and smoothness objectives for graph data. Then, we solve the formulated problem via Fenchel conjugate and gradient descent to generate fair and informative representations, where the property of softmax function is adopted to accelerate the gradient calculation over primal variables. We also interpret the optimization problem solver as two main steps (e.g., aggregation first and then debiasing). Finally, we integrate FMP in graph neural networks to achieve fair and accurate prediction for node classification tasks. We demonstrate the superiority of FMP by examining its effectiveness and efficiency on various real-world datasets.
+
+In short, the contributions can be summarized as follows:
+\begin{itemize}[leftmargin=0.6cm, itemindent=.0cm, itemsep=0.0cm, topsep=0.0cm]
+    \item We demonstrate proof-of-concept that a meticulously crafted GNN architecture can improve fairness for graph data. Our work offers a fresh outlook in comparison to conventional approaches that focus on data pre-processing and fair training strategy design.
+
+    \item We propose FMP to achieve fairness via explicitly incorporating sensitive attribute information in message passing, guided by a unified optimization framework. Additionally, we introduce an acceleration method based on softmax property to reduce gradient computational complexity.
+    % Additionally, the proposed FMP can be interpretated as aggregating first and then debiasing, which makes FMP more transparent.
+    \item  The effectiveness and efficiency of FMP are experimentally evaluated on three real-world datasets. The results show that compared to the state-of-the-art, our FMP exhibits a comparable or superior trade-off between prediction performance and fairness with negligibly computation overhead.
+\end{itemize}
+
+
+\section{Preliminaries}
+\subsection{Notations}
+We adopt bold upper-case letters to denote matrix such as $\mathbf{X}$, bold lower-case letters such as $\mathbf{x}$ to denote vectors, and calligraphic font such as $\mathcal{X}$ to denote sets. Given a matrix $\mathbf{X}\in\mathbb{R}^{n\times d}$, the $i$-th row and $j$-th column are denoted as $\mathbf{X}_i$ and $\mathbf{X}_{\cdot,j}$, and the element in $i$-th row and $j$-th column is
+$\mathbf{X}_{i,j}$. We use the Frobenius norm, $l_1$ norm of matrix $\mathbf{X}$ as $||\mathbf{X}||_F=\sqrt{\sum_{i,j}\mathbf{X}_{i,j}^2}$ and $||\mathbf{X}||_1=\sum_{ij}|\mathbf{X}_{ij}|$, respectively. Given two matrices $\mathbf{X}, \mathbf{Y}\in\mathbb{R}^{n \times d}$, the inner product is defined as $\langle\mathbf{X}, \mathbf{Y}\rangle=tr(\mathbf{X}^{\top}\mathbf{Y})$, where $tr(\cdot)$ is the trace of a square matrix. $SF(\mathbf{X})$ represents softmax function with a default normalized column dimension. Let $\mathcal{G}=\{\mathcal{V}, \mathcal{E}\}$ be a graph with the node set $\mathcal{V}=\{v_1, \cdots, v_n\}$ and the undirected edge set $\mathcal{E}=\{e_1, \cdots, e_m\}$, where $n, m$ represent the number of node and edge, respectively. The graph structure $\mathcal{G}$ can be represented as an adjacent matrix $\mathbf{A}\in\mathbb{R}^{n\times n}$, where $\mathbf{A}_{ij}=1$ if existing edge between node $v_i$ and node $v_j$. $\mathcal{N}(i)$ denotes the neighbors
+of node $v_i$ and $\tilde{\mathcal{N}}(i)=\mathcal{N}(i)\cup \{v_i\}$ denotes the self-inclusive neighbors.
+Suppose that each node is associated with a $d$-dimensional feature vector and a (binary) sensitive attribute, the feature for all nodes and sensitive attribute is denoted as $\mathbf{X}_{ori}=\mathbb{R}^{n\times d}$ and $\mathbf{s}\in \{-1, 1\}^{n}$ \footnote{The sensitive attribute $\mathbf{s}$ is not included in node features matrix $\mathbf{X}_{ori}$.}. Define the sensitive attribute incident vector as $\Delta_{\mathbf{s}}= \frac{\bm{1}_{>0}(\mathbf{s})}{||\bm{1}_{>0}(\mathbf{s})||_1} - \frac{\bm{1}_{>0}(-\mathbf{s})}{||\bm{1}_{>0}(-\mathbf{s})||_1}$ to normalize each sensitive attribute group, where $\bm{1}_{>0}(\mathbf{s})$ is an element-wise indicator function.
+
+\subsection{GNNs as Graph Signal Denoising}
+A GNN model is usually composed of several stacking GNN layers. Given a graph $\mathcal{G}$ with $N$ nodes, a GNN layer typically contains feature transformation $\mathbf{X}_{trans}=f_{trans}(\mathbf{X}_{ori})$ and aggregation $\mathbf{X}_{agg}=f_{agg}(\mathbf{X}_{trans})$, where $\mathbf{X}_{ori}\in\mathbb{R}^{n\times d_{in}}$, $\mathbf{X}_{trans}, \mathbf{X}_{agg}\in\mathbb{R}^{n\times d_{out}}$ represent the input and output features. The feature transformation operation transforms the node feature dimension, and \emph{feature aggregation}, updates node features based on neighbors' features and graph topology. Recent works \citep{ma2021unified, zhu2021interpreting} have established the connections between many feature aggregation operations $AGG(\cdot)$  in representative GNNs and a graph signal denoising problem with Laplacian regularization, i.e., recovering a clean signal $\mathbf{F}\in\mathbb{R}^{n\times d_{out}}$ from $\mathbf{X}_{trans}$ with the smooth
+assumption over graph $\mathcal{G}$. Here, we introduce several popular GNN architectures, including GCN/SGC, GAT, and PPNP/APPNP, as examples to show the connection from the perspective of graph signal denoising.
+
+\paragraph{GCN/SGC.} Feature aggregation in Graph Convolutional Network (GCN) or Simplifying Graph Convolutional Network (SGC) is given by $\mathbf{X}_{agg}=\tilde{\mathbf{A}}\mathbf{X}_{trans}$, where $\tilde{\mathbf{A}}=\tilde{\mathbf{D}}^{-\frac{1}{2}}\hat{\mathbf{A}}\tilde{\mathbf{D}}^{-\frac{1}{2}}$ is a normalized self-loop adjacency matrix $\hat{\mathbf{A}}=\mathbf{A}+\mathbf{I}$, and $\tilde{\mathbf{D}}$ is degree matrix of $\tilde{\mathbf{A}}$. Recent works \citep{ma2021unified, zhu2021interpreting} provably demonstrate that such feature aggregation can be interpreted as one-step gradient descent to minimize $tr(\mathbf{F}^{\top}\big(\mathbf{I}-\tilde{\mathbf{A}})\mathbf{F}\big)$ with initialization $\mathbf{F}=\mathbf{X}_{trans}$.
+
+\paragraph{GAT.} Feature aggregation in GAT applies the normalized attention coefficient to compute a linear combination of neighbor's features as $\mathbf{X}_{agg, i}=\sum_{j\in\mathcal{N}(i)}\alpha_{ij}\mathbf{X}_{trans, j}$, where $\alpha_{ij}=softmax_j(e_{ij})$, $e_{ij}=\text{LeakyReLU}(\mathbf{X}_{trans, i}^{\top}\mathbf{w}_i+\mathbf{X}_{trans, j}^{\top}\mathbf{w}_j)$, and $\mathbf{w}_i$ and $\mathbf{w}_j$ are learnable column vectors. Prior study \cite{ma2021unified} demonstrates that one-step gradient descent with adaptive stepsize $\frac{1}{\sum_{j\in\tilde{\mathcal{N}}(i)}(c_i+c_j)}$ for the following objective problem:
+\be
+\min\limits_{\mathbf{F}}\sum_{i\in\mathcal{V}}||\mathbf{F}_i-\mathbf{X}_{trans, i}||^2_F + \frac{1}{2}\sum_{i\in\mathcal{V}}c_i\sum_{j\in\tilde{\mathcal{N}}(i)}||\mathbf{F}_i-\mathbf{F}_j||_F^2. \nonumber
+\ee
+is actually an attention-based feature aggregation, which is equivalent to GAT if $c_i+c_j$ is equivalent to $e_{ij}$, where $c_i$ is a node-dependent coefficient that measures the local smoothness.
+
+\paragraph{PPNP / APPNP.} Feature aggregation in PPNP and APPNP adopt the aggregation rules as $\mathbf{X}_{agg}=\alpha\Big(\mathbf{I}-(1-\alpha)\tilde{\mathbf{A}}\Big)^{-1}\mathbf{X}_{trans}$ and $\mathbf{X}_{agg}^{k+1}=(1-\alpha)\tilde{\mathbf{A}}\mathbf{X}_{agg}^{k}+\alpha\mathbf{X}_{trans}$. It is shown that they are equivalent to the exact solution and one gradient descent step with stepsize $\frac{\alpha}{2}$ to minimize the following objective problem:
+\be
+\min\limits_{\mathbf{F}}||\mathbf{F}-\mathbf{X}_{trans}||_F^2+(\frac{1}{\alpha}-1)tr\Big(\mathbf{F}^{\top}(\mathbf{I}-\tilde{\mathbf{A}})\mathbf{F}\Big). \nonumber
+\ee
+
+% \section{Transparency in Fairness}
+% We start by introducing the general problem of transparency in fairness (TIF) and then point out why many fair methods can not achieve transparency in fairness. Note that TIF is a general concept beyond graph data, we consider training dataset $\mathcal{D}_{train}=\{X_{train}, s_{train}, y_{train}\}$ and test dataset $\mathcal{D}_{test}=\{X_{test}, s_{test}, y_{test}\}$, where $X_{train}$ ($X_{test}$), $s_{train}$ ($s_{test}$), and $y_{train}$ ($y_{test}$) represent the input attributes, sensitive attributes, and label for model training (test). Define fair method $\mathcal{F}=\{g_1(\cdot|s), g_2(\cdot|s), f_{\theta}(\cdot|s), L_{fair}(\cdot|s)\}$, where $g_1(\cdot|s)$ and $g_2(\cdot|s)$ represents fair data pre-processing method, $f_{\theta}(\cdot|s)$ denote the model parameterized by $\theta$ given sensitive attribute $s$, and $L_{fair}(\cdot|s)$ is fair loss function given sensitive attribute $s$.
+% We first define fair and vanilla models with respect to fair method $\mathcal{F}$ as follows:
+% \begin{definition}[Fair and Vanilla Models]
+% Given train data $\mathcal{D}_{train}$ and fair method $\mathcal{F}=\{g_1(\cdot|s), g_2(\cdot|s), f_{\theta}(\cdot|s), L_{fair}(\cdot|s)\}$, the fair model parameters $\theta_{fair}$ can be obtained by
+% \be
+% \theta_{fair}=\argmin\limits_{\theta}L_{fair}\Big(f_{\theta}\big(g_1(\mathcal{D}_{train}|s)|s\big)|s\Big),
+% \ee
+% Then, the fair model is given by $g_2\Big(f_{\theta_{fair}}(\cdot|s)|s\Big)$. As for the vanilla model, we first define operation $s=\emptyset$ as removing all operations related sensitive attribute, the vanilla model parameters $\theta_{van}$ can be obtained by
+% \be
+% \theta_{van}=\argmin\limits_{\theta}L_{fair}\Big(f_{\theta}\big(g_1(\mathcal{D}_{train}|s=\emptyset)|s=\emptyset\big)|s=\emptyset\Big), \nonumber
+% \ee
+% then the vanilla model is given by $f_{\theta_{fair}}(\cdot|s=\emptyset)$.
+% \end{definition}
+% We provide TIF formal definition as follows:
+
+% \begin{definition}[Transparency In Fairness (TIF)]
+% Given the training dataset $\mathcal{D}_{train}=\{X_{train}, s_{train}, y_{train}\}$ and test dataset $\mathcal{D}_{test}=\{X_{test}, s_{test}, y_{test}\}$
+% \end{definition}
+
+
+
+\section{Fair Message Passing}
+In this section, we propose a new fair message-passing scheme to aggregate useful information from neighbors while debiasing representation bias. In this way, fair prediction can be achieved from a model backbone perspective. Specifically, we formulate fair message passing as an optimization problem to pursue \emph{smoothness} and \emph{fair} node representation simultaneously \footnote{Fair message passing is an alternative operation to replace GNNs aggregations.}. Together with an effective and efficient optimization algorithm, we derive the closed-form fair message passing. Finally, the proposed FMP is shown to be integrated into fair GNNs at three stages, including transformation, aggregation, and debiasing step, as shown in Figure~\ref{fig:illu}. These three stages adopted node feature, graph topology, and sensitive attributes respectively.
+% The transformation step adopt a multilayer perceptron (MLP) to transform node features with trainable weights; aggregation step aims to make use of neighborhood information to update the target node representation; and debiasing improves prediction fairness via explicitly perturbing node representation based on the sensitive attribute. The trainable model parameters only falls in transformation step and FMP could be trained with cross entropy loss to achieve fair prediction.
+
+\subsection{The Optimization Framework}
+Most of the existing works rely on hand-craft architecture (e.g., JKNet \citep{xu2018representation}) design for specific tasks, and thus lack of theoretical understanding how such architecture is designed. In our paper, starting from this unified optimization framework for GNNs, we design a new objective, including smoothness and fairness objective, and then derive the proposed FMP to explicitly chase the new objective via fair message passing.
+
+In previous work \citep{ma2021unified}, a general and universal framework is developed to understand aggregation operations in GNNs. Building on top of this framework, we formulate an optimization problem to achieve fair message passing operation (replace aggregation operations in GNNs).
+To achieve graph smoothness prior and fairness in the same process, a reasonable message passing should be a good solution for the following optimization problem:
+\be \label{eq:optimization}
+\min\limits_{\mathbf{F}} \underbrace{\frac{\lambda_{s}}{2}tr(\mathbf{F}^{T}\tilde{\mathbf{L}}\mathbf{F}) + \frac{1}{2} ||\mathbf{F}-\mathbf{X}_{trans}||^2_{F}}_{h_s(\mathbf{F})} + \underbrace{\lambda_{f}||\mathbf{\Delta}_s SF(\mathbf{F})||_{1}}_{h_f\big(\mathbf{\Delta}_s SF(\mathbf{F})\big)}.
+\ee
+where $\tilde{\mathbf{L}}$ represents normalized Laplacian matrix, $h_s(\cdot)$ and $h_f(\cdot)$ denotes the smoothness and fairness objectives \footnote{Such smoothness objective is the most common-used one in existing methods \citep{ma2021unified,belkin2001laplacian,kalofolias2016learn}.
+The various other smoothness objectives could be considered to improve the performance of FMP and we leave it for future work.}, respectively, and
+$\mathbf{X}_{trans}\in \mathbf{R}^{n \times d_{out}}$ is the transformed $d_{out}$-dimensional node features and $\mathbf{F}\in \mathbf{R}^{n \times d_{out}}$ is the aggregated node features of the same matrix size. The first two terms preserve the similarity of connected node representation and thus enforce graph smoothness. The last term enforces fair node representation so that the average predicted probability between groups of different sensitive attributes can remain constant. The regularization coefficients $\lambda_s$ and $\lambda_f$ adaptively control the trade-off between graph smoothness and fairness.
+
+\paragraph{Smoothness Objective $h_s(\cdot)$.} The adjacent matrix in existing graph message passing schemes is normalized for improving numerical stability and achieving superior performance. Similarly, the graph smoothness term requires normalized Laplacian matrix, i.e., $\tilde{\mathbf{L}}=\mathbf{I}-\tilde{\mathbf{A}}$, $\tilde{\mathbf{A}}=\hat{\mathbf{D}}^{-\frac{1}{2}}\hat{\mathbf{A}}\hat{\mathbf{D}}^{-\frac{1}{2}}$, and $\hat{\mathbf{A}}=\mathbf{A}+\mathbf{I}$. From an edge-centric view, the smoothness objective enforces connected node representation to be similar since
+\be
+tr(\mathbf{F}^{T}\tilde{\mathbf{L}}\mathbf{F})=\sum_{(v_i, v_j)\in\mathcal{E}}||\frac{\mathbf{F}_i}{\sqrt{d_i+1}}-\frac{\mathbf{F}_j}{\sqrt{d_j+1}}||^2_F,
+\ee
+where $d_i=\sum_{k}A_{ik}$ represents the degree of node $v_i$.
+
+\paragraph{Fairness Objective $h_f(\cdot)$.} The fairness objective measures the bias for node representation after aggregation. Recall sensitive attribute incident vector $\Delta_{\mathbf{s}}$ indicates the sensitive attribute group and group size via the sign and absolute value summation. Recall that the sensitive attribute incident vector as
+\be
+\Delta_{\mathbf{s}}= \frac{\bm{1}_{>0}(\mathbf{s})}{||\bm{1}_{>0}(\mathbf{s})||_1} - \frac{\bm{1}_{>0}(-\mathbf{s})}{||\bm{1}_{>0}(-\mathbf{s})||_1},
+\ee
+and $SF(\mathbf{F})$ represents the predicted probability for node classification task, where $SF(\mathbf{F})_{ij}=\hat{P}(y_i=j|\mathbf{X})$. Furthermore, we can show that our fairness objective is actually equivalent to demographic parity, i.e., $\Big(\Delta_s SF(\mathbf{F})\big)\Big)_j=\hat{P}(y_i=j|\mathbf{s}_i=1, \mathbf{X}) - \hat{P}(y_i=j|\mathbf{s}_i=-1, \mathbf{X})$. Please see proof in \underline{Appendix~\ref{app:fairnessobj}}.
+In other words, our fairness objective, $l_1$ norm of $\Delta_s SF(\mathbf{F})$ characterizes the predicted probability difference between two groups with different sensitive attributes. Therefore, our proposed optimization framework can pursue graph smoothness and fairness simultaneously.
+
+\subsection{Optimization Problem Solver}
+For smoothness objective, many existing popular message passing schemes can be derived based on gradient descent with appropriate step size choice \citep{ma2021unified,zhu2021interpreting}. In this paper, we consider smoothness objective $h_s(\mathbf{F})$ and fairness objective $h_f(\Delta SF(\mathbf{F}))$ simultaneously for chasing fair and accurate prediction. However, directly solving the optimization problem (\ref{eq:optimization}) is much more challenging due to the nonsmoothness of the fairness objective, and the non-separability of smoothness objective $h_s(\mathbf{F})$ and fairness objective $h_f(\Delta SF(\mathbf{F}))$ due to incident vector $\Delta_s$.
+
+\subsubsection{Bi-level Optimization Problem Formulation}
+In the literature, many optimization algorithms are developed for optimization problems with $l_1$ norm, such as Alternating Direction Method of Multipliers (ADMM) and Newton type
+algorithms~\citep{ghadimi2014optimal,varma2019vector}. However, these algorithms require non-trivial sub-problem solving for each iteration. Therefore, computation complexity is high and is infeasible to integrate deep learning models. Fortunately, Fenchel conjugate (a.k.a. convex conjugate) \citep{rockafellar2015convex} can transform the original problem as an equivalent saddle point problem using a primal-dual
+algorithm~\citep{liu2021elastic}. In this way, the computation complexity can be reduced and compatible with back-propagation
+training. Similarly, to solve optimization problem \ref{eq:optimization} in a more effective and efficient manner, Fenchel conjugate \citep{rockafellar2015convex} is introduced to transform the original problem
+ into a bi-level optimization problem. For the general convex function $h(\cdot)$, its conjugate function is defined as
+$h^{*}(\mathbf{U})\dff \sup\limits_{\mathbf{X}}\langle \mathbf{U}, \mathbf{X}\rangle -h(\mathbf{X}).$
+Based on Fenchel conjugate, the fairness objective can be transformed as variational representation $h_f(\mathbf{p})=\sup\limits_{\mathbf{u}}\langle\mathbf{p},\mathbf{u} \rangle - h_f^{*}(\mathbf{u})$, where $\mathbf{p}=\mathbf{\Delta}_s SF(\mathbf{F})\in\mathbb{R}^{1\times d_{out}}$ is a predicted probability vector for classification. Furthermore, the original optimization problem is equivalent to
+\be \label{eq:minmax}
+\min\limits_{\mathbf{F}}\max\limits_{\mathbf{u}} h_s(\mathbf{F}) + \langle\mathbf{p},\mathbf{u} \rangle - h_f^{*}(\mathbf{u})
+\ee
+where $\mathbf{u}\in\mathbb{R}^{1\times d_{out}}$ and $h_f^{*}(\cdot)$ is the conjugate function of fairness objective $h_f(\cdot)$.
+
+\subsubsection{Problem Solution}
+Motivated by Proximal Alternating Predictor-Corrector (PAPC) \citep{loris2011generalization,chen2013primal}, the min-max optimization problem (\ref{eq:minmax}) can be solved by the following fixed-point equations with per iteration low computation complexity and convergence guarantee
+\be
+\left\{
+\begin{array}{l}
+     \mathbf{F}=\mathbf{F}-\nabla h_s(\mathbf{F})-\frac{\partial \langle \mathbf{p}, \mathbf{u}\rangle}{\partial \mathbf{F}}, \\
+     \mathbf{u} = \text{prox}_{h^{*}_{f}}\big(\mathbf{u}+ \mathbf{\Delta_{s}} SF(\mathbf{F})\big).
+\end{array}
+\right.
+\ee
+where $\text{prox}_{h^{*}_{f}}(\mathbf{u})=\arg\min\limits_{\mathbf{y}}||\mathbf{y}-\mathbf{u}||_F^2+h^{*}_{f}(\mathbf{y})$. Fortunately, the proximal operators can be obtained with a close form, which makes deep learning model integration feasible. Specifically
+we provide the close form of the proximal operators in the following proposition:
+
+\begin{proposition}[Proximal Operators]\label{prop:conjugate}
+The proximal operators $\text{prox}_{\beta h^{*}_{f}}(\mathbf{u})$ satisfies
+\be
+\text{prox}_{\beta h^{*}_{f}}(\mathbf{u})_{j}=sign(\mathbf{u})_{j}\min\big(|\mathbf{u}_{j}|, \lambda_f\big),
+\ee
+where $sign(\cdot)$ and $\lambda_f$ are element-wise sign function and hyperparameter for fairness objective. In other words, such a proximal operator is an element-wise projection into $l_{\infty}$ ball with radius $\lambda_f$.
+\end{proposition}
+
+
+Similar to ``predictor-corrector" algorithm \citep{loris2011generalization}, we adopt an iterative algorithm to find the saddle point for the min-max optimization problem. Specifically, starting from $(\mathbf{F}^{k}, \mathbf{u}^{k})$, we adopt a gradient descent step on the primal variable $\mathbf{F}$ to arrive $(\bar{\mathbf{F}}^{k+1}, \mathbf{u}^{k})$ and then followed by a proximal ascent step in the dual variable $\mathbf{u}$. Finally, a gradient descent step on a primal variable in point $(\bar{\mathbf{F}}^{k+1}, \mathbf{u}^{k})$ to arrive at $(\mathbf{F}^{k+1}, \mathbf{u}^{k})$. In short, the iteration can be summarized as
+\be
+\left\{
+\begin{array}{l}
+     \bar{\mathbf{F}}^{k+1}=\mathbf{F}^{k}-\gamma\nabla h_s(\mathbf{F}^{k})-\gamma\frac{\partial \langle \mathbf{p}, \mathbf{u}^{k}\rangle}{\partial \mathbf{F}}\Big|_{\mathbf{F}^{k}}, \\
+     \mathbf{u}^{k+1} = \text{prox}_{\beta h^{*}_{f}}\big(\mathbf{u}^{k}+\beta \mathbf{\Delta_{s}} SF(\bar{\mathbf{F}}^{k+1})\big), \\
+     \bar{\mathbf{F}}^{k+1}=\mathbf{F}^{k}-\gamma\nabla h_s(\mathbf{F}^{k})-\gamma\frac{\partial \langle \mathbf{p}, \mathbf{u}^{k+1}\rangle}{\partial \mathbf{F}}\Big|_{\mathbf{F}^{k}}. \\
+\end{array}
+\right.
+\ee
+where $\gamma$ and $\beta$ are the step size for primal and dual variables. Note that the close-form for $\frac{\partial \langle \mathbf{p}, \mathbf{u}\rangle}{\partial \mathbf{F}}\in\mathbb{R}^{n\times d_{out}}$ and $\text{prox}_{\beta h^{*}_{f}}(\cdot)$ are still not clear, we will provide the solution one by one.
+
+\paragraph{FMP Scheme.} Similar to works \citep{ma2021unified,liu2021elastic}, choosing $\gamma=\frac{1}{1+\lambda_s}$ and $\beta=\frac{1}{2\gamma}$, we have
+\be
+\mathbf{F}^{k}-\gamma\nabla h_s(\mathbf{F}^{k})&=&\Big((1-\gamma)\mathbf{I}-\gamma\lambda_s\tilde{\mathbf{L}}\Big)\mathbf{F}^{k}+\gamma \mathbf{X}_{trans} \nonumber\\
+&=&\gamma \mathbf{X}_{trans} + (1-\gamma)\tilde{\mathbf{A}}\mathbf{F}^{k},
+\ee
+Therefore, we can summarize the proposed FMP as two phases, including propagation with skip connection (Step \textbf{\ding{182}}) and bias mitigation (Steps \textbf{\ding{183}}-\textbf{\ding{186}}). For bias mitigation, Step \textbf{\ding{183}} updates the aggregated node features for fairness objective; Steps \textbf{\ding{184}} and \textbf{\ding{185}} aim to learn and ``reshape" perturbation vector in probability space, respectively. Step \textbf{\ding{186}} explicitly mitigates the bias of node features based on gradient descent on the primal variable. The mathematical formulation is given as follows:
+\be
+\left\{
+\begin{array}{ll}
+\mathbf{X}_{agg}^{k+1}=\gamma \mathbf{X}_{trans} + (1-\gamma)\tilde{\mathbf{A}}\mathbf{F}^{k}, & \text{Step \textbf{\ding{182}}}\\
+\bar{\mathbf{F}}^{k+1}=\mathbf{X}_{agg}^{k+1}-\gamma \frac{\partial \langle \mathbf{p}, \mathbf{u}^{k}\rangle}{\partial \mathbf{F}}\Big|_{\mathbf{F}^{k}}, & \text{Step \textbf{\ding{183}}}\\
+\bar{\mathbf{u}}^{k+1}=\mathbf{u}^{k}+\beta \mathbf{\Delta_{s}} SF(\bar{\mathbf{F}}^{k+1}), & \text{Step \textbf{\ding{184}}}\\
+\mathbf{u}^{k+1}=\min\Big(|\bar{\mathbf{u}}^{k+1}|, \lambda_{f} \Big)\cdot sign(\bar{\mathbf{u}}^{k+1}), & \text{Step \textbf{\ding{185}}}\\
+\mathbf{F}^{k+1}=\mathbf{X}_{agg}^{k+1}-\gamma \frac{\partial \langle \mathbf{p}, \mathbf{u}^{k+1}\rangle}{\partial \mathbf{F}}\Big|_{\mathbf{F}^{k}}. & \text{Step \textbf{\ding{186}}}
+\end{array}
+\right. \nonumber
+\ee
+where $\mathbf{X}_{agg}^{k+1}$ represents the node features with normal aggregation and skip connection with the transformed input $\mathbf{X}_{trans}$.
+
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\linewidth]{fmp_interp.pdf}
+
+\caption{The model pipeline consists of three steps: MLP (feature transformation), propagation with skip connection, and debiasing via low-rank perturbation in probability space. }
+%removedVspace
+\label{fig:illu}
+\end{figure}
+
+
+
+\subsubsection{Gradient Computation Acceleration}
+The softmax property is also adopted to accelerate the gradient computation. Note that $\mathbf{p}=\mathbf{\Delta}_s SF(\mathbf{F})$ and $SF(\cdot)$ represents softmax over column dimension, directly computing the gradient $\frac{\partial \langle \mathbf{p}, \mathbf{u}\rangle}{\partial \mathbf{F}}$ based on chain rule involves the three-dimensional tensor $\frac{\partial \mathbf{p}}{\partial \mathbf{F}}$ with gigantic computation complexity. Instead, we simplify the gradient computation based on the property of softmax function in the following theorem.
+
+\begin{theorem}[Gradient Computation]\label{theo:grad_comp}
+The gradient over primal variable $\frac{\partial \langle \mathbf{p}, \mathbf{u}\rangle}{\partial \mathbf{F}}$ satisfies
+\be
+\frac{\partial \langle \mathbf{p}, \mathbf{u}\rangle}{\partial \mathbf{F}}= \mathbf{U}_s\odot SF(\mathbf{F})-\text{Sum}_{1}(\mathbf{U}_s\odot SF(\mathbf{F}))SF(\mathbf{F}).
+\ee
+where $\mathbf{U}_s\dff \Delta_s^{\top}\mathbf{u}$, $\odot$ represents the element-wise product and $\text{Sum}_{1}(\cdot)$ represents the summation over column dimension with preserved matrix shape.
+\end{theorem}
+
+
+
+\section{Discussion on FMP}
+In this section, we provide the interpretation and analyze the \emph{efficiency}, and \emph{white-box usage for sensitive attribute} of the proposed FMP scheme. Furthermore, we also discuss how FMP identifies the influence of sensitive attributes from model forward propagation.
+
+\paragraph{FMP Interpretation} Note that the gradient of fairness objective over node features $\mathbf{F}$ satisfies $\frac{\partial \langle \mathbf{p}, \mathbf{u}\rangle}{\partial \mathbf{F}}=\frac{\partial \langle \mathbf{p}, \mathbf{u}\rangle}{\partial SF(\mathbf{F})}\frac{\partial SF(\mathbf{F})}{\partial \mathbf{F}}$ and $\frac{\partial \langle \mathbf{p}, \mathbf{u}\rangle}{\partial SF(\mathbf{F})}=\Delta_s^{\top}\mathbf{u}$, such gradient calculation can be interpreted as three steps: Softmax transformation, perturbation in probability space, and debiasing in representation space. Specifically, we first map the node representation into probability space via softmax transformation. Subsequently, we calculate the gradient of fairness objective in probability space. It is seen that the perturbation $\Delta_s^{\top}\mathbf{u}$ actually poses \emph{low-rank} debiasing in probability space, where the nodes with different sensitive attributes embrace opposite perturbations. In other words, \emph{the dual variable $\mathbf{u}$ represents the perturbation direction in probability space.}
+Finally, the perturbation in probability space will be transformed into representation space via Jacobian transformation $\frac{\partial SF(\mathbf{F})}{\partial \mathbf{F}}$.
+
+\paragraph{Efficiency.} FMP is an efficient message-passing scheme. The computation complexity for the aggregation (sparse matrix multiplications) is $O(md_{out})$, where $m$ is the number of edges in the graph.
+For FMP, the extra computation mainly focuses on the perturbation calculation, as shown in Theorem~\ref{theo:grad_comp}, with the computation complexity $O(nd_{out})$. The extra computation complexity is negligible in that the number of nodes $n$ is far less than the number of edges $m$ in the real-world graph. Additionally, if directly adopting backward propagation to calculate the gradient, we have to calculate the three-dimensional tensor $\frac{\partial \mathbf{p}}{\partial \mathbf{F}}$ with computation complexity $O(n^2d_{out})$. In other words,
+thanks to the softmax property, we achieve an efficient fair message-passing scheme.
+
+\paragraph{White-box Usage for Sensitive Attribute.} The proposed FMP explicitly achieves graph smoothness and fairness objectives via alternative gradient descent. In other words, the usage of sensitive attributes in propagation to mitigate bias is in a white-box manner. Note that such white-box usage of sensitive attributes is a promising property to understand how sensitive attribute usage forces fairness, which is not achieved by previous fairness methods in GNNs. For example, fair training loss utilizes sensitive attributes to regularize the behavior of model prediction and obtain fairer model parameters via rectifying gradients w.r.t. model parameters. In other words, the sensitive attribute information is implicitly encoded in the well-trained model parameters, which makes it hard to understand how sensitive attribute usage helps fair prediction.  Pre-processing fairness methods adopt sensitive attributes to revise data (e.g., node masking and topology rewiring) either in a learnable way or via pre-defined several operations (e.g., node masking and edge deletions). Similarly, the sensitive attribute information is implicitly encoded in the processed data. The understanding of fairness prediction achievement is infeasible. Our FMP can provide a white-box usage for sensitive attributes since we can directly identify that the usage of sensitive attributes is to force the demographic group node representation centers together during forward propagation.
+
+\begin{table*}[t]
+
+\fontsize{8.0}{14}\selectfont
+\setlength{\tabcolsep}{1.8pt}
+
+\begin{center}
+\caption{Comparative Results with Baselines on Node Classification.}
+\label{table:comp_gnns}
+
+    \begin{tabular}{ c|ccc|ccc|ccc}
+    \toprule
+     \multirow{2}*{Models} & \multicolumn{3}{c}{Pokec-z} & \multicolumn{3}{c}{Pokec-n} & \multicolumn{3}{c}{NBA} \\
+    \cline{2-10}
+     & Acc ($\%$) $\uparrow$ & $\Delta_{DP}$ ($\%$) $\downarrow$ & $\Delta_{EO}$ ($\%$) $\downarrow$ & Acc ($\%$) $\uparrow$ & $\Delta_{DP}$ ($\%$) $\downarrow$ & $\Delta_{EO}$ ($\%$) $\downarrow$ & Acc ($\%$) $\uparrow$ & $\Delta_{DP}$ ($\%$) $\downarrow$ & $\Delta_{EO}$ ($\%$) $\downarrow$ \\
+    \hline
+    MLP &  70.48 $\pm$ 0.77 & 1.61 $\pm$ 1.29 & 2.22 $\pm$ 1.01 & 72.48 $\pm$ 0.26 & 1.53 $\pm$ 0.89 & 3.39 $\pm$ 2.37 & 65.56 $\pm$ 1.62 & 22.37 $\pm$ 1.87 & 18.00 $\pm$ 3.52 \\
+    \hline
+    GAT &  69.76 $\pm$ 1.30 & 2.39 $\pm$ 0.62 & 2.91 $\pm$ 0.97 & 71.00 $\pm$ 0.48 & 3.71 $\pm$ 2.15 & 7.50 $\pm$ 2.88 & 57.78 $\pm$ 10.65 & 20.12 $\pm$ 16.18 & 13.00 $\pm$ 13.37 \\
+    \hline
+    GCN & \textbf{71.78} $\pm$ 0.37 & 3.25 $\pm$ 2.35 & 2.36 $\pm$ 2.09 & \textbf{73.09} $\pm$ 0.28 & 3.48 $\pm$ 0.47 & 5.16 $\pm$ 1.38 & 61.90 $\pm$ 1.00 & 23.70 $\pm$ 2.74 & 17.50 $\pm$ 2.63 \\
+    \hline
+    SGC & 71.24 $\pm$ 0.46 & 4.81 $\pm$ 0.30 & 4.79 $\pm$ 2.27 & 71.46 $\pm$ 0.41 & 2.22 $\pm$ 0.29 & 3.85 $\pm$ 1.63 & 63.17 $\pm$ 0.63 & 22.56 $\pm$ 3.94 & 14.33$\pm$ 2.16 \\
+    \hline
+    APPNP & 66.91 $\pm$ 1.46 & 3.90 $\pm$ 0.69 & 5.71 $\pm$ 1.29 & 69.80 $\pm$ 0.89 & 1.98 $\pm$ 1.30 & 4.01 $\pm$ 2.36 & 63.80 $\pm$ 1.19 & 26.51 $\pm$ 3.33 & 20.00 $\pm$ 4.56 \\
+    \hline
+    JKNet & 66.89 $\pm$	3.79 & 1.28 $\pm$0.96 & 1.79 $\pm$ 0.82 & 63.59 $\pm$	6.36 & 1.91	$\pm$ 2.14 & \textbf{0.70} $\pm$ 0.92 & 67.94 $\pm$ 2.73 & 27.80 $\pm$ 8.41 & 20.33 $\pm$ 7.52 \\
+    \hline
+    ML1 & 70.42 $\pm$ 0.40 & 2.35	$\pm$ 0.83 & 2.00 $\pm$ 0.50 & 72.36 $\pm$ 0.26 & 1.47 $\pm$ 1.12 &	3.03 $\pm$ 1.77 & 72.70 $\pm$ 1.19 & 26.46 $\pm$ 4.93 &	25.50 $\pm$ 8.38 \\
+    \bottomrule
+    FMP & 70.50 $\pm$ 0.50 & \textbf{0.81} $\pm$ 0.40 & \textbf{1.73} $\pm$ 1.03 & 72.16 $\pm$ 0.33 & \textbf{0.66} $\pm$ 0.40 & 1.47 $\pm$ 0.87 & \textbf{73.33} $\pm$ 1.85 & \textbf{18.92} $\pm$ 2.28 & \textbf{13.33} $\pm$ 5.89 \\
+    \bottomrule
+    \end{tabular}
+\end{center}
+%removedVspace
+\end{table*}
+
+\section{Experiments}
+In this section, we conduct experiments to validate the effectiveness and efficiency of the proposed FMP. We firstly validate that graph data with large sensitive homophily enhances bias in GNNs via synthetic experiments. Moreover, for experiments on real-world datasets, we
+introduce the experimental settings and then evaluate our proposed FMP compared with several baselines in terms of prediction performance and fairness metrics.
+
+\subsection{Experimental Settings}
+\paragraph{Datasets.} We conduct experiments on real-world datasets Pokec-z, Pokec-n \footnote{Pokec-z and Pockec-n datasets are available at \url{https://github.com/EnyanDai/FairGNN/tree/main}.}, and NBA \citep{dai2021say}. Pokec-z and Pokec-n are sampled, based on province information, from a larger Facebook-like social network Pokec \citep{takac2012data} in Slovakia, where region information is treated as the sensitive attribute and the predicted label is the working field of the users. NBA dataset is extended from a Kaggle dataset \footnote{https://www.kaggle.com/noahgift/social-power-nba} consisting of around 400 NBA basketball players. The information of players includes age, nationality, and salary in the 2016-2017 season. The players' link relationships are from Twitter with the official crawling API. The binary nationality (U.S. and overseas player) is adopted as the sensitive attribute and the prediction label is whether the salary is higher than the median.
+
+\paragraph{Evaluation Metrics.} We adopt accuracy to evaluate the performance of node classification tasks. As for fairness metrics, we adopt two quantitative group fairness metrics to measure the prediction bias. According to works \citep{louizos2015variational,beutel2017data}, we adopt \emph{demographic parity} $\Delta_{DP}=|\mathbb{P}(\hat{y}=1|s=-1)-\mathbb{P}(\hat{y}=1|s=1)|$ and \emph{equal opportunity} $\Delta_{EO}=|\mathbb{P}(\hat{y}=1|s=-1, y=1)-\mathbb{P}(\hat{y}=1|s=1, y=1)|$, where $y$ and $\hat{y}$ represent the ground-truth label and predicted label, respectively.
+
+\paragraph{Baselines.} We compare our proposed FMP with representative GNNs, such as GCN \citep{kipf2017semi}, GAT \citep{velivckovic2018graph}, SGC \citep{wu2019simplifying}, and APPNP \citep{klicpera2019predict}, JKNet \citep{xu2018representation}, and MLP. We also compared with method ``ML1" directly using the gradient of Eq. (\ref{eq:optimization}) during model forward propagation. For all models, we train 2 layers of neural networks with 64 hidden units for $300$ epochs. Additionally, We also compare adversarial debiasing and adding demographic regularization methods to show the effectiveness of the proposed method \footnote{Please see the comparison with Fair Mixup \citep{chuang2021fair} in Appendix~\ref{app:fairmixup}}.
+
+
+\paragraph{Implementation Details.} We run the experiments $5$ times and report the average performance for each method. We adopt Adam optimizer with $0.001$ learning rate and $10^{-5}$ weight decay for all models.
+For adversarial debiasing, we adopt the train classifier and adversary with $70$ and $30$ epochs, respectively.
+The hyperparameter for adversary loss is tuned in $\{0.0, 1.0, 2.0, 5.0, 8.0, 10.0, 20.0, 30.0\}$. For adding regularization, we adopt the hyperparameter set $\{0.0, 1.0, 2.0, 5.0, 8.0, 10.0, 20.0, 50.0, 80.0, 100.0\}$.
+
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.95\linewidth]{Tradeoff_all.pdf}
+
+\caption{DP and Acc trade-off performance on three real-world datasets compared with adding regularization (Top) and adversarial debiasing (Bottom). The trade-off curve close to the right bottom corner means better trade-off performance. The units for x- and y-axis are percentages ($\%$).}
+% %removedVspace
+\label{fig:pareto}
+\end{figure*}
+
+\subsection{Experimental Results}
+\paragraph{Comparison with Existing GNNs.} The accuracy, demographic parity, and equal opportunity metrics of proposed FMP for Pokec-z, Pokec-n, NBA datasets are shown in Table~\ref{table:comp_gnns} compared with MLP, GAT, GCN, SGC, and APPNP. The detailed statistical information for these three datasets is shown in Table ~\ref{table:statistics}. From these results, we can obtain the following observations:
+\begin{itemize}[leftmargin=0.2cm, itemindent=.0cm, itemsep=0.0cm, topsep=0.0cm]
+    \item Many existing GNNs underperform MLP model on all three datasets in terms of fairness metric. For instance, the demographic parity of MLP is lower than GAT, GCN, SGC and APPNP by $32.64\%$, $50.46\%$, $66.53\%$ and $58.72\%$ on Pokec-z dataset. The higher prediction bias comes from the aggregation within the same sensitive attribute nodes and topology bias in graph data.
+    \item Our proposed FMP consistently achieves the lowest prediction bias in terms of demographic parity and equal opportunity on all datasets. Specifically, FMP reduces demographic parity by $49.69\%$, $56.86\%$, and $5.97\%$ compared with the lowest bias among all baselines in Pokec-z, Pokec-n, and NBA datasets. Meanwhile, our proposed FMP achieves the best accuracy in NBA dataset, and comparable accuracy in Pokec-z and Pokec-n datasets. In a nutshell, the proposed FMP can effectively mitigate prediction bias while preserving the prediction performance.
+\end{itemize}
+
+\paragraph{Comparison with Adversarial Debiasing and Regularization.} To validate the effectiveness of the proposed FMP, we also show the prediction performance and fairness metric trade-off compared with fairness-boosting methods, including adversarial debiasing \citep{fisher2020debiasing} and adding regularization \citep{chuang2020fair}. Similar to \citep{louppe2017learning}, the output of GNNs is the input of the adversary and the goal of the adversary is to predict the node sensitive attribute. We also adopt several backbones for these two methods, including MLP, GCN, GAT, and SGC. We randomly split $50\%/25\%/25\%$ for training, validation, and test dataset. Figure~\ref{fig:pareto} shows the Pareto optimality curve for all methods, where the right-bottom corner point represents the ideal performance (highest accuracy and lowest prediction bias). From the results, we list the following observations as follows:
+\begin{itemize}[leftmargin=0.2cm, itemindent=.0cm, itemsep=0.0cm, topsep=0.0cm]
+    \item Our proposed FMP can achieve better DP-Acc trade-off compared with adversarial debiasing and adding regularization for many GNNs and MLP. Such observation validates the effectiveness of the key idea in FMP: aggregation first and then debiasing. Additionally, FMP can reduce demographic parity with negligible performance cost due to transparent and efficient debiasing.
+    \item Message passing in GNNs does matter. For adding regularization or adversarial debiasing, different GNNs embrace huge distinctions, which implies that an appropriate message passing manner potentially leads to better trade-off performance. Additionally, many GNNs underperforms MLP in low-label homophily coefficient dataset, such as NBA. The rationale is that aggregation may not always bring benefit in terms of accuracy when the neighbors have low probability with the same label.
+\end{itemize}
+
+\section{Related Works} \label{sect:related}
+\paragraph{Graph Neural Networks.} GNNs generalizing neural networks for graph data have already shown great success in various real-world applications. There are two streams in GNNs model design, i.e., spectral-based and spatial-based. Spectral-based GNNs provide graph convolution definition based on graph theory, which is utilized in GNN layers together with feature transformation \citep{bruna2013spectral,defferrard2016convolutional,henaff2015deep}. Graph convolutional networks (GCN) \citep{kipf2017semi} simplify spectral-based GNN model into spatial aggregation scheme. Since then, many spatial-based GNNs variant is developed to update node representation via aggregating its neighbors' information, including graph attention network (GAT) \citep{velivckovic2018graph},  GraphSAGE \citep{hamilton2017inductive}, SGC \citep{wu2019simplifying}, APPNP \citep{klicpera2019predict}, et al \citep{gao2018large,monti2017geometric}. Graph signal denoising is another perspective to understand GNNs. Recently, there are several works show that GCN is equivalent to the first-order approximation for graph denoising with Laplacian regularization \citep{henaff2015deep,zhao2019pairnorm}. The unified optimization framework is provided to unify many existing message passing schemes \citep{ma2021unified,zhu2021interpreting}.
+
+\paragraph{Fairness-aware Learning on Graphs.} Many works have been developed to achieve fairness in machine learning community \citep{jiang2022generalized,han2023retiring,jiang2023weight, chuang2020fair,zhang2018mitigating,du2021fairness,yurochkin2020sensei,creager2019flexibly,feldman2015certifying}. A pilot study on fair node representation learning is developed based on random walk \citep{rahman2019fairwalk}. Additionally, adversarial debiasing is adopted to learn fair prediction or node representation so that the well-trained adversary can not predict the sensitive attribute based on node representation or prediction \citep{dai2021say,bose2019compositional,fisher2020debiasing}. A Bayesian approach is developed to learn fair node representation via encoding sensitive information in the prior distribution in \citep{buyl2020debayes}. Work \citep{ma2021subgroup} develops a PAC-Bayesian analysis to connect subgroup generalization with accuracy parity. \citep{laclau2021all,li2021dyadic} aims to mitigate prediction bias for link prediction. Fairness-aware graph contrastive learning is proposed in \citep{agarwal2021towards,kose2021fairness,ling2023learning}. Graph data preprocessing, such as node feature masking and graph topology rewire, are also developed in \citep{laclau2021all,li2021dyadic,dong2021individual,wang2022improving,zha2023data} for node classification and link prediction tasks. However, the aforementioned works ignore the requirement of transparency in fairness. In this work, we develop an efficient and transparent fair message passing scheme explicitly rendering sensitive attribute usage.
+
+\section{Conclusion}
+In this work, we improve fairness in graphs from the model architecture perspective. We design a fair message-passing scheme to achieve fair prediction for node classification using vanilla training loss without data pre-processing. Specifically,
+motivated by the unified optimization framework for GNNs, FMP is designed as aggregation first and then bias mitigation to explicitly chase smoothness and fairness objectives. We also provide a comprehensive discussion of FMP from model architecture interpretation, efficiency, and the white-box usage of sensitive attributes aspects. Experimental results on real-world datasets demonstrate the effectiveness of FMP compared with several baselines in node classification tasks.
+
+
+% % Acknowledgements should only appear in the accepted version.
+\section*{Acknowledgements}
+We would like to sincerely thank everyone who has provided their generous feedback for this work. Thank the anonymous reviewers for their thorough comments and suggestions. The work is in part supported by NSF grants
+IIS-1900990, IIS-1939716, and IIS-2239257. The views and conclusions
+contained in this paper are those of the authors and should
+not be interpreted as representing any funding agencies.
+
+
+% In the unusual situation where you want a paper to appear in the
+% references without citing it in the main text, use \nocite
+Enim exercitationem cupiditate rerum nemo quasi odio minus facere esse earum ullam, unde facere dolores, tempore impedit assumenda explicabo ipsum libero, optio repudiandae rerum id sapiente non veritatis alias magni.Nam ut dolorem aperiam fugit doloribus esse, molestiae ipsam voluptate atque, nihil sit eveniet quidem deleniti aspernatur, quas rem aperiam sunt dolore ducimus labore eaque quod veritatis at necessitatibus, distinctio quibusdam ea praesentium aliquam expedita numquam illo quisquam illum fuga.Beatae doloribus laboriosam unde dignissimos tempora quod obcaecati neque necessitatibus, consectetur error repudiandae tempore, voluptate veniam vitae ut rerum vel eum voluptatum quos accusamus, ea quia enim fugit nobis dignissimos accusantium placeat asperiores?Ipsa voluptates ipsum necessitatibus quibusdam, ratione maxime ut praesentium mollitia atque perspiciatis illo et sapiente magni, unde quae quo ipsum nesciunt reiciendis quam modi veritatis dolor, facere aliquam ratione animi quos quod possimus accusantium commodi pariatur quo dolorem.Minima voluptates ullam ipsum unde minus doloribus odio modi similique cumque, dolorum accusamus commodi eos nesciunt impedit quibusdam sunt, delectus omnis hic natus nemo non et veniam atque animi?Adipisci consequuntur voluptas quasi autem harum odio ut totam, doloribus ab odit minima ad officiis facere expedita qui reiciendis impedit dolorem, doloribus officia soluta eius ea tenetur, itaque vitae ratione nulla quaerat consequatur?\clearpage
+\bibliography{fmp}
+
+
+
+
+
+\end{document}

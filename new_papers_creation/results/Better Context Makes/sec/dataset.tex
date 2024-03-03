@@ -1,0 +1,84 @@
+\section{Dataset Creation}
+\label{sec:dataset}
+
+We describe the formation of \PyEnvs, a sizable collection of permissively licensed Python projects along with their development environments that support queries to an industry-level program analyzer. 
+We showcase the creation of \CallArgs, a dataset for function call argument completion, which we use in the later experiments.
+The setup can be used to create analyzer-annotated datasets for other code-related tasks.
+
+\subsection{\PyEnvs for Analyzer-Annotated Code Tasks}
+\label{sec:dataset-pyenvs}
+\ifaaai
+We look up the top 5000 most downloaded projects\footnote{https://hugovk.github.io/top-pypi-packages/} from Python Package Index (PyPI). 
+To ensure that our environments can be redistributed, we only keep the projects where the project itself and all its dependent packages are permissively licensed\footnote{MIT, Apache, BSD, CC0, ZPL 2.1, ISCL, PSF (Python Software Foundation License), HPND, or Unlicense.}.
+For each project we then create a virtual environment\footnote{\url{https://docs.python.org/3/tutorial/venv.html}} including the project code and all its dependencies obtained via the Python Package Installer (\verb|pip|)\footnote{\url{https://github.com/pypa/pip}}. 
+For each virtual environment, we locate the source code of the project and its dependencies using the metadata provided by \verb|pip| in the installation directories. 
+In all, we obtain 2814 packages along with their virtual environments.
+\\
+\fi
+\ifamlc
+We collect 2814 packages out of the top 5000 most downloaded projects from Python Package Index\footnote{https://hugovk.github.io/top-pypi-packages/} (PyPI) where both themselves and their dependencies are permissively licensed\footnote{MIT, Apache, BSD, CC0, ZPL 2.1, ISCL, PSF (Python Software Foundation License), HPND.}.
+For each one of them, we create a virtual environment\footnote{\url{https://docs.python.org/3/tutorial/venv.html}} and install the package along with all its dependencies using the Python Package Installer\footnote{\url{https://github.com/pypa/pip}}.
+\fi
+This setup is reminiscent of a human developer's work environment and enables us and other researchers to build on tools designed for human developers to obtain additional information for machine learning for code models. 
+\ifaaai
+The Language Server Protocol\footnote{\url{https://microsoft.github.io/language-server-protocol/}} has been proposed to standardize how such tools and IDEs communicate and is commonly used by IDEs such as VSCode.
+\fi
+For this purpose, we choose the Jedi Language Server\footnote{https://github.com/pappasam/jedi-language-server} based on the popular Jedi autocompletion, static analysis and refactoring library for Python as the program analyzer to extract auxiliary information of each project. It enables us to obtain the location of a function's implementation as well as the locations of other points in the project that use the function.
+We set up the language server with project-specific workspaces based on the virtual environments, enabling the language server to provide the same level of information that is accessible by a developer using an IDE. 
+
+
+
+\subsection{\CallArgs: Function Call Argument Completion Dataset}
+\label{sec:dataset-callargs}
+\ifaaai
+Based on the above, we further construct a new function call argument completion dataset \CallArgs. 
+\fi
+We parse each Python file in a project into abstract syntactic trees and extract local information related to each function call, which includes: 1) the function name, 2) the location of function arguments, 3) the location of the function call, and 4) the local context's location of the function call.
+Here the local context means the function body in which the given function call occurs. In our dataset, we only consider function calls that occur in a function body. 
+
+For analyzer-induced information, we query the language server and get the response about the function definition and signature information of the given function call (details in Appendix \ref{sec:query}). 
+
+We ignore some function calls which we regard as less meaningful for argument predictions. 
+For example, function calls related to error messages and logging, function calls which the language server fails to find their definitions, or function calls without any arguments. 
+More details about our criteria can be found in Appendix \ref{sec:criteria}.
+
+To prevent information leakage from project dependencies,
+we make an effort to ensure both project-level and dependency-level isolation between the training and the test set. 
+We propose an isolation strategy for the tasks that access information from direct dependencies of each project such as our function call argument completion task.
+We treat the Python standard library built-in packages such as \codeinline{os} and \codeinline{pickle} as public information whose use does not necessitate isolation between training and test set. 
+For third-party dependencies (i.e. other projects), we ensure that if a project is a dependency of a project in the training set or itself is in the training set, then it can not be part of the test set or a dependent of any project in the test set; and vice versa.
+More details can be found in Appendix \ref{sec:isolation}.
+
+
+We randomly sample validation and test set
+\ifamlc%
+\footnote{
+Since the same dependency-isolation is not enforced between the validation and the test set, it is possible that information leaks through the validation set. 
+However, the strong isolation criterion between the training set and the rest already forced us to exclude 34\% of the 2814 available packages. 
+Enforcing the same isolation between the validation and the test will likely result in an even smaller total number of packages.
+}%
+\fi%
+and select training sets to respect the said isolation.
+We carried out the process with different sample sizes and chose the resulting split where the ratio among training:validation:test is roughly 10:1:1. 
+The statistics is shown in Table \ref{tab:generalstat}. 
+
+\ifaaai
+\begin{table}[ht]
+\centering
+\begin{tabular}{ccccc}
+\toprule
+{} & No. of  & No. of  & No. of  & No. of  \\
+Split & projects & files & tokens & function calls \\
+\midrule
+Train & 1578 & 13790    & 36.2M  & 364752 \\
+Validation   & 145  & 2496     & 5.2M   & 42841  \\
+Test  & 145  & 1701     & 2.5M   & 49085  \\   
+\bottomrule
+\end{tabular}
+\caption{Statistics of the \CallArgs dataset. }
+\label{tab:generalstat}
+\end{table}
+\fi
+
+\ifaaai
+\fi

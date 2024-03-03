@@ -1,0 +1,116 @@
+We conduct an ablation study on the impact of function implementation context and function usage context. We use CodeT5 to study how different types of contexts, and more closely, how the use of usage contexts, would influence the argument completion performance. 
+We choose CodeT5 because its pretraining tasks align well with our task, and as evidenced by our results in the previous subsection,  %
+CodeT5 achieves the best results across similar model sizes.
+The total input length is 512 unless otherwise specified.
+
+\subsubsection{Effect of implementation and usage information.}
+
+
+
+
+
+\begin{table}[ht]
+\centering
+\ifaaai
+\resizebox{\columnwidth}{!}{
+\fi
+\begin{tabular}{ccccc}
+\toprule
+Task       & Context                     & EM   & EditSim & SPM* \\
+\midrule
+Unidirectional & local context           & 47.16 & 74.44 & 89.22 \\
+               & +implementation         & 52.66 & 78.66 & 97.91 \\
+               & +usages                 & 58.95 & 81.99 & 94.76 \\
+               & +implementation\&usages & 61.59 & 83.73 & 98.64 \\
+\midrule
+In-filling     & local context           & 56.59 & 80.44 & 91.8  \\
+               & +implementation         & 60.22 & 82.97 & 98.27 \\
+               & +usages                 & 65.57 & 85.86 & 95.88 \\
+               & +implementation\&usages & 67.59 & 87.10 & 98.77 \\
+\bottomrule
+\end{tabular}
+\ifaaai
+}
+\caption{Performance of CodeT5-base with different auxiliary contexts. }
+\label{tab:fc_result}
+\fi
+\end{table}
+
+\Tabref{tab:fc_result} shows the completion results with different auxiliary contexts. We find that both function implementation and function usage information are beneficial for call argument completion. Adding usage information leads to higher performance gain. 
+
+We also report in \Tabref{tab:fc_result} Surface-level Positional Matching (SPM*), which checks the rate where the predicted arguments can match the parameters in the function definition.
+We see that function implementation is more helpful in improving SPM*, suggesting the importance of accessing function definition in getting the number of arguments and the keyword prefixes right.
+
+
+\subsubsection{Effect of the number and length of function usage contexts.}
+
+
+
+
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{ccccc}
+\toprule
+Task           & EM   & EditSim & Input length & Usages \\
+\midrule
+Unidirectional & 61.59 & 83.73 & 512 & (3, 64)  \\
+               & 62.73 & 84.33 & 1024 & (3, 128) \\
+               & 63.00 & 84.46 & 1024 & (6, 64) \\
+               & 62.87 & 84.46 & 1024 & (8, 64) \\
+\midrule
+In-filling     & 67.59 & 87.10 & 512 & (3, 64)  \\
+               & 69.28 & 88.08 & 1024 & (3, 128) \\
+               & 69.26 & 88.02 & 1024 & (6, 64) \\
+               & 69.00 & 87.92 & 1024 & (8, 64) \\
+\bottomrule
+\end{tabular}
+\caption{Performance of CodeT5-base when using different numbers and lengths of usage contexts. ``Usages'' column indicates the number of function usages used and the average length budget for each usage.}
+\label{tab:fc_length}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\small
+\begin{tabular}{cccc}
+\toprule
+Task       & Context                     & EM   & EditSim \\
+\midrule
+Unidirectional & +implementation         & 52.66 & 78.66 \\
+               & w/ usages (threshold)   & 56.26 & 80.54 \\
+               & w/ usages (CDI)         & 57.61 & 81.12 \\
+               \cmidrule{2-4}
+               & +implementation\&usages & 61.59 & 83.73 \\
+\midrule
+In-filling     & +implementation         & 60.22 & 82.97 \\
+               & w/ usages (threshold)   & 62.55 & 84.40 \\
+               & w/ usages (CDI)         & 64.24 & 85.16 \\
+               \cmidrule{2-4}
+               & +implementation\&usages & 67.59 & 87.10  \\
+\bottomrule
+\end{tabular}
+\caption{Comparing using function usage information during training and during inference for CodeT5-base. }
+\label{tab:fc_copy}
+\end{table}
+
+
+
+We vary the number and the length budget of function usages used. 
+The results are shown in Table \ref{tab:fc_length}. 
+We find that longer context helps as enlarging the model input length from 512 to 1024 improves the argument completion performance.
+Using more function usage information does not bring significant improvements when the total input length is fixed. 
+This may be because the coverage of exact or similar usages would saturate as the number of usages increases as we can see in Appendix \ref{sec:saturate}. 
+A better way to leverage more usage information is a meaningful future direction.
+
+\subsubsection{Usage copying.}
+One concern is if the models are simply copying the arguments from other usages. 
+Therefore, we evaluate the performance of copying the top usage if the similarity is above a certain threshold. Otherwise, the model output is used. We set the threshold using the validation set. 
+In this experiment, the model is fine-tuned with implementation context but not usage context.
+We also check whether concatenating the usage information at inference directly (CDI) would give similar performances. 
+The result is shown in Table \ref{tab:fc_copy}. 
+
+We find that the threshold copying indeed improves the prediction, which confirms the existence and merit of exact matches. 
+However, the model can better leverage additional patterns and relations (CDI) than simple copying (threshold).
+On the other hand, using function usage information during the model training (+implementation\&usages) brings the most performance gain. 
+It indicates the nontrivial ability of our best performing models to attend usage examples and compose appropriate arguments from them.

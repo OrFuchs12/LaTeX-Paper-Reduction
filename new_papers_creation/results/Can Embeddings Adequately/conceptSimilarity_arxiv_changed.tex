@@ -1,0 +1,639 @@
+\def\year{2020}\relax
+%File: formatting-instruction.tex
+\documentclass[letterpaper]{article} % DO NOT CHANGE THIS
+\usepackage{aaai20}  % DO NOT CHANGE THIS
+\usepackage{times}  % DO NOT CHANGE THIS
+\usepackage{helvet} % DO NOT CHANGE THIS
+\usepackage{courier}  % DO NOT CHANGE THIS
+\usepackage[hyphens]{url}  % DO NOT CHANGE THIS
+\usepackage{graphicx} % DO NOT CHANGE THIS
+\urlstyle{rm} % DO NOT CHANGE THIS
+\def\UrlFont{\rm}  % DO NOT CHANGE THIS
+\usepackage{graphicx}  % DO NOT CHANGE THIS
+\frenchspacing  % DO NOT CHANGE THIS
+\setlength{\pdfpagewidth}{8.5in}  % DO NOT CHANGE THIS
+\setlength{\pdfpageheight}{11in}  % DO NOT CHANGE THIS
+
+%PDF Info Is REQUIRED.
+
+\usepackage{booktabs}
+\usepackage{multirow}
+
+
+\usepackage{adjustbox}
+\usepackage{rotating}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepackage{chngcntr}
+\usepackage{refcount}
+\listfiles
+\pgfplotsset{compat=1.5.1}
+\usepackage{footnote}
+\makesavenoteenv{tabular}
+\makesavenoteenv{table}
+
+\newcommand{\lab}[1]{`#1'}
+\newcommand{\dataset}[1]{\textsc{#1}}
+
+\setcounter{secnumdepth}{2} %May be changed to 1 or 2 if section numbers are desired.
+
+% The file aaai19.sty is the style file for AAAI Press
+% proceedings, working notes, and technical reports.
+%
+\setlength\titlebox{2.5in} % If your paper contains an overfull \vbox too high warning at the beginning of the document, use this
+% command to correct it. You may not alter the value below 2.5 in
+\title{Can Embeddings Adequately Represent Medical Terminology?\\ New Large-Scale Medical Term Similarity Datasets Have the Answer!\thanks{Please refer to this version for up-to-date experimental results.}}
+\author{Claudia Schulz \and Damir Juric\\
+Babylon Health\\
+London, SW3 3DD, UK\\
+\{firstname.lastname\}@babylonhealth.com}
+
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+A large number of embeddings trained on medical data have emerged, but it remains unclear how well they represent medical terminology, in particular whether the close relationship of semantically similar medical terms is encoded in these embeddings.
+To date, only small datasets for testing medical term similarity are available, not allowing to draw conclusions about the generalisability of embeddings to the enormous amount of medical terms used by doctors.
+We present multiple automatically created large-scale medical term similarity datasets and confirm their high quality in an annotation study with doctors.
+We evaluate state-of-the-art word and contextual embeddings on our new datasets, comparing multiple vector similarity metrics and word vector aggregation techniques.
+Our results show that current embeddings are limited in their ability to adequately encode medical terms.
+The novel datasets thus form a challenging new benchmark for the development of medical embeddings able to accurately represent the whole medical terminology.
+\end{abstract}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Introduction}
+
+AI has recently enabled major breakthroughs in health-care \cite{ardila2019end,liu2018deep}, but it often requires to develop and adapt AI algorithms specifically to the domain \cite{Neumann2019ScispaCyFA}.
+Especially \emph{medical terminology} differs largely from commonly used language, so
+a crucial step towards the successful use of AI in health-care is to ensure that medical terminology is adequately encoded.
+Doctors know a vast amount of medical terms, including which of them are similar (e.g. synonyms of a disease), but it is so far unclear whether
+embeddings
+share this deep understanding of medical terminology.
+
+To investigate this, small datasets of a few hundred medical concept pairs
+with a similarity score
+have been created
+\cite{PedersenPPC2007,PakhomovEtAl2010,ChiuPVK2018}.
+However, testing medical language representation models on such restricted datasets does not allow to draw any reliable conclusions about the generalisability of these models to the whole medical terminology.
+
+In this paper, we aim to overcome the generalisation problem by creating \emph{large-scale} medical term similarity datasets, the largest consisting of more than 600,000 term pairs.
+Semantically similar medical terms are extracted from
+ the SNOMED ontology \cite{donnelly2006snomed}
+and we propose a novel strategy for creating pairs of dissimilar terms, resulting in datasets that are highly challenging for embeddings.
+To ensure the correctness and reliability of the completely \emph{automatically created} datasets, we perform a manual evaluation with doctors, confirming the datasets' \emph{high quality} and correctness in representing medical term similarity.
+We make our code for dataset construction freely available\footnote{\label{repo}\url{https://github.com/babylonhealth/medisim}}, allowing the easy recreation for future research.\footnote{IHTSDO prohibits to publish data derived from SNOMED CT.}
+
+We evaluate publicly available medical word and contextual embeddings on both our new
+and existing datasets to compare what conclusions can be drawn from either.
+We also compare and analyse the effects of using different similarity metrics, including the commonly used cosine similarity as well as recently suggested rank-based measures \cite{ZhelezniakEtAl2019-correlation}.
+We find that existing datasets are too small to realistically reflect the complexity of medical terminology and that they do not reveal significant performance differences between embeddings. In contrast, our new benchmark datasets highlight significant differences between embeddings as well as their inability to adequately represent medical terminology.
+
+As a second evaluation of embeddings' ability to represent medical terminology, we propose a category separation task and a new error metric.
+A good medical terminology representation should identify terms in similar categories as being closer than terms in dissimilar categories.
+
+% Importantly, our large-scale datasets are not only of interest for testing embeddings on the term similarity task, but can e.g.
+% positively impact the time consuming manual creation and verification of medical ontologies.
+Importantly, our large-scale datasets are not only of interest for testing embeddings on the term similarity task, but also less obvious tasks, such as reducing the time to manually create and verify medical ontologies.
+
+
+
+Our contributions are:
+1) we introduce highly challenging large-scale medical term similarity benchmarks,
+2) we reveal that existing datasets are too small to discover significant performance differences between embeddings, whereas our datasets do, and
+3) we find that current embeddings cannot adequately represent medical terminology.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Related Work}
+
+Many benchmark datasets are available to evaluate semantic textual similarity (STS) methods, both on word and sentence level \cite{ZhelezniakEtAl2019-correlation}, but
+most of them are concerned with everyday words and sentences.
+However, a method with good performance on these datasets is likely to utterly fail when applied to medical terminology.
+For the medical domain, only a handful of similarity datasets exist, as summarised in Table~\ref{tab:existing_data}, all of them manually curated and comprising only commonly used medical concepts.
+Furthermore, half contain only single-word terms, although medical terms are frequently made of multiple words.
+
+Note that we here focus on medical \emph{terms} rather than \emph{concepts}. Concepts are abstract entities, represented as codes in ontologies such as SNOMED, which are described by some (potentially more than one) term.
+
+\begin{table}[ht]
+    \centering
+    \small
+    \begin{tabular}{l r c c c}
+    \toprule
+         \textbf{Dataset} & \textbf{Size} & \textbf{Scores} & \textbf{Source} & \textbf{MW}\\ \midrule
+         \textbf{Hliaoutakis} & 36 & 0-1 & MeSH & 47\%\\
+          \cite{Hliaoutakis2005} \\
+         \textbf{MiniMayoSRS} & 29 & 1-4 & UMLS & 47\%\\
+         \cite{PedersenPPC2007} \\
+         \textbf{MayoSRS} & 101 & 1-4 & UMLS & 44\%\\
+          \cite{PakhomovEtAl2011}\\
+         \textbf{UMNSRS-Sim} & 566 & 0-1600 & UMLS & 2\%\\
+          \cite{PakhomovEtAl2010}\\
+         \textbf{UMNSRS-Sim-mod} & 449 & 0-1600 & UMLS & 0\%\\
+          \cite{PakhomovEtAl2016}\\
+         \textbf{UMNSRS-Rel} & 587 & 0-1600 & UMLS & 2\% \\
+          \cite{PakhomovEtAl2010}\\
+         \textbf{UMNSRS-Rel-mod} & 458 & 0-1600 & UMLS & 0\%\\
+          \cite{PakhomovEtAl2016}\\
+         \textbf{Bio-SimLex} & 988 & 0-10 & PubMed & 0\%\\
+          \cite{ChiuPVK2018}\\
+         \textbf{Bio-SimVerb} & 1000 & 0-10 & PubMed & 0\%\\
+          \cite{ChiuPVK2018}\\
+         \bottomrule
+    \end{tabular}
+    \caption{Existing datasets and \% of multi-word (MW) terms.}
+    \label{tab:existing_data}
+\end{table}
+
+Regarding the automatic creation of medical terminology datasets, \citeauthor{BeamEtAl2018} \shortcite{BeamEtAl2018} extract pairs of related medical concepts using a bootstrapping approach, resulting in various datasets of related medical UMLS codes extracted from different sources.
+In contrast, our dataset focuses on \emph{similar} medical terms.
+\citeauthor{AgarwalEtAl2019} \shortcite{AgarwalEtAl2019} use the same approach as \citeauthor{BeamEtAl2018} to create a dataset from SNOMED's `is-a' and other relationships between disorders and drugs.
+\citeauthor{WangCZ2015} \shortcite{WangCZ2015} extract 8000 synonym concepts from relationships in UMLS and then randomly create 1.6M negative pairs, whereas
+we also apply a more sophisticated negative sampling strategy.
+Neither of these automatically created datasets has been evaluated regarding its quality nor are these datasets publicly available or easy to recreate.
+
+Like us, \citeauthor{HenryCM2018} \shortcite{HenryCM2018} compare different methods for aggregating embeddings of words to measure similarity between multi-word medical concepts. They train their own medical word embeddings
+and compare summing and averaging these vectors to the performance of concept embeddings.
+Instead of training yet another embedding model, we use existing embeddings and experiment with a larger variety of word vector aggregation techniques. Furthermore, we use not only cosine similarity to measure vector similarity but also apply rank-based metrics.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{New Large-Scale Datasets}
+We choose SNOMED Clinical Terms (CT) as the basis for our medical term similarity datasets as it is the ``most comprehensive, multilingual clinical healthcare terminology in the world''\footnote{\url{https://www.snomed.org/snomed-ct/five-step-briefing}}.
+As of the January 2019 release, SNOMED CT comprises 349,548 medical concepts.
+SNOMED CT is thus ideal for our purpose of creating datasets that adequately represent the whole medical terminology used by doctors.
+We create \emph{binary classification} datasets, consisting of pairs of medical terms classified as semantically similar (1) or dissimilar (0).
+Note that the dataset creation is fully automatic, not requiring any costly manual annotation.
+
+\subsection{Extracting Positive Instances}
+In the first step of the dataset creation, pairs of semantically similar terms are extracted from SNOMED CT.
+
+\noindent\textbf{SNOMED CT Synonyms.}
+Each SNOMED CT concept is associated with a unique \emph{fully specified name} (FSN) and may have one or more \emph{synonyms}, e.g.~the FSN \lab{Sprain of ankle} has a synonym \lab{Ankle sprain}.
+Clearly, synonyms are semantically very similar to the FSN, so we construct a dataset consisting of all \dataset{FSN-synonym} term pairs as positive instances.
+
+We first filter out
+concepts from the model component module, which provides metadata and organisational concepts such as \lab{Fully specified name} and \lab{Entire term case sensitive}.
+For each remaining active concept, we obtain its current FSN and delete parentheses indicating the concept's category, e.g.~\lab{Malaria (disorder)}. We pair the modified FSN with all its active synonyms that are not equivalent to the modified FSN, resulting in the positive instances of our \dataset{FSN-synonym} medical term similarity dataset.
+Since each synonym of an FSN is similar to the FSN, we expect that synonyms are also similar to each other. Based on this assumption, we obtain a second dataset \dataset{synonym-synonym}, by adding synonym-synonym term pairs to the \dataset{FSN-synonym} dataset.
+
+\begin{table}[th]
+    \centering
+    \footnotesize
+    \begin{tabular}{l r r r r}
+     \toprule
+        \textbf{Dataset} & \textbf{Size}  & \textbf{Pos} & \textbf{Neg-R} & \textbf{Neg-L}\\
+        \midrule
+        \dataset{FSN-syn.} & 451,256 & 16.53 & 37.40 & 7.97\\
+        -- easy & 78,466 & 2.08 & 36.90 & 8.37\\
+        -- hard & 372,790 & 19.57 & 37.51 & 7.89\\
+        \midrule
+        \dataset{syn.-syn.} & 726,158 & 16.57 & 35.10 & 8.00 \\
+        -- easy & 122,864 & 2.21 & 35.33 & 8.66\\
+        -- hard & 603,294 & 19.50 & 35.05 & 7.86\\
+        \midrule
+        \dataset{poss.-equiv.-to} & 57,528 & 33.92 & 49.33 & 17.95\\
+        -- easy & 1,474 & 3.96 & 30.10 & 12.33\\
+        -- hard & 56,054 & 34.71 & 49.84 & 18.10\\
+        \midrule
+        \dataset{replaced-by} & 7,082 & 20.00 & 33.93 & 11.49\\
+        -- easy & 654 & 2.94 & 30.59 & 11.29\\
+        -- hard & 6,428 & 21.74 & 34.27 & 11.51\\
+        \midrule
+        \dataset{same-as} & 20,324 & 22.71 & 33.30 & 10.71\\
+        -- easy & 2,570 & 2.62 & 27.17 & 10.81\\
+        -- hard & 17,754 & 25.62 & 34.19 & 10.70\\
+        \bottomrule
+    \end{tabular}
+    \caption{Our new datasets, respective number of (positive \& negative) term pairs (Size), average Levenshtein distance of the Pos(itive) and  Neg(ative) instances with the R(andom) and L(evenshtein) strategies.}
+    \label{tab:datasets}
+\end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\noindent \textbf{SNOMED CT Deactivated Concepts.}
+Synonyms are the most obvious similar terms, but
+ we can leverage another type of information about similar terms in SNOMED CT: in every release, some concepts are deactivated and replaced by a different active concept. An \emph{association} between the concepts gives the reason for replacement: 1) \dataset{possibly-equivalent-to} indicates that the deactivated concept is ambiguous and that the active concept represents one of its possible meanings,
+2) \dataset{replaced-by} applies to erroneous or obsolete deactivated concepts and their suitable replacement, and
+3) \dataset{same-as} refers to (semantically) duplicate concepts.
+Clearly these associations describe pairs of similar concepts, which we transform into similar term pairs.
+
+Again, we first disregard pairs containing concepts from the model component module.
+For each concept we then use the most recent FSN as the term and again drop parentheses specifying medical categories. In addition, we drop any ``[D]'' at the start or end of a FSN, which SNOMED CT uses to indicate deprecated names.
+We collect the three types of term pairs in three separate datasets to investigate if any of them are easier or more difficult to identify as similar.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\noindent \textbf{Easy vs. Hard Datasets.}
+The extracted positive instances are expected to all be semantically similar terms. However,  \emph{lexically} the terms can be very similar, e.g.~\lab{Sacrum sprain} and \lab{Sacral sprain}, or completely different, e.g. \lab{Malaria} and \lab{Paludism}.
+The latter requires a much deeper understanding of medical terminology, whereas the former can be guessed from the surface similarity.
+To investigate how deep the understanding of term representation models is, we split the positive instances of each dataset into \emph{easy} and \emph{hard} ones.
+The difficulty is measured in terms of \emph{Levenshtein distance} between the two terms.
+We experimentally choose a threshold of 5, so that the hard splits mainly contain term pairs with fundamentally different words.
+Table~\ref{tab:datasets} illustrates the average Levenshtein distance of term pairs in the easy and hard datasets.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Creating Negative Instances}
+SNOMED CT explicitly specifies similar terms (e.g.~synonyms), but not dissimilar ones.
+Na\"{i}vely, we can thus consider all term pairs not explicitly specified as similar to be dissimilar.
+For each dataset, our \emph{random} negative sampling strategy therefore matches the first term of each positive instance to a randomly selected term from another instance.
+As can be seen in Table~\ref{tab:datasets}, this leads to negative term pairs with very high average Levenshtein distance, i.e.~they are mostly made of completely different words with no lexical overlap. This may make it easy for models to correctly identify these term pairs as dissimilar.
+
+To test if models in fact have a deep understanding of medical terminology, we apply a second negative sampling strategy to create more difficult negative instances:
+the first term of each positive instance is matched to the term with closest Levenshtein distance that is not (directly or indirectly) specified to be similar.
+Table~\ref{tab:datasets} illustrates that this leads to a much lower Levenshtein distance between negative term pairs than using the random strategy. In the hard datasets, the Levenshtein distance of negative instances is even lower than that of positive ones. Thus, for the hard datasets with Levenshtein negative sampling, lexical similarity between terms will not help at all to distinguish similar and dissimilar pairs.
+
+For both negative sampling strategies, we construct the same number of negative instances as there are positive ones to obtain balanced datasets.
+The split into easy and hard combined with our two negative sampling strategies results in 20 different datasets.
+In contrast to existing datasets, where most medical terms are single words (see Table~\ref{tab:existing_data}), SNOMED CT terms are mostly made of multiple words, resulting in 92\% multi-word terms in our datasets.
+This makes the datasets both more realistic, as multi-word terms are more complex and more fine-grained, and more challenging for medical terminology representation models.
+
+\begin{table*}[t]
+    \centering
+    \small
+    \begin{tabular}{l ccccc}
+    \toprule
+        & \dataset{FSN-syn.} & \dataset{syn.-syn.} & \dataset{poss.-equiv.-to} & \dataset{replaced-by} & \dataset{same-as}\\
+        \cmidrule(lr){2-2} \cmidrule(lr){3-3} \cmidrule(lr){4-4} \cmidrule(lr){5-5} \cmidrule(lr){6-6}
+         & e-R \hspace{0.2cm}  h-R \hspace{0.2cm} e-L \hspace{0.2cm}  h-L &
+         e-R \hspace{0.2cm}  h-R \hspace{0.2cm} e-L \hspace{0.2cm}  h-L &
+         e-R \hspace{0.2cm}  h-R \hspace{0.2cm} e-L \hspace{0.2cm}  h-L &
+         e-R \hspace{0.2cm}  h-R \hspace{0.2cm} e-L \hspace{0.2cm}  h-L&
+         e-R \hspace{0.2cm}  h-R \hspace{0.2cm} e-L \hspace{0.2cm}  h-L\\ \midrule
+         \textbf{NaN} & 3\% \hfill 13\% \hfill 17\% \hfill 10\% &
+          13\% \hfill 10\% \hfill 20\% \hfill  20\% &
+          10\% \hfill 10\% \hfill 13\% \hfill 10\% &
+          17\% \hfill 30\% \hfill 13\% \hfill 37\% &
+          6\% \hfill 6\% \hfill 17\% \hfill  3\% \\
+         \textbf{IAA} & 0.88 \hfill 0.87 \hfill 0.85 \hfill 0.93 &
+         0.93 \hfill 0.79 \hfill 0.85 \hfill 0.81 &
+         0.91 \hfill 0.65 \hfill 0.95 \hfill 0.74 &
+         0.90 \hfill 0.70 \hfill 0.95 \hfill 0.73 &
+         0.82 \hfill 0.83 \hfill 0.88 \hfill 0.86 \\ \midrule
+         \textbf{acc} & 0.98 \hfill 0.96 \hfill 0.98 \hfill 0.98 &
+         0.96 \hfill 0.96 \hfill 0.93 \hfill 0.94 &
+         1.00 \hfill 0.86 \hfill 0.98 \hfill 0.91&
+         0.96 \hfill 0.86 \hfill 0.95 \hfill 0.86&
+         0.98 \hfill 0.95 \hfill 0.98 \hfill 0.97\\
+         \textbf{rec} & 1.00 \hfill 1.00 \hfill 0.96\hfill 1.00&
+         1.00 \hfill 1.00 \hfill 0.96 \hfill 1.00 &
+         1.00 \hfill 1.00 \hfill 1.00 \hfill 0.96 &
+         1.00 \hfill 1.00 \hfill 0.96 \hfill 0.93 &
+         1.00 \hfill 1.00 \hfill 1.00 \hfill 1.00 \\
+         \textbf{prec} & 0.97 \hfill 0.92 \hfill 1.00 \hfill 0.97&
+         0.93 \hfill 0.93 \hfill 0.88 \hfill 0.88 &
+         1.00 \hfill 0.70 \hfill 0.96 \hfill 0.86 &
+         0.93 \hfill 0.70 \hfill 0.93 \hfill 0.70 &
+         0.96 \hfill 0.89 \hfill 0.96 \hfill 0.93 \\
+         \bottomrule
+    \end{tabular}
+    \caption{Datasets evaluation: term pairs without ground truth score (NaN), Krippendorff's $\alpha$ IAA,
+    acc(uracy), rec(all), and prec(ision) between ground truth and dataset scores for  e(asy)/h(ard) datasets with R(andom)/L(evenshtein) negative sampling.}
+    \label{tab:datasets_evaluation}
+\end{table*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Quality Evaluation}
+
+To verify the quality of our automatically created datasets, we perform a manual evaluation with three doctors.
+For each dataset we randomly select 30 positive and 30 negative instances.
+Each doctor thus evaluates (the same) 1200 term pairs.
+The doctors are presented with term pairs without knowing which dataset they belong to and have to decide if the terms are similar in the sense that they could be used interchangeably in consultation notes.
+They are allowed to look up terms of which they do not remember the meaning and can choose ``don't know'' instead of ``same''/``not same'' for a pair of terms.
+To compare the automatically created similarity scores in our datasets to the doctors' assessment, we first combine the three doctors' decisions into a \emph{ground truth score} using majority voting. If there is no majority, we assign no ground truth score (NaN).
+
+The \emph{difficulty} (regarding human judgement) of each dataset is measured in terms of the doctors' inter-annotator agreement (IAA) and the amount of disagreement (NaNs).
+The overall IAA is Krippendorff's $\alpha = 0.85$,
+with the lowest agreement on a dataset being $\alpha = 0.65$ and the highest $\alpha = 0.95$ (see Table~\ref{tab:datasets_evaluation}). The doctors' decisions can thus be considered reliable.
+The mostly higher IAA for easy datasets compared to hard ones confirms the intended difficulty difference.
+Importantly, there is no notable difficulty difference between the two strategies for creating negative instances, so even negative instances with lexically very similar terms can be easily identified as negative by the doctors due to their semantic dissimilarity.
+\dataset{Replaced-by} datasets are the most difficult as doctors frequently disagree on the similarity of two terms.
+
+The \emph{quality} of datasets is given by the accuracy of the automatically created dataset scores with regards to the ground truth scores.
+Table~\ref{tab:datasets_evaluation} illustrates that \dataset{FSN-synonym} and \dataset{same-as} datasets are of very high quality.
+The accuracy of
+\dataset{Replaced-by} datasets is lower than for the other datasets, but even the lowest accuracy of 0.86 indicates that they are good-quality datasets.
+We observe that all datasets using the random strategy exhibit a \emph{recall} of 1, meaning that negative instances in these datasets are indeed dissimilar terms.
+In contrast, negative instances created using the Levenshtein strategy are sometimes so close that doctors indicate them as in fact being similar terms.
+The \emph{precision} furthermore shows that some positive term pairs are in fact dissimilar according to the doctors, which
+ occurs more frequently for the hard datasets.
+The lower precision in the \dataset{Possibly-equivalent-to} and \dataset{replaced-by} datasets indicates that, as is to be expected, positive instances in these datasets do not always denote \emph{exactly} the same. An example is the pair of terms  \lab{Abortion in first trimester} and \lab{Induced termination of pregnancy}, which are related but according to the doctors not the same.
+
+In summary, our manual evaluation shows that all datasets have reliable similarity scores.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Methods for Measuring Term Similarity}
+Many embeddings specifically trained for the use in medical applications have been suggested in recent years and tested on different subsets of the existing concept similarity datasets. Instead of presenting a new embedding model to test on our dataset, we evaluate publicly available existing embeddings. Note that unfortunately many of the embeddings performing best on existing datasets are not available \cite{LingEtAl2017,HenryCM2018}.
+We also do not test concept embeddings as our datasets are based on \emph{terms}, so a pair of terms may belong to the same concept.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Word and Contextual Embeddings}
+
+We evaluate the following types of embeddings (see Tables~\ref{tab:embeddings} and \ref{tab:embedding_coverage} in the Appendix for more detail).\\
+ \textbf{1)  word2vec skip-gram \cite{MikolovEtAl2013}:} \\
+ \indent - 4 \emph{Bio} embeddings \cite{PyysaloEtAl2013} trained on PubMed Central (PMC), PubMed (PM), both (PP), and both plus Wikipedia (PPW);\\
+ \indent - 1 embedding trained on the \emph{BioASQ} challenge dataset \cite{KosmopoulosAP2015};\\
+ \indent - 2 embeddings with window sizes 2 and 30 by the Language Technology Lab (\emph{LTL}) \cite{ChiuEtAl2016};\\
+ \indent - 2 embeddings by the
+ Athens University of Economics and Business (\emph{AUEB}) with vector dimensionalities 200 and 400 \cite{McdonaldEtAl2018}.\\
+ \textbf{2) Fasttext \cite{BojanowskiGJM2017}:}\\
+ \indent - 2 embeddings using the \emph{MeSH} thesaurus in addition to PM for training with window size 2 for \emph{intrinsic} tasks and size 20 for \emph{extrinsic} ones \cite{ZhangEtAl2019};\\
+ \indent - 1 embedding (and its model (M)) based on the previous plus the \emph{MIMIC}-III dataset \cite{ChenPL2019}. \\
+ \textbf{3) Non-medical:} As a comparison, we also include \\
+ \indent - the \emph{GloVe} word embedding \cite{PenningtonEtAl2014}; \\
+ \indent - 2 \emph{Fasttext} embeddings trained on Wikipedia and Common Crawl (plus its model (M)) \cite{MikolovEtAl2018}.
+
+The MeSH and MIMIC embeddings have least out-of-vocabulary terms (OOV) regarding our new datasets, but some of the other embeddings (esp. non-medical) can represent less than 50\% of terms (see Table~\ref{tab:embeddings} in the Appendix).
+
+\noindent \textbf{4) Contextual embeddings:} since the majority of terms in our new datasets are made of multiple words, we also experiment with
+\emph{ELMo} \cite{peters-etal-2018-deep} and its biomedical version \emph{ELMoPubMed}, \emph{Flair} \cite{akbik2019naacl} trained on PubMed, \emph{BERT}  \cite{DBLP:journals/corr/abs-1810-04805} and its biomedical version \emph{SciBERT} \cite{Beltagy2019SciBERT}, and \emph{GPT} \cite{Radford2018ImprovingLU}.
+
+\begin{table*}[th]
+    \centering
+    \small
+    \begin{tabular}{l l l l l l l l l l}
+         Dataset & \textbf{Hlia.} & \textbf{MM-av} & \textbf{Mayo} & \textbf{Sim} & \textbf{Sim-m} & \textbf{Rel} & \textbf{Rel-m} & \textbf{SimLex} & \textbf{SimVerb}\\
+         Subset Size & 36/36 & 29/29 & 81/101 & 352/566 & 340/449 & 347/587 & 339/458 & 964/988 & 909/1000\\
+         \midrule
+Bio PMC & $0.53^{2}$ & $0.80^{3}$ & $0.44^{3}$ & $0.48^{5/-12}$ & $0.46^{5/-14}$ & $0.36^{4/-16}$ & $0.36^{4/-16}$ & $0.71^{5/-3}$ & $0.45^{4/-4}$ \\
+Bio PM & $0.59^{6}$ & $0.83^{3}$ & $0.54^{3}$ & $0.58^{7/-2}$ & $0.56^{7/-3}$ & $0.47^{7/-4}$ & $0.48^{7/-5}$ & $0.69^{4/-5}$ & $0.44^{4/-5}$ \\
+Bio PP & $\mathbf{0.59^{7}}$ & $0.78^{4}$ & $0.50^{3}$ & $0.54^{7/-9}$ & $0.53^{7/-9}$ & $0.44^{6/-7}$ & $0.45^{7/-7}$ & $0.71^{5/-2}$ & $0.45^{4/-4}$ \\
+Bio PPW & $0.57^{2}$ & $\mathbf{0.85^{8}}$ & $0.50^{3}$ & $0.54^{7/-8}$ & $0.53^{6/-8}$ & $0.45^{7/-7}$ & $0.45^{6/-7}$ & $0.72^{8/-1}$ & $0.47^{5/-4}$ \\
+BioASQ & $0.48^{1}$ & $0.80^{3}$ & $0.55^{3}$ & $0.60^{9/-1}$ & $0.59^{9/-2}$ & $0.48^{7/-4}$ & $0.49^{7/-4}$ & $0.69^{4/-5}$ & $0.42^{3/-12}$ \\
+LTL win2 & $0.52^{2}$ & $0.76^{2}$ & $0.47^{3/-1}$ & $0.60^{8/-2}$ & $0.59^{8/-2}$ & $0.50^{7/-2}$ & $0.51^{7/-2}$ & $0.72^{5/-2}$ & $0.46^{5/-4}$ \\
+LTL win30 & $\mathbf{0.59^{7}}$ & $0.81^{4}$ & $\mathbf{0.57^{5}}$ & $\mathbf{0.66^{14}}$ & $\mathbf{0.66^{13}}$ & $0.58^{13}$ & $0.59^{13}$ & $0.69^{4/-4}$ & $0.44^{4/-6}$ \\
+AUEB200 & $0.42^{-1}$ & $0.78^{3}$ & $0.51^{3}$ & $0.62^{9}$ & $0.62^{9}$ & $0.53^{9/-2}$ & $0.54^{9/-2}$ & $0.71^{6/-2}$ & $0.46^{5/-4}$ \\
+AUEB400 & $0.48$ & $0.77^{2}$ & $0.51^{3}$ & $0.64^{9}$ & $0.63^{9}$ & $0.54^{9/-1}$ & $0.55^{10}$ & $0.72^{6/-2}$ & $0.47^{5/-4}$ \\
+MeSH extr & $0.46^{1}$ & $0.82^{7}$ & $0.50^{3}$ & $0.63^{9/-1}$ & $0.62^{9/-1}$ & $0.54^{9/-1}$ & $0.55^{9/-1}$ & $0.70^{5/-4}$ & $0.47^{5/-4}$ \\
+MeSH intr & $0.42$ & $0.82^{4}$ & $0.55^{3}$ & $\mathbf{0.66^{14}}$ & $\mathbf{0.65^{14}}$ & $\mathbf{0.59^{15}}$ & $\mathbf{0.59^{14}}$ & $0.66^{4/-14}$ & $0.44^{4/-4}$ \\
+MIMIC & $0.51^{1}$ & $0.81^{4}$ & $0.53^{3}$ & $0.64^{9}$ & $0.63^{9}$ & $0.56^{11}$ & $0.57^{11}$ & $0.71^{5/-2}$ & $0.48^{6/-3}$ \\
+MIMIC M & $0.52^{1}$ & $0.81^{4}$ & $0.53^{3}$ & $0.64^{9}$ & $0.63^{10}$ & $0.56^{11}$ & $0.57^{11}$ & $0.71^{6/-2}$ & $0.48^{6/-2}$ \\
+\midrule
+GloVe & $0.37$ & $0.53^{-2}$ & $0.37^{1}$ & $0.55^{5/-2}$ & $0.54^{6/-2}$ & $0.49^{7}$ & $0.49^{7}$ & $0.75^{10}$ & $0.56^{16}$ \\
+Fastt Wiki & $0.29^{-3}$ & $0.57^{-1}$ & $0.38$ & $0.53^{5/-2}$ & $0.55^{6}$ & $0.49^{7}$ & $0.52^{7}$ & $0.75^{11}$ & $0.56^{15}$ \\
+Fastt Cr & $0.32^{-3}$ & $0.57^{-2}$ & $0.40^{1}$ & $0.59^{6}$ & $0.59^{7}$ & $0.54^{7}$ & $0.55^{7}$ & $0.77^{18}$ & $\mathbf{0.58^{18}}$ \\
+Fastt Cr M & $0.30^{-3}$ & $0.57^{-2}$ & $0.41^{1}$ & $0.58^{6}$ & $0.59^{7}$ & $0.54^{7}$ & $0.55^{7}$ & $\mathbf{0.77^{19}}$ & $\mathbf{0.58^{18}}$ \\
+\midrule
+ELMoPM & $0.42^{2}$ & $0.66^{1}$ & $0.38^{1}$ & $0.44^{5/-14}$ & $0.42^{5/-15}$ & $0.33^{4/-15}$ & $0.34^{4/-15}$ & $0.72^{6/-2}$ & $0.51^{6}$ \\
+Flair & $-0.07^{-11}$ & $0.06^{-10}$ & $0.18^{-1}$ & $0.19^{-18}$ & $0.19^{-18}$ & $0.08^{-18}$ & $0.08^{-18}$ & $0.38^{-19}$ & $0.18^{-19}$ \\
+SciBERT & $0.40$ & $0.59$ & $0.26$ & $0.19^{-18}$ & $0.19^{-18}$ & $0.21^{-16}$ & $0.21^{-16}$ & $0.35^{-19}$ & $0.30^{-18}$ \\
+BERT & $-0.01^{-3}$ & $0.21^{-9}$ & $-0.01^{-13}$ & $0.12^{-18}$ & $0.11^{-18}$ & $0.08^{-18}$ & $0.04^{-18}$ & $0.39^{-19}$ & $0.18^{-19}$ \\
+ELMo & $0.00^{-7}$ & $0.11^{-13}$ & $0.08^{-17}$ & $0.20^{-18}$ & $0.21^{-18}$ & $0.13^{-18}$ & $0.14^{-18}$ & $0.63^{4/-9}$ & $0.5^{4/-2}$ \\
+GPT & $0.00^{-1}$ & $-0.17^{-13}$ & $0.01^{-13}$ & $0.10^{-18}$ & $0.09^{-18}$ & $0.08^{-18}$ & $0.06^{-18}$ & $0.32^{-19}$ & $0.26^{-19}$ \\
+    \end{tabular}
+    \caption{Spearman's correlation of each embedding ($fJ$ for word embeddings, $avg\_cos$ for GloVe, $\tau$ for contextual embeddings).
+    An embedding has significantly better/worse correlation than the number of embeddings given by the positive/negative superscripts ($\alpha = 0.0002$, i.e. $\alpha = 0.05$ with Bonferroni correction). MM-av: average scores of coders and physicians.}
+    \label{tab:significance_existingDatasets}
+\end{table*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Similarity Metrics}
+In contrast to contextual embeddings, which compute a single term vector for any multi-word input string (e.g. a term), word embeddings can only represent single words so that the different word vectors of a multi-word term need to be aggregated to form a \emph{term vector}. To compare the similarity of embedding vectors, the most commonly applied metric is $cos$(ine) similarity.
+\citeauthor{HenryCM2018} \shortcite{HenryCM2018}
+experimented with averaging and summing word vectors to obtain a term vector and using $cos$ as a similarity measure, but found no significant difference.
+
+We experiment with applying similarity measures to averaged ($avg$) word vectors as well as computing pairwise ($pair$) word similarities and averaging these.
+In addition to $cos$ as a similarity measure, we apply the rank correlation coefficients (Pearson's) $r$, (Spearman's) $\rho$ and (Kendall's) $\tau$, as recently proposed by \citeauthor{ZhelezniakEtAl2019-correlation} \shortcite{ZhelezniakEtAl2019-correlation}.
+For word embeddings, we furthermore experiment with fuzzy Jaccard ($fJ$)
+and max Jaccard ($mJ$) similarity, which can handle multi-word strings \cite{ZhelezniakEtAl2019-fuzzyJaccard}.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Evaluation}
+To compare what conclusions can be drawn from existing versus our new datasets, we evaluate embeddings on both, investigating 1) which similarity metric works best for the various embeddings and whether the differences are significant and 2) which embedding performs best on each dataset and whether the differences are significant.
+For fair comparison, all analyses are performed on a subset of each dataset containing no OOV instances for any embedding.
+For the interested reader, detailed results are in the Appendix.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Small Existing Datasets}
+As in previous work, we measure the performance of embeddings in terms of Spearman's correlation. Since the similarity scores of different embeddings are not independent and we cannot assume that they are normally distributed, bias-corrected and accelerated (BCa) bootstrap confidence intervals \cite{ZhelezniakEtAl2019-fuzzyJaccard}
+are applied to assess if there are significant differences between the predictions of different embeddings with different similarity metrics.
+
+\noindent\textbf{Effect of Similarity Metrics.}
+Comparing the Spearman's correlations of a word embedding obtained with the different similarity metrics, no metric consistently performs best (see Table~\ref{tab:significance_existingDatasets_full} in the Appendix).
+We find nearly \emph{no significant differences} between applying different similarity metrics to an embedding on the Hliaoutakis and \mbox{MiniMayoSRS} datasets (see Tables~\ref{tab:significance_existingDatasets_methods1}-\ref{tab:significance_existingDatasets_methods4} in the Appendix). This illustrates that these datasets are simply \emph{too small} to draw any meaningful conclusions about performance differences of different embeddings and similarity metrics.
+For the larger datasets, $mJ$ has significantly lower correlation than most other similarity metrics for various word embeddings. This is interesting as \citeauthor{ZhelezniakEtAl2019-fuzzyJaccard} \shortcite{ZhelezniakEtAl2019-fuzzyJaccard} find that for sentence similarity tasks $mJ$ outperforms $avg\_cos$.
+None of the other similarity metrics performs significantly better than all others for any dataset and word embedding.
+We therefore use the standard $avg\_cos$
+to compare the performance of word embeddings in the next section, except for GloVe where $avg\_r$ is applied as it significantly outperforms most other metrics (on the larger datasets).
+For contextual embeddings, $\rho$ and $\tau$ are often
+significantly better than the other metrics, with the latter slightly outperforming the former. We therefore use $\tau$ for the
+comparison of embeddings.
+
+\begin{table*}[ht]
+    \centering
+\scriptsize
+     \begin{tabular}{l l l l l l l l l l l}
+\multirow{2}{*}{Dataset}& \textbf{\dataset{FSN-syn.}} & \textbf{\dataset{FSN-syn.}} & \textbf{\dataset{syn-syn.}} & \textbf{\dataset{syn-syn.}} & \textbf{\dataset{poss.-equ.}} & \textbf{\dataset{poss.-equ.}} & \textbf{\dataset{repl.-by}} & \textbf{\dataset{repl.-by}} & \textbf{\dataset{same-as}} & \textbf{\dataset{same-as}} \\
+& \textbf{easy} & \textbf{hard} & \textbf{easy} & \textbf{hard} & \textbf{easy} & \textbf{hard} & \textbf{easy} & \textbf{hard} & \textbf{easy} & \textbf{hard} \\
+% & 52,430 & 223,434 & 76,671 & 340,857 & 1,067 & 38,662 & 325 & 4,043 & 1,796 & 12,578 \\
+% Subset Size & 66.8\% & 59.9\% & 62.4\% & 56.5\% & 72.4\% & 69.0\% & 49.7\% & 62.9\% & 69.9\% & 70.8\% \\
+Subset Size & 65.2\% & 58.6\% & 63.0\% & 56.5\% & 72.3\% & 69.0\% & 49.4\% & 62.9\% & 69.7\% & 71.0\% \\
+\midrule
+BioNLP PMC & $74.5^{9/-13}$ & $54.9^{13/-6}$ & $73.8^{9/-13}$ & $52.4^{6/-10}$ & $77.1^{4/-4}$ & $52.7^{10/-8}$ & $70.6^{3}$ & $56.7^{9/-5}$ & $79.0^{5/-3}$ & $57.7^{11/-5}$ \\
+% BioNLP PMC & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ \\
+BioNLP PM & $77.0^{16/-4}$ & $55.5^{17/-3}$ & $76.1^{16/-4}$ & $53.2^{15/-6}$ & $79.1^{4}$ & $53.3^{16/-6}$ & $74.3^{4}$ & $59.7^{18}$ & $79.2^{5/-3}$ & $58.9^{16/-4}$ \\
+% BioNLP PM & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ \\
+BioNLP PP & $76.4^{11/-5}$ & $54.5^{12/-10}$ & $75.6^{11/-7}$ & $52.4^{7/-10}$ & $78.3^{4/-3}$ & $53.0^{13/-7}$ & $73.1^{3}$ & $57.7^{10/-4}$ & $79.4^{6/-3}$ & $58.0^{11/-5}$ \\
+% BioNLP PP & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ \\
+BioNLP PPW & $76.3^{11/-5}$ & $53.9^{10/-11}$ & $75.4^{11/-7}$ & $52.4^{6/-10}$ & $78.3^{4/-1}$ & $52.8^{12/-7}$ & $72.1^{3}$ & $57.6^{9/-4}$ & $79.1^{5/-3}$ & $57.7^{11/-5}$ \\
+% BioNLP PPW & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ \\
+BioASQ & $76.6^{11/-5}$ & $55.2^{14/-4}$ & $75.4^{11/-7}$ & $52.6^{14/-8}$ & $79.6^{4}$ & $59.4^{20/-1}$ & $74.3^{4}$ & $59.9^{18}$ & $78.9^{5/-4}$ & $60.9^{19/-1}$ \\
+% BioASQ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ \\
+LTL win2 & $76.3^{11/-5}$ & $52.3^{7/-15}$ & $75.7^{12/-7}$ & $52.4^{6/-11}$ & $78.7^{4}$ & $52.6^{10/-7}$ & $73.1^{3}$ & $56.6^{8/-6}$ & $79.5^{7/-2}$ & $55.2^{7/-12}$ \\
+% LTL win2 & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ \\
+LTL win30 & $75.1^{10/-12}$ & $57.4^{21/-1}$ & $74.5^{10/-12}$ & $54.8^{21/-1}$ & $\mathbf{81.1^{9}}$ & $54.3^{17/-5}$ & $72.8^{3}$ & $60.6^{18}$ & $81.1^{8}$ & $60.9^{19/-1}$ \\
+% LTL win30 & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ \\
+AUEB200 & $78.8^{21/-1}$ & $55.1^{13/-5}$ & $77.4^{19/-1}$ & $52.5^{13/-9}$ & $80.8^{7}$ & $57.8^{18/-3}$ & $73.4^{3}$ & $58.1^{11/-4}$ & $81.6^{9}$ & $57.9^{11/-4}$ \\
+% AUEB200 & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ \\
+AUEB400 & $78.4^{19/-2}$ & $55.6^{18/-3}$ & $77.3^{19/-1}$ & $53.3^{15/-5}$ & $80.1^{5}$ & $57.6^{18/-3}$ & $73.1^{3}$ & $58.0^{10/-5}$ & $82.0^{13}$ & $58.0^{11/-4}$ \\
+% AUEB400 & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ \\
+MeSH extr & $\mathbf{79.2^{22}}$ & $56.7^{20/-2}$ & $\mathbf{77.7^{22}}$ & $53.9^{17/-2}$ & $81.1^{8}$ & $59.5^{20/-1}$ & $74.6^{4}$ & $59.3^{13/-1}$ & $82.3^{15}$ & $60.4^{19/-1}$ \\
+% MeSH extr & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ \\
+MeSH intr & $78.3^{19/-2}$ & $\mathbf{58.5^{22}}$ & $77.1^{19/-1}$ & $\mathbf{55.6^{22}}$ & $\mathbf{81.6^{9}}$ & $\mathbf{61.4^{22}}$ & $74.0^{4}$ & $\mathbf{61.2^{19}}$ & $\mathbf{82.9^{18}}$ & $\mathbf{64.2^{22}}$ \\
+% MeSH intr & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ \\
+MIMIC & $76.7^{12/-4}$ & $55.0^{13/-5}$ & $76.0^{16/-4}$ & $52.4^{6/-10}$ & $79.0^{4}$ & $52.5^{10/-9}$ & $74.3^{3}$ & $57.4^{9/-4}$ & $80.2^{7/-1}$ & $57.4^{11/-5}$ \\
+% MIMIC & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ \\
+MIMIC M & $76.7^{12/-4}$ & $55.0^{13/-5}$ & $76.0^{16/-4}$ & $52.4^{6/-10}$ & $79.0^{4}$ & $52.5^{10/-9}$ & $74.3^{3}$ & $57.4^{9/-4}$ & $80.0^{7/-1}$ & $57.4^{11/-5}$ \\
+% MIMIC M & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ \\
+\midrule
+GloVe & $72.2^{8/-14}$ & $51.6^{6/-16}$ & $71.7^{8/-14}$ & $52.4^{6/-10}$ & $78.1^{4}$ & $52.0^{9/-13}$ & $70.3^{3}$ & $54.9^{6/-12}$ & $77.6^{5/-5}$ & $55.1^{7/-12}$ \\
+% GloVe & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ \\
+Fastt Wiki & $61.0^{-22}$ & $53.6^{10/-11}$ & $61.6^{-22}$ & $53.6^{16/-4}$ & $60.0^{-20}$ & $50.9^{-16}$ & $54.2^{-20}$ & $51.0^{-17}$ & $58.9^{-21}$ & $50.9^{-18}$ \\
+% Fastt Wiki & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ \\
+Fastt Crawl & $66.2^{3/-18}$ & $53.4^{9/-13}$ & $66.4^{3/-18}$ & $54.2^{19/-2}$ & $62.4^{-20}$ & $50.9^{-16}$ & $60.4^{-18}$ & $51.1^{-17}$ & $62.1^{2/-20}$ & $50.9^{-18}$ \\
+% Fastt Crawl & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ \\
+Fastt Crawl M & $63.3^{1/-20}$ & $53.2^{8/-14}$ & $63.6^{1/-20}$ & $53.9^{18/-3}$ & $60.7^{-20}$ & $50.9^{-16}$ & $54.5^{-20}$ & $51.1^{-17}$ & $60.3^{-21}$ & $50.8^{-19}$ \\
+% Fastt Crawl M & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ & fuzzyJ \\
+\midrule
+ELMoPubMed & $76.1^{11/-7}$ & $50.4^{-17}$ & $75.3^{11/-8}$ & $52.1^{-17}$ & $78.8^{4}$ & $51.3^{6/-14}$ & $74.0^{4}$ & $55.9^{8/-8}$ & $79.6^{7/-1}$ & $54.7^{7/-12}$ \\
+% ELMoPubMed & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall \\
+Flair & $70.6^{6/-15}$ & $50.4^{-17}$ & $70.0^{6/-15}$ & $52.1^{-17}$ & $70.3^{3/-19}$ & $50.9^{-16}$ & $67.5^{2/-5}$ & $51.1^{-17}$ & $73.2^{3/-16}$ & $51.0^{-18}$ \\
+% Flair & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall \\
+SciBERT & $63.4^{1/-20}$ & $50.4^{-17}$ & $64.2^{1/-20}$ & $52.1^{-17}$ & $75.9^{4/-4}$ & $51.1^{6/-14}$ & $69.0^{3}$ & $53.8^{6/-14}$ & $72.2^{3/-17}$ & $54.3^{7/-12}$ \\
+% SciBERT & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall \\
+BERT & $67.4^{5/-17}$ & $50.4^{-17}$ & $67.2^{5/-17}$ & $52.1^{-17}$ & $78.5^{4}$ & $50.9^{-16}$ & $70.3^{3}$ & $51.3^{-17}$ & $75.3^{3/-10}$ & $51.7^{1/-17}$ \\
+% BERT & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall \\
+ELMo & $70.2^{6/-15}$ & $50.4^{-17}$ & $70.1^{6/-15}$ & $52.1^{-17}$ & $76.0^{4/-5}$ & $51.1^{-14}$ & $70.3^{3}$ & $53.4^{6/-14}$ & $76.0^{4/-9}$ & $53.0^{5/-16}$ \\
+% ELMo & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall \\
+GPT & $65.9^{3/-18}$ & $50.4^{-17}$ & $65.8^{3/-18}$ & $52.1^{-17}$ & $77.0^{4/-1}$ & $50.9^{-16}$ & $68.7^{2}$ & $51.1^{-17}$ & $78.5^{5/-2}$ & $52.2^{4/-16}$ \\
+% GPT & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall & kendall \\
+% Bio PMC & $74.8^{9/-12}$ & $53.7^{10/-6}$ & $75.1^{9/-13}$ & $52.4^{6/-10}$ & $77.0^{4/-4}$ & $52.7^{10/-7}$ & $70.5^{3}$ & $56.9^{9/-5}$ & $78.7^{5/-4}$ & $57.6^{11/-5}$ \\
+% Bio PM & $77.3^{16/-4}$ & $54.6^{17/-3}$ & $76.9^{16/-4}$ & $53.2^{15/-6}$ & $78.9^{4}$ & $53.2^{16/-6}$ & $74.5^{5}$ & $60.0^{18}$ & $79.1^{5/-3}$ & $58.8^{16/-4}$ \\
+% Bio PP & $76.6^{11/-5}$ & $53.5^{9/-10}$ & $76.6^{13/-7}$ & $52.4^{7/-10}$ & $78.2^{4/-2}$ & $53.0^{12/-7}$ & $72.3^{3}$ & $57.8^{9/-4}$ & $79.2^{6/-3}$ & $58.0^{11/-5}$ \\
+% Bio PPW & $76.7^{11/-5}$ & $52.8^{8/-14}$ & $76.3^{10/-8}$ & $52.4^{6/-10}$ & $78.3^{4/-1}$ & $52.8^{12/-7}$ & $70.8^{3}$ & $57.6^{9/-5}$ & $78.8^{5/-3}$ & $57.7^{11/-5}$ \\
+% BioASQ & $76.8^{12/-5}$ & $53.9^{12/-6}$ & $76.5^{10/-7}$ & $52.6^{14/-8}$ & $79.6^{4}$ & $59.4^{20/-1}$ & $74.5^{4}$ & $59.9^{18}$ & $78.5^{5/-4}$ & $60.8^{19/-1}$ \\
+% LTL win2 & $76.6^{11/-7}$ & $51.8^{6/-15}$ & $76.5^{10/-7}$ & $52.4^{6/-11}$ & $78.4^{4}$ & $52.7^{10/-7}$ & $73.2^{3}$ & $56.7^{8/-6}$ & $79.3^{7/-2}$ & $55.2^{8/-12}$ \\
+% LTL win30 & $75.3^{9/-12}$ & $56.6^{21/-1}$ & $76.1^{10/-8}$ & $54.8^{21/-1}$ & $\mathbf{81.0^{9}}$ & $54.3^{17/-5}$ & $72.6^{3}$ & $61.0^{18}$ & $80.9^{8/-1}$ & $61.0^{19/-1}$ \\
+% AUEB200 & $79.0^{21/-1}$ & $53.8^{10/-6}$ & $78.2^{19/-1}$ & $52.5^{13/-9}$ & $80.7^{7}$ & $57.8^{18/-3}$ & $73.5^{4}$ & $58.2^{11/-4}$ & $81.3^{10}$ & $58.1^{11/-4}$ \\
+% AUEB400 & $78.6^{19/-2}$ & $54.5^{17/-3}$ & $78.3^{19/-1}$ & $53.3^{15/-5}$ & $80.0^{5}$ & $57.6^{18/-3}$ & $73.8^{4}$ & $58.1^{10/-5}$ & $81.8^{13}$ & $58.0^{11/-4}$ \\
+% MeSH intr & $78.5^{19/-2}$ & $\mathbf{57.4^{22}}$ & $78.3^{19/-1}$ & $\mathbf{55.6^{22}}$ & $\mathbf{81.3^{9}}$ & $\mathbf{61.4^{22}}$ & $73.8^{4}$ & $\mathbf{61.4^{19}}$ & $\mathbf{83.0^{19}}$ & $\mathbf{64.1^{22}}$ \\
+% MeSH extr & $\mathbf{79.4^{22}}$ & $55.4^{20/-2}$ & $\mathbf{78.7^{22}}$ & $53.9^{17/-3}$ & $80.9^{7}$ & $59.6^{20/-1}$ & $74.8^{4}$ & $59.5^{14/-1}$ & $82.2^{15}$ & $60.4^{19/-1}$ \\
+% MIMIC & $77.0^{13/-4}$ & $53.5^{9/-7}$ & $77.1^{16/-4}$ & $52.4^{6/-10}$ & $78.8^{4}$ & $52.5^{10/-9}$ & $72.9^{3}$ & $57.6^{10/-4}$ & $80.1^{7/-1}$ & $57.3^{11/-5}$ \\
+% MIMIC M & $77.0^{13/-4}$ & $53.5^{9/-7}$ & $77.1^{16/-4}$ & $52.4^{6/-10}$ & $78.8^{4}$ & $52.5^{10/-9}$ & $72.9^{3}$ & $57.6^{10/-4}$ & $79.8^{7/-1}$ & $57.3^{11/-5}$ \\
+% \midrule
+% GloVe & $72.3^{8/-14}$ & $51.9^{6/-15}$ & $73.6^{8/-14}$ & $52.4^{6/-10}$ & $78.2^{4}$ & $52.0^{9/-13}$ & $70.2^{3}$ & $54.9^{7/-12}$ & $77.6^{5/-5}$ & $55.0^{7/-12}$ \\
+% Fastt Wiki & $61.4^{-22}$ & $53.7^{9/-7}$ & $62.8^{-22}$ & $53.6^{16/-4}$ & $59.5^{-20}$ & $50.9^{-15}$ & $53.8^{-20}$ & $51.0^{-17}$ & $58.8^{-21}$ & $50.9^{-18}$ \\
+% Fastt Cr & $66.9^{4/-17}$ & $54.5^{17/-3}$ & $67.8^{2/-19}$ & $54.3^{20/-2}$ & $61.8^{-20}$ & $50.9^{-15}$ & $59.7^{-18}$ & $51.0^{-17}$ & $62.0^{2/-20}$ & $50.9^{-18}$ \\
+% Fastt Cr M & $63.7^{1/-20}$ & $54.0^{11/-6}$ & $64.8^{1/-21}$ & $53.9^{18/-3}$ & $60.2^{-20}$ & $50.9^{-15}$ & $54.5^{-20}$ & $51.0^{-17}$ & $60.0^{-21}$ & $50.9^{-18}$ \\
+% \midrule
+% ELMoPM & $76.3^{11/-8}$ & $51.5^{-17}$ & $76.1^{10/-8}$ & $52.1^{-17}$ & $78.9^{4}$ & $51.3^{6/-14}$ & $74.2^{4}$ & $55.9^{8/-9}$ & $79.5^{7/-1}$ & $54.6^{7/-12}$ \\
+% Flair & $70.8^{6/-15}$ & $51.5^{-17}$ & $71.0^{6/-16}$ & $52.1^{-17}$ & $70.2^{3/-19}$ & $50.9^{-15}$ & $67.1^{2/-7}$ & $51.1^{-16}$ & $73.0^{3/-16}$ & $50.9^{-18}$ \\
+% SciBERT & $63.6^{1/-20}$ & $51.5^{-17}$ & $67.1^{2/-19}$ & $52.1^{-17}$ & $76.0^{4/-4}$ & $51.1^{-14}$ & $68.6^{3/-1}$ & $53.9^{6/-14}$ & $72.5^{3/-16}$ & $54.1^{7/-13}$ \\
+% BERT & $67.4^{4/-17}$ & $51.5^{-17}$ & $69.1^{4/-17}$ & $52.1^{-17}$ & $78.2^{4}$ & $50.9^{-15}$ & $70.5^{3}$ & $51.3^{-16}$ & $75.0^{3/-10}$ & $51.6^{-17}$ \\
+% ELMo & $70.3^{6/-15}$ & $51.5^{-17}$ & $71.8^{7/-15}$ & $52.1^{-17}$ & $76.1^{4/-5}$ & $51.1^{-14}$ & $70.5^{3}$ & $53.1^{4/-15}$ & $75.8^{3/-9}$ & $53.0^{6/-16}$ \\
+% GPT & $65.9^{3/-19}$ & $51.5^{-17}$ & $68.5^{4/-17}$ & $52.1^{-17}$ & $77.0^{4/-1}$ & $50.9^{-15}$ & $68.3^{2}$ & $51.0^{-17}$ & $78.2^{5/-2}$ & $52.1^{4/-17}$ \\
+    \end{tabular}
+    \caption{Accuracy of each embedding ($fJ$ for word embeddings, $\tau$ for contextual embeddings) on datasets created with Levenshtein negative sampling.
+    An embedding has significantly better/worse accuracy than the number of embeddings given by the positive/negative superscripts ($\alpha = 0.0002$, i.e. $\alpha = 0.05$ with Bonferroni correction).}
+    \label{tab:significance_newDatasets_subset_negL}
+\end{table*}
+
+\noindent\textbf{Embedding Comparison.}
+Table~\ref{tab:significance_existingDatasets} reports the Spearman's correlation for each embedding
+ and indicates how many other embeddings it significantly outperforms and falls behind.
+Note that higher correlations have been reported for the UMNSRS-Sim/Rel datasets (e.g. \cite{LingEtAl2017,AbdeddaimVS2018}), but none of these embeddings are publicly available and thus not included here.
+Overall, the correlations of word embeddings are moderate to strong, \emph{suggesting} that embeddings are able to decently encode medical terms and their similarity.
+For the Hliaoutakis and MiniMayo datasets,
+\emph{no significant differences} between
+biomedical and, in most cases, even the non-medical word embeddings are observed, despite correlation differences as large as $0.2$.
+This is due to the small size of these datasets and highlights the \emph{need for larger datasets} to obtain more meaningful embedding comparisons.
+On the UMNSRS-Sim/Rel datasets, the BioNLP embeddings perform significantly worse than most other biomedical embeddings, even though they achieve the highest correlations on the very small datasets.
+This demonstrates that existing datasets \emph{do not allow any judgements} about the generalisability of embeddings to unseen similarity instances.
+The other biomedical word embeddings do not exhibit significant differences and even the non-medical word embeddings do not perform significantly worse.
+This raises the \emph{question if existing datasets are representative} of the highly difficult medical terminology.
+All word embeddings significantly outperform
+all contextual embeddings except ELMoPubMed, which performs significantly better than the other contextual embeddings. BERT models usually require fine tuning, so their lower performance is expected. Flair's lower performance likely stems from it not having an explicit notion of words, whereas the remaining contextual embeddings lack medical knowledge.
+
+The results on Bio-SimLex and Bio-SimVerb are surprising: the non-medical Fasttext significantly outperforms all biomedical word embeddings, achieving much higher correlations  than previously reported \cite{ChiuPVK2018}.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{New Large-Scale Datasets}
+Since our new datasets frame a binary classification task, we evaluate the embeddings' separability of similar versus dissimilar term pairs using the area under the ROC curve (AUC) and accuracy based on a classification threshold optimising the accuracy (different threshold for each embedding and similarity metric).
+Significance between classifications of the different embeddings using the optimised thresholds is measured by McNemar's test.
+Since the accuracy scores follow the AUC trends (see Tables~\ref{tab:newDatasets_auc_negL} and \ref{tab:newDatasets_auc_negR} in the Appendix), we present accuracy scores and their significant differences in Table~\ref{tab:significance_newDatasets_subset_negL}.
+
+\noindent\textbf{Effects of Similarity Measures.}
+In contrast to the existing datasets, $fJ$ \emph{significantly} outperforms most other similarity metrics for nearly all word embeddings (see Tables~\ref{tab:significance_snomedDatasets_methods1}-\ref{tab:significance_snomedDatasets_methods5} in the Appendix).
+Furthermore, $pair$ metrics perform significantly worse than other metrics -- a difference not observable on the existing datasets.
+For contextual embeddings, $\tau$ and and $\rho$ again significantly outperform the other metrics on some datasets.
+For the following comparison of embeddings, we thus use $fJ$ for all word embeddings and $\tau$ for all contextual embeddings.
+
+\noindent\textbf{Embedding Comparison.}
+Table~\ref{tab:significance_newDatasets_subset_negL} shows \emph{significant} performance differences between the embeddings on the new datasets created with Levenshtein negative sampling, which are not revealed by existing datasets.
+MeSH intr yields the best overall separation of similar and dissimilar term pairs, \emph{significantly} outperforming the non-medical word embeddings and the contextual embeddings as well as most of the medical word embeddings -- especially on the hard datasets.
+In contrast, the performances of all medical word embeddings on the datasets with random negative sampling are very similar and high (see details in Tables~\ref{tab:significance_newDatasets_subset_negR} and \ref{tab:newDatasets_auc_negR} in the Appendix).
+This shows that, as is to be expected, random negative sampling creates term pairs that are easily identifiable as dissimilar.
+In the following, we thus focus on the datasets with Levenshtein negative sampling.
+
+\noindent\textbf{Easy vs. Hard Datasets.}
+For the hard datasets, accuracy is much lower than for the easy datasets, sometimes barely over 50\% indicating \emph{no separation} between similar and dissimilar term pairs.
+Recall that in these hard datasets, similar term pairs have a larger Levenshtein distance than dissimilar ones (see Table~\ref{tab:datasets}), making them highly challenging.
+In fact, contextual embeddings predict dissimilar terms to be more similar than the actual similar terms (AUC lower than 0.5, see Table~\ref{tab:newDatasets_auc_negL} in the Appendix).
+In contrast, for the easy datasets, where similar terms have a lower Levenshtein distance than dissimilar terms, the performance of ELMoPubMed is en par with the performance of some of the medical word embeddings.
+This behaviour can be attributed to the fact that contextual embeddings are based on n-grams/characters, so that lexically similar medical terms are represented by similar vectors.
+
+\noindent\textbf{Conclusion of Analysis.}
+The performance analysis of embeddings on both existing and new datasets shows:
+1) Our new datasets reveal \emph{significant} performance differences between embeddings and similarity metrics, not observable on the (too small) existing datasets.
+2) Existing datasets suggest decent performance of current embeddings, whereas our datasets prove that embeddings are in fact \emph{unable} to correctly identify difficult term pairs as (dis)similar.
+3) Our datasets thus provide a challenging novel \emph{benchmark} for future research, representing the whole medical terminology.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Category Separation}
+Both our new and existing datasets encode only very closely related terms as similar.
+An adequate representation of medical terminology, mirroring a doctor's understanding, should however go further: medical terms are also similar on a broader level, forming distinct categories.
+We thus propose to also use \emph{category separation} to test medical term representations and perform a first small evaluation to motivate this type of evaluation for future research.
+
+Again, we make use of SNOMED CT and choose the two semantically close categories
+\emph{Diagnostic Procedure} (DP) and \emph{Therapeutic Procedure} (TP) as well as the category \emph{Organism} (Org), which is semantically distant from the other two.
+Intuitively, we expect that terms (of concepts) in DP and TP are more similar than terms (of concepts) in DP and Org.
+To quantify to what extent an embedding satisfies this intuition, we introduce a category \emph{overlap} error metric
+\[\#O = \sum_{t_i \in DP, t_j \in TP, t_k \in Org} 1 \mid sim(t_i, t_j) \leq sim(t_i,t_k)\]
+counting the number of term pairs of semantically close categories that have lower $sim$(ilarity scores) than term pairs of distant categories.
+Since there may be OOV terms for some word embeddings, we report the \emph{relative overlap}, i.e.~the overlap error count compared to the maximum possible number of overlap errors,
+$O = \#O  / (|DP| \times |TP| \times |Org|)$, where $|DP|$ (resp. $|TP|$, $|Org|$) denotes the number of terms in $DP$ that can be encoded by the respective embedding.
+\citeauthor{DBLP:journals/corr/abs-1803-04488} \shortcite{DBLP:journals/corr/abs-1803-04488} use
+a similar evaluation for non-medical terms, but apply a different metric.
+
+Table~\ref{tab:categorisation_evaluation} shows that, although contextual embeddings performed poorly on the term similarity task, ELMoPubMed achieves the best separation between categories (see more details in Table~\ref{tab:categorisation_evaluation_withSimScores} in the Appendix).
+Interestingly, the best performance of ELMoPubMed is achieved using $r$, whereas $\tau$ -- which performed best on the term similarity task -- produces the worst results.
+Furthermore, the MeSH embeddings, performing best on the term similarity task, exhibit comparably bad performance here.
+These observations provide interesting first insights for future work.
+
+\begin{table}[th]
+    \centering
+    \small
+    \begin{tabular}{l l r}
+         & metric (best/worst) & $O$ (best/worst)\\
+         \midrule
+LTL win2  & $fJ / pair\_\tau$ & $8.6\% / 20.1\%$ \\
+AUEB200 & $fJ / mJ$ & $8.6\%/15.4\%$ \\
+MeSH intr & $avg\_cos / pair\_\rho$ & $13.9\% / 17.1\%$ \\
+MeSH extr & $avg\_cos / mJ$ & $12.2\% / 19.0\%$ \\
+\midrule
+ELMoPubMed & $r / \tau$  &$5.6\% /13.4\% $ \\
+Flair & $r / \tau$ &$17.5\%/21.9\%$\\
+SciBERT & $\rho / r$ &$21.1\% /24.4\%$\\
+BERT & $\rho / cos$ &$10.9\%/11.9\%$ \\
+ELMo & $r / \tau$ &$14.4\%/18.8\%$ \\
+GPT & $\rho / r$ &$33.2\%/35.4\%$ \\
+    \end{tabular}
+    \caption{Relative overlap with best/worst similarity metric of 2 best word embeddings and 2 best from similarity task.}
+    \label{tab:categorisation_evaluation}
+\end{table}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Conclusion}
+We have shown that existing datasets for medical term similarity are too small to detect significant performance differences between embeddings and similarity metrics applied to an embedding.
+In contrast, using our new large-scale datasets, \emph{significant} differences are revealed.
+Furthermore, the new datasets expose the enormous difficulty of current embeddings in predicting the similarity of non-obvious term pairs, i.e.~semantically similar terms that are lexically dissimilar and vice versa.
+The datasets thus constitute a challenging \emph{new benchmark} for medical term similarity.
+Our analysis also showed that the recently introduced Fuzzy Jaccard similarity measure for multi-word strings \cite{ZhelezniakEtAl2019-fuzzyJaccard} yields better results for most medical word embeddings than the standard cosine similarity and should thus receive attention in future work.
+Overall, we conclude that available embeddings are \emph{unable} to adequately represent medical terminology at scale.
+In contrast to doctors' explicit knowledge of term (dis)similarity, as captured in ontologies such as SNOMED, embeddings are based on terms' occurrence in context, thus making similarity much more implicit.
+We saw that embeddings making use of explicit knowledge (MeSH thesaurus) yield the best representations, which is thus a promising direction for future research.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\bibliographystyle{aaai}
+Hic voluptatem nihil culpa nulla tempora, tempora quaerat magni mollitia autem vel ipsum ea sed voluptatum, molestiae alias in deleniti expedita blanditiis pariatur excepturi tempora est praesentium, et omnis perspiciatis non ex.Atque modi dolore obcaecati architecto autem qui ad similique unde mollitia, impedit illo eveniet quidem quod veritatis aliquam nostrum, nihil laborum nam vero fugit?Reprehenderit commodi labore nam quas voluptatum architecto dolore reiciendis in, nam ad exercitationem vitae incidunt, ipsum doloremque tempora asperiores, corporis ipsum dolorem dolore aliquid debitis.\clearpage
+\bibliography{conceptSimilarity}
+
+\onecolumn
+
+
+\twocolumn
+\end{document}

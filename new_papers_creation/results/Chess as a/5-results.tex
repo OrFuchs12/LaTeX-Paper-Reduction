@@ -1,0 +1,97 @@
+\section{Results}
+We first present language modeling results, where we show significant 
+improvements with the addition of RAP (Section~\ref{sec:perplexity_res}). 
+Next, we show results on the board state probing tasks for the base language model, where we demonstrate that the 
+model trained on the large training set can learn to track pieces and predict legal moves with high accuracy (Section~\ref{sec:state_tracking_res}).
+Finally, we present results on the probing task 
+with approximate attention transformer architectures and LSTMs,  where we show a performance drop in comparison to the base model with full attention (Section~\ref{sec:other_models}).
+
+
+
+\subsection{Language Modeling}
+\label{sec:perplexity_res}
+Table~\ref{tab:perplexity} presents the perplexity results on the validation and test sets.  
+Figure \ref{fig:rap_vals} plots the validation set perplexities as a function of RAP probability for different training set sizes. 
+The addition of RAP and \piecetype leads to a decrease in perplexity for all training sizes, particularly for small training sets.
+For small training sets, RAP probabilities as high as 50\% can improve the validation perplexity, but for larger training sets, lower RAP probabilities are preferred. 
+The reductions in perplexity for RAP are surprising given that the extra tokens added via RAP are not present in the validation and test sets, and thus there is a data distribution shift. %
+Models trained with UCI + \piecetype achieve the lowest perplexities on larger training sets. 
+Both RAP and \piecetype aid the model in piece tracking, as we will see in later results, and in the case of chess this can significantly improve the language modeling results as well.
+Note that for calculating the perplexity of UCI + RAP models, we mask out the logits corresponding to piece type tokens since they are never present during inference. 
+
+
+
+\subsection{Board State Tracking}
+\label{sec:state_tracking_res}
+Tables~\ref{tab:results-starting} and~\ref{tab:results-ending} show results when predicting starting squares and ending squares, respectively. 
+There are several observations to note. First,  \textbf{transformers can learn to identify where pieces are located}.
+This is shown by the \legalmove accuracies in Table~\ref{tab:results-starting}.
+UCI + RAP can predict legal starting positions with perfect accuracy and R-Precision. 
+However, this capability requires Train-L, and the accuracy drops to 91.3\% for Train-S. 
+The gap between UCI + RAP and its ``oracle" counterpart, UCI + \piecetype, also reduces with an increase in training set size with UCI + RAP achieving parity for Train-L.
+When asked to identify the location of a piece other than the one selected to be moved next, this accuracy drops only slightly to 99.6\%. 
+Typically, the piece location tracking is slightly better for the piece type that is actually moved 
+than for other piece types.
+
+The difference between the location of the piece in the exact move (\exactmove) and the location of either piece of the given type (\legalmove) is substantial, at more than 8\% absolute.  
+However, this difference relates to chess strategy rather than board state tracking. 
+
+\input{figures/starting_square_res}
+\input{figures/ending_square_res}
+
+
+Second, \textbf{transformers can learn to predict legal moves}.
+This is shown by the \legalmove accuracies in  Table~\ref{tab:results-ending}, for which both UCI and UCI + RAP exceed 97\% accuracy. 
+However, while the top predictions of the models have high accuracy, their ability to predict all legal moves is significantly lower, with R-precision of about 85\%. 
+This is to be expected, since the model is trained on only actual games, where the emphasis is on ``meaningful" moves rather than any legal move. 
+Due to similar reasons, there's a significant drop in performance when predicting ending squares for starting squares other than the one in the actual game. 
+	The ``other" starting square would, by design, have legal continuations, but lack any ``meaningful" ones 	(see examples in Appendix \ref{sec:app_error_analysis}).
+
+
+
+We find consistent gains in almost all metrics with the addition of RAP during training, with the gains being particularly impressive for small training sets. Thus, not only are the transformers robust to distribution shift due to RAP (available only during training), they are in fact able to utilize this additional information. Error analysis of illegal predictions shows that the addition of RAP improves piece tracking related errors (Appendix~\ref{sec:error_analysis}).  
+
+The relatively low ExM accuracies of the models can be attributed to the inherent difficulty of the task.   
+Randomly selecting an ending square from all legal ending squares 
+has an accuracy of only around 20\%, implying that on average there are roughly 5 legal choices, which might explain the difficulty of the task.  
+
+\input{figures/attention_limited_ending_square}
+
+\subsection{Compressing the Game History}
+\label{sec:other_models}
+The base transformer language model, based on GPT2, attends to the entire history (i.e., it uses ``full attention"), which results in complexity quadratic in the length of the sequence. We might wonder whether attending to this entire history is necessary for the impressive state tracking performance observed in the %
+previous section.
+We accordingly 
+explore models that do not attend to the entire history in Table \ref{tab:results-ending-window}. %
+
+We first experiment with a variant of the GPT2 model that limits its attention to a window of only the 50 most recent tokens (``GPT2 $(w=50)$''). In Table \ref{tab:results-ending-window} we see worse performance for this model across data sizes, but especially for small- and medium-sized datasets. 
+
+In Table~\ref{tab:results-ending-window} we also consider a language model based on the LSTM~\citep{hochreiter1997long}, which considers only its current hidden state and cell state in making its predictions, and does not explicitly attend to the history. %
+Here we find an even more significant drop in performance, in all settings. (Interestingly, we also find that training LSTM language models on sequences with RAP improves performance, but only for larger training sets; transformer language models generally improve when trained with RAP data). 
+
+The results of GPT2 $(w = 50)$ and of the LSTM language model suggest that attending to the full game history is, unsurprisingly, useful for board state tracking in chess. This finding further suggests that the task of board state tracking in chess can serve as an excellent testbed for recently proposed transformer variants~\citep[\textit{inter alia}]{kitaev2020reformer,katharopoulos20,choromanski2021rethinking} that attempt to make use of long histories or contexts, but \textit{without} incurring a quadratic runtime. 
+
+
+
+\subsubsection{Approximate Attention Transformers}
+\label{sec:limited_history}
+
+We experiment with the recently proposed Reformer~\cite{kitaev2020reformer} and Performer~\cite{choromanski2021rethinking} architectures. Reformer replaces the ``full attention" with attention based on locality-sensitive hashing, while Performer approximates the ``full attention" with random features.\footnote{In practice, these models often use a combination of the proposed approximate global attention and simple local attention (for details see Appendix~\ref{sec:hyperparams}).}
+
+The results, in Table~\ref{tab:results-ending-window}, suggest that the Performer generally outperforms the Reformer, except in the small dataset-setting. Furthermore, we find that neither of these architectures significantly outperforms the GPT2 $(w = 50)$ baseline, except for Performer in the medium-sized data setting. 
+These models do, however, typically outperform the LSTM models. 
+These results demonstrate the challenge of modeling chess with an approximate attention. 
+We hope that future work will use this task as a way of benchmarking more efficient transformer architectures. %
+
+
+
+
+
+
+
+
+
+
+
+
+
