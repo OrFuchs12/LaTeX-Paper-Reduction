@@ -933,13 +933,13 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
             (par[2], latex_string, 6, 1, 1, num_of_object))  # type, value, object_used_on, num_of_object
         index_for_all_operators += 1
 
-    for key, value in object_name_key_new_latex_list_value.items():
-        x_list = value[0]
-        latex_string = ''.join(x_list)
-        num_of_object = re.findall('\d+', key)[0]
-        operators_dict.append(
-            (value[2], latex_string, 8, 1, value[1], num_of_object))  # type, value, object_used_on, num_of_object
-        index_for_all_operators += 1
+    # for key, value in object_name_key_new_latex_list_value.items():
+    #     x_list = value[0]
+    #     latex_string = ''.join(x_list)
+    #     num_of_object = re.findall('\d+', key)[0]
+    #     operators_dict.append(
+    #         (value[2], latex_string, 8, 1, value[1], num_of_object))  # type, value, object_used_on, num_of_object
+    #     index_for_all_operators += 1
 
     for key, value in dict_for_removing_last_2_words_operator.items():
         x_list = value[0]
@@ -1547,10 +1547,7 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
                 total_cost += res[index][0]
                 index  = 0
                 iteration += 1
-                
-                # if we manage to short the paper
-                if (lines <= target or pages < 2 or lines > starting_lines):
-                    reduced = True
+
             else:
                 index += 1
                 count_operators += 1
@@ -1656,10 +1653,7 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
                 total_cost += res[index][0]
                 index = 0 
                 iteration += 1
-                
-                # if we manage to short the paper
-                if (lines <= target or pages < 2 or lines > starting_lines):
-                    reduced = True
+
             else:
                 count_operators += 1
                 index += 1
@@ -1764,18 +1758,19 @@ if __name__ == "__main__":
     #0 -> simple greedy algorithm.
     #1 -> heuristic greedy algorithm.
     #2 -> model greedy algorithm.
-    
-    if x==0:  
-        run_greedy_experiment(simple_greedy, "simple greedy", "results_simple_greedy", pdf_tex_files_dir, dir_to_results)
-    elif x==1:
-        run_greedy_experiment(heuristic_greedy, "heuristic greedy", "results_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
-    elif x==2:
-        run_greedy_experiment(non_stop_heuristic_greedy, "non stop heuristic greedy", "results_non_stop_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
-    elif x == 3:
-        run_greedy_experiment(model_greedy, "model greedy", "results_model_greedy", pdf_tex_files_dir, dir_to_results, load_models())
-    elif x == 4:
-        run_greedy_experiment(non_stop_classification_greedy, "non stop classification greedy", "non_stop_results_classification_greedy", pdf_tex_files_dir, dir_to_results, load_models())
-    elif x == 5:
-        run_greedy_experiment(regreession_model_greedy, "regreession model greedy", "results_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat())
-    elif x == 6:
-        run_greedy_experiment(non_stop_regreession_model_greedy, "non stop regreession model greedy", "results_non_stop_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat())
+    # for x in range(1,7):
+    for x in range(5,7):
+        if x==0:  
+            run_greedy_experiment(simple_greedy, "simple greedy", "results_simple_greedy", pdf_tex_files_dir, dir_to_results)
+        elif x ==1:
+            run_greedy_experiment(heuristic_greedy, "heuristic greedy", "results_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
+        elif x==2:
+            run_greedy_experiment(non_stop_heuristic_greedy, "non stop heuristic greedy", "results_non_stop_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
+        elif x == 3:
+            run_greedy_experiment(model_greedy, "model greedy", "results_model_greedy", pdf_tex_files_dir, dir_to_results, load_models())
+        elif x == 4:
+            run_greedy_experiment(non_stop_classification_greedy, "non stop classification greedy", "non_stop_results_classification_greedy", pdf_tex_files_dir, dir_to_results, load_models())
+        elif x == 5:
+            run_greedy_experiment(regreession_model_greedy, "regreession model greedy", "results_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat())
+        elif x == 6:
+            run_greedy_experiment(non_stop_regreession_model_greedy, "non stop regreession model greedy", "results_non_stop_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat())
