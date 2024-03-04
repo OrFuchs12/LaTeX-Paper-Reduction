@@ -1766,11 +1766,14 @@ def classification_regression_greedy (path_to_pdf, path_to_latex, models_list ,n
             else:
                 index += 1
                 count_operators += 1
-                if index >= (len(res)):
+                if index >= (len(res)) and not start_check_operators_that_faild:
                     print("Out of operators, starts checking operators again.")
                     start_check_operators_that_faild = True
                     index = 0
                     models = models_list[1]
+                elif index >= (len(res)) and start_check_operators_that_faild:
+                    print("Out of operators, also out of operators that failed.")
+                    break
 
         end = time.time()
         print("RESULTS: non stop classification, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
@@ -1862,11 +1865,14 @@ def classification_regression_greedy_v2 (path_to_pdf, path_to_latex, models_list
             else:
                 index += 1
                 count_operators += 1
-                if index >= (len(res)):
+                if index >= (len(res)) and not start_check_operators_that_faild:
                     print("Out of operators, starts checking operators again.")
                     start_check_operators_that_faild = True
                     index = 0
                     models = models_list[1]
+                elif index >= (len(res)) and start_check_operators_that_faild:
+                    print("Out of operators, also out of operators that failed.")
+                    break
 
         end = time.time()
         print("RESULTS: non stop classification, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
