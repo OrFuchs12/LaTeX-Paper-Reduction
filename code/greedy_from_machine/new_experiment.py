@@ -361,22 +361,80 @@ def combine_two_paragraphs(lst, index_1, index_2):
     
     return lst
 
+def extract_adjustbox_width(latex_command):
+    empty_resizebox = False
+    missing_number_index = None
+    # Regular expression pattern to match the width value in the LaTeX command
+    #patter should fit to width=20mm or width=20 or width=0.9\\columnwidth or width=\columnwidth
+    pattern = r'\\begin{adjustbox}{(width=)?([0-9.]*)\\+[a-zA-Z]*}' #\\columnwidth
+    pattern2= r'\\begin{adjustbox}{(width=)?([0-9.]+)\\?[a-zA-Z]*}' #specific mm/cm
+    match1 = re.search(pattern, latex_command)
+    match2 = re.search(pattern2, latex_command)
+    if match1:
+        width_value = match1.group(2)
+        if width_value == '':
+            width_value = '1'
+            empty_resizebox = True
+            missing_number_index = match1.start(2)
+        try:
+            is_float = width_value.find('.') != -1
+            if is_float:   
+                return float(width_value), empty_resizebox, missing_number_index
+            return int(width_value), empty_resizebox, missing_number_index
+        except ValueError:
+ 
+                return None , None, None
+    elif match2:
+        width_value = match2.group(2)
+        if width_value == '':
+            width_value = '1'
+            empty_resizebox = True
+            missing_number_index = match2.start(2)
+        try:
+            is_float = width_value.find('.') != -1
+            if is_float:   
+                return float(width_value), empty_resizebox, missing_number_index
+            return int(width_value), empty_resizebox, missing_number_index
+        except ValueError:
+            return None ,None, None 
+    else:
+        return None, None, None
 def extract_resizebox_width(latex_command):
     empty_resizebox = False
     missing_number_index = None
     # Regular expression pattern to match the width value in the LaTeX command
-    pattern = r'\\resizebox{([0-9.]*)\\+[a-zA-Z]+}'
+    pattern = r'\\resizebox{([0-9.]*)\\+[a-zA-Z]*}'
+    pattern2= r'\\resizebox{([0-9.]+)\\?[a-zA-Z]*}'
     match = re.search(pattern, latex_command)
+    match2 = re.search(pattern2, latex_command)
     if match:
         width_value = match.group(1)
         if width_value == '':
-            width_value = 1
+            width_value = '1'
             empty_resizebox = True
             missing_number_index = match.start(1)
         try:
-            return float(width_value), empty_resizebox, missing_number_index
+            is_float = width_value.find('.') != -1
+            if is_float:
+                    return float(width_value), empty_resizebox, missing_number_index
+            return int(width_value), empty_resizebox, missing_number_index
         except ValueError:
-            return None, None, None
+                return None , None, None
+    elif match2:
+        width_value = match2.group(1)
+        if width_value == '':
+            width_value = '1'
+            empty_resizebox = True
+            missing_number_index = match2.start(1)
+        try:
+            is_float = width_value.find('.') != -1
+            if is_float:
+                    return float(width_value), empty_resizebox, missing_number_index
+            return int(width_value), empty_resizebox, missing_number_index
+        except ValueError:
+                return None , None, None
+       
+        
     else:
         return None, None, None
 
@@ -640,45 +698,51 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
             flag = False
             index_to_go_through = chosen_index_to_insert
             while (flag != True):
-                if (index_to_go_through > len(latex_clean_lines)):
+                if (index_to_go_through > len(latex_clean_lines) - 1) or latex_clean_lines[index_to_go_through] == '\\end{table}':
                     break
                 if (latex_clean_lines[index_to_go_through].startswith(
-                        '\\begin{adjustbox}')) or latex_clean_lines[index_to_go_through].startswith('\\resizebox'):  # finding the line where we can change the scale of the figure
+                        '\\begin{adjustbox}')):  # finding the line where we can change the scale of the figure
                     found_index = index_to_go_through
-                    flag = True                    
+                    flag = True
+                    string_to_edit = latex_clean_lines[found_index]  # the line that we need to edit in order to change the scale
+                    width, empty_resizebox, resize_index = extract_adjustbox_width(string_to_edit)
+                elif (latex_clean_lines[index_to_go_through].startswith('\\resizebox')):
+                    found_index = index_to_go_through
+                    flag = True
+                    string_to_edit = latex_clean_lines[found_index]
+                    width, empty_resizebox, resize_index = extract_resizebox_width(string_to_edit)                    
 
                 else:
                     index_to_go_through += 1
-            if (flag == False):
+            if (flag == False) or (width == None):
                 continue
             # now we will shrink the figure to the 5 options of shrinking:
             # we will first find the places and then add the values based on the scale
-            string_to_edit = latex_clean_lines[
-                found_index]  # the line that we need to edit in order to change the scale
-            width, empty_resizebox, resize_index = extract_resizebox_width(string_to_edit)
+           
+            
             # we will look for width and if it exists we will change it
-            empty_number = False
-            start_index = string_to_edit.find('width')
-            running_index = 0
-            if (start_index != -1) and width == None:  # find the number for width
-                running_index = start_index
-                while (running_index < len(string_to_edit)):
-                    if (string_to_edit[running_index] == '='):
-                        running_index += 1  # now we will find the number and change it
-                        end_number = False
-                        number = ''
-                        while (end_number != True):
-                            if (string_to_edit[running_index] == '\\'):
-                                end_number = True
-                            else:
-                                number += string_to_edit[running_index]
-                                running_index += 1
-                        if number == '':
-                            number = 1
-                            empty_number = True
-                        width = float(number)
-                        break
-                    running_index += 1
+            # empty_number = False
+            # start_index = string_to_edit.find('width')
+            # running_index = 0
+            # if (start_index != -1) and width == None:  # find the number for width
+            #     running_index = start_index
+            #     while (running_index < len(string_to_edit)):
+            #         if (string_to_edit[running_index] == '='):
+            #             running_index += 1  # now we will find the number and change it
+            #             end_number = False
+            #             number = ''
+            #             while (end_number != True):
+            #                 if (string_to_edit[running_index] == '\\'):
+            #                     end_number = True
+            #                 else:
+            #                     number += string_to_edit[running_index]
+            #                     running_index += 1
+            #             if number == '':
+            #                 number = 1
+            #                 empty_number = True
+            #             width = float(number)
+            #             break
+            #         running_index += 1
             options = [0.9, 0.8, 0.7, 0.6]  # scale options
             table_name_key_new_latex_list_value[
                 key] = []  # this dict will have the key as the table name and then value will be the lists of the new latex content for the new file
@@ -694,23 +758,23 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                 elif (i == 3):
                     heuristic = value['height'] * 0.4
                 new_width = options[i] 
-                if width == 0:
-                    #  in the begin adjust box there is no width. we have begin{adjubox}{}, we need to find the index of the second {
-                    index_of_second_bracket = string_to_edit.find('{', string_to_edit.find('{') + 1)
-                    new_str = string_to_edit[:index_of_second_bracket + 1] + "width=" + str(new_width) + "\columnwidth" + string_to_edit[index_of_second_bracket+1:]
-                else:
-                    if empty_number:
-                       #add the new_width after =
-                        new_str = string_to_edit.replace('=', '=' + str(new_width)) 
-                    elif empty_resizebox:
+                # if width == 0:
+                #     #  in the begin adjust box there is no width. we have begin{adjubox}{}, we need to find the index of the second {
+                #     index_of_second_bracket = string_to_edit.find('{', string_to_edit.find('{') + 1)
+                #     new_str = string_to_edit[:index_of_second_bracket + 1] + "width=" + str(new_width) + "\columnwidth" + string_to_edit[index_of_second_bracket+1:]
+                # else:
+                    # if empty_number:
+                    #    #add the new_width after =
+                    #     new_str = string_to_edit.replace('=', '=' + str(new_width)) 
+                if empty_resizebox:
                         #add the new_width to the resize_index
-                        new_str = string_to_edit[:resize_index] + str(new_width) + string_to_edit[resize_index:]
-                    elif width == 2: 
-                        new_str = string_to_edit.replace(str(int(width)), str(2 * new_width))
-                    elif width == 1:
-                        new_str = string_to_edit.replace(str(int(width)), str(new_width))                        
-                    else:
-                        new_str = string_to_edit.replace(str(width), str(round(new_width * width, 2)))
+                    new_str = string_to_edit[:resize_index] + str(new_width) + string_to_edit[resize_index:]
+                    # elif width == 2: 
+                    #     new_str = string_to_edit.replace(str(int(width)), str(2 * new_width))
+                    # elif width == 1:
+                    #     new_str = string_to_edit.replace(str(int(width)), str(new_width))                        
+                else:
+                    new_str = string_to_edit.replace(str(width), str(round(new_width * width, 2)))
                 copy_list = copy.deepcopy(latex_clean_lines)
                 copy_list[found_index] = new_str
                 table_name_key_new_latex_list_value[key].append(
@@ -755,7 +819,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                         end_number = False
                         number = ''
                         while (end_number != True):
-                            if (string_to_edit[running_index] == '\\'):
+                            if (string_to_edit[running_index].isdigit() == False and string_to_edit[running_index] not in ['.', ',']):
                                 end_number = True
                             else:
                                 number += string_to_edit[running_index]

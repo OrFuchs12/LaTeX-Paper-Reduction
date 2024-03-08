@@ -157,7 +157,7 @@ def check_invalid_chars(latex_path):
             
 
 def convert_Latex_to_rows_list(latex_path,pdf_path):
-    find_tables_to_add_adjust_box(latex_path, pdf_path)
+    # find_tables_to_add_adjust_box(latex_path, pdf_path)
     check_invalid_chars(latex_path)
     rows_list = []
     # the first row in the page we want to start the extraction from
@@ -535,6 +535,9 @@ def find_tables_to_add_adjust_box(latex_path, pdf_path):
     with pdfplumber.open(pdf_path) as pdf:
         # extract tables from the pdf
         page = pdf.pages[0]
+        # im1 = page.to_image()
+        # im1
+        # im1.debug_tablefinder()
         pdf_tables = page.find_tables()    
         if not pdf_tables:
             pdf_tables = page.find_tables(table_settings={"vertical_strategy": "text",
@@ -595,14 +598,28 @@ def find_tables_to_add_adjust_box(latex_path, pdf_path):
             break
         table = pdf_tables[index]
         counter -= 1
-        table_width = table.bbox[2] - table.bbox[0]
-        width = round(table_width / 300, 2)
-        width = str(width) + '\\columnwidth'
-        # check to see if theres an adjustbox or resizebox already, if not add adjustbox using wrap_tabular_with_adjustbox
-        if r'\begin{adjustbox}' not in table_content and r'\resizebox' not in table_content:
-            new_table_content = wrap_tabular_with_adjustbox(table_content , width)
-            # replace the table content with the wrapped table content
-            content = content.replace(table_content, new_table_content)
+        if r'\begin{adjustbox}' in table_content or r'\resizebox'  in table_content:
+            #find if the width of table is set and  is in mm:
+            width_pattern = re.compile(r'\\begin{adjustbox}{width=([0-9]+)mm}')
+            width_match = width_pattern.search(table_content)
+            if width_match:
+                table_width = int(width_match.group(1))
+                width = round(table_width / 300, 2)
+                width = str(width) + '\\columnwidth'
+                # write the new width to the table content instad of the old width
+                new_table_content = table_content.replace(width_match.group(0), r'\begin{adjustbox}{width=' + width)
+                content = content.replace(table_content, new_table_content)
+            
+        
+        
+        # table_width = table.bbox[2] - table.bbox[0]
+        # width = round(table_width / 300, 2)
+        # width = str(width) + '\\columnwidth'
+        # # check to see if theres an adjustbox or resizebox already, if not add adjustbox using wrap_tabular_with_adjustbox
+        # if r'\begin{adjustbox}' not in table_content and r'\resizebox' not in table_content:
+        #     new_table_content = wrap_tabular_with_adjustbox(table_content , width)
+        #     # replace the table content with the wrapped table content
+        #     content = content.replace(table_content, new_table_content)
 
             
     # write the content to the file
