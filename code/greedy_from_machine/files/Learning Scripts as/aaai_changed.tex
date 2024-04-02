@@ -1,0 +1,795 @@
+%File: formatting-instruction.tex
+\documentclass[letterpaper]{article}
+\usepackage{aaai}
+\usepackage{times}
+\usepackage{helvet}
+\usepackage{courier}
+\usepackage{latexsym}
+\usepackage{ucs}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[american]{babel}
+\usepackage{parskip}
+\usepackage{graphicx}
+%\usepackage[authoryear,round]{natbib}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+%\usepackage{authblk}
+\frenchspacing
+\setlength{\pdfpagewidth}{8.5in}
+\setlength{\pdfpageheight}{11in}
+\setcounter{secnumdepth}{2}
+%\setcounter{secnumdepth}{0}
+\begin{document}
+% The file aaai.sty is the style file for AAAI Press
+% proceedings, working notes, and technical reports.
+%
+\title{Learning Scripts as Hidden Markov Models}
+\author{J. Walker Orr, Prasad Tadepalli, Janardhan Rao Doppa, Xiaoli Fern, Thomas G. Dietterich \\ \{orr,tadepall,doppa,xfern,tgd\}@eecs.oregonstate.edu \\School of EECS, Oregon State Univserity, Corvallis OR 97331}
+%\affil{Oregon State University}
+\maketitle
+\begin{abstract}
+\begin{quote}
+Scripts have been proposed to model the stereotypical event sequences found in
+narratives. They can be applied to make a variety of inferences including filling
+gaps in the narratives and resolving ambiguous references. This paper proposes
+the first formal framework for scripts based on Hidden Markov Models (HMMs). Our
+framework supports robust inference and learning algorithms, which are lacking in
+previous clustering models. We develop an algorithm for structure and parameter
+learning based on Expectation Maximization and evaluate it on a number of natural
+datasets. The results show that our algorithm is superior to
+several informed baselines for predicting missing
+events in partial observation sequences.
+%
+%where observations with graphical
+%structure and potentially
+%missing observations.
+%Unlike the standard HMMs, the states are not pre-specified, but
+%are learned from data by unsupervised clustering of observations.
+%We propose a  structural Expectation Maximization algorithm
+% HMM-structure learning algorithm, which is
+%an adaptation of Bayesian Model Merging (BMM) \cite{stolcke1994best}
+%and Structural Expectation Maximization (SEM) \cite{friedman1998bayesian}
+%to the case where the observations can be missing.
+%HMMs provide a natural and expressive representation of scripts supporting both probabilistic inference and learning.
+%One of the fundamental problems of learning scripts from natural texts is that the descriptions of events are incomplete.
+%and
+%Forwards-Backwards algorithm
+%to the case  observations may be missing or noisy with some probability.
+
+\end{quote}
+\end{abstract}
+
+\section{Introduction}
+%removedVspace
+Scripts were developed as a means of representing stereotypical event sequences and interactions in narratives. % \cite{schank1977scripts}. %Reasoning about past, future, or current events is one of the direct benefits of this narrative model.
+%One of the most direct benefits of scripts is to fill in the many gaps that typically occur in narratives. Another benefit is to resolve ambiguous references.
+The benefits of scripts for encoding common sense knowledge,
+filling in gaps in a story, resolving
+ambiguous references, and answering comprehension
+questions have been amply demonstrated in the early work
+in natural language understanding \cite{schank1977scripts}.
+The earliest attempts to learn scripts were based on
+ explanation-based learning, which can be characterized as example-guided deduction from first principles \cite{dejong1981,dejong1986EBL}. %The idea was to explain the events in a story using first principles reasoning from a theory of the domain, thereby focusing on the relevant aspects of the story and ignoring the irrelevant details.
+While this approach is successful in generalizing from a small number of examples, it requires a strong domain theory, which limits its applicability.
+
+More recently, some new graph-based algorithms for inducing script-like structures from text have emerged.  ``Narrative Chains'' is a narrative model similar to Scripts \cite{chambers2008unsupervised}. Each Narrative Chain is a directed graph indicating the most frequent temporal relationship between the events in the chain. Narrative Chains are learned by a novel application of pairwise mutual information and temporal relation learning. % \cite{chambers2008unsupervised}.
+Another graph learning approach employs Multiple Sequence Alignment in conjunction with a semantic similarity function to cluster sequences of event descriptions into a directed graph \cite{regneri2010learning}. More recently still, graphical models have been proposed for representing script-like knowledge, but these lack the temporal component that is central to this paper and to the early script work. These models instead focus on learning bags of related events \cite{chambers2013event,kit2013probabilistic}.
+
+While the above approches demonstrate the learnability of script-like knowledge, they do not offer a probabilistic framework to reason robustly under uncertainty taking into account the temporal order of events.
+%or take nor do they directly address the question of temporal order.
+%for inference in the presence of uncertainty. Ideally, we seek a formal framework that models uncertainty and allows us to infer the probability of unknown past or future events from observed event descriptions.
+%However, these approaches, while informative, have not been used to answer queries regarding the likelihood of future events given some events or determine the most likely missing event in a sequence.
+In this paper we present the first formal representation of scripts as Hidden Markov Models (HMMs), which support robust inference and effective learning algorithms.
+%offer such framework and can be adapted to model scripts.
+The states of the HMM correspond to event types in scripts, such as entering a restaurant or opening a door. Observations correspond to natural language sentences that describe the event instances that occur in the story, e.g., ``John went to Starbucks. He came back after ten minutes.''  The standard inference algorithms, such as the Forward-Backward algorithm, are able to answer questions about the hidden states given the observed sentences, for example, ``What did John do in Starbucks?''
+
+There are two complications that need to be dealt with to adapt HMMs to model narrative scripts. First, both the set of states, i.e., event types, and the set of observations are not pre-specified but are to be learned from data. We assume that the set of possible observations and the set of event types to be bounded but unknown. We employ the clustering algorithm proposed in \cite{regneri2010learning} to reduce the natural language sentences, i.e., event descriptions,  to a small set of observations and states based on their Wordnet similarity.
+
+The second complication of narrative texts is that many events may be omitted either in the narration or by the event extraction process. %Standard HMM methods can handle missing observations, but they need to know which observations (i.e., step 3, step 5) are missing.
+More importantly, there is no indication of a time lapse or a gap in the story, so the standard forward-backward algorithm does not apply.  To account for this, we allow the states to skip generating observations with some probability. This kind of HMMs, with insertions and gaps, have been considered previously in speech processing \cite{bahl} and in computational biology \cite{profileHMMs}. We refine these models by allowing state-dependent missingness, without introducing additional ``insert states'' or ``delete states'' as in \cite{profileHMMs}.
+%$\lambda$-HMMs, where  some observations may be missed according to a state-dependent probability distribution.
+In this paper, we restrict our attention to the so-called ``Left-to-Right HMMs'' which
+have acyclic graphical structure with possible self-loops, as they support more efficient inference algorithms than general HMMs and suffice to model most of the natural scripts. % \cite{bahl,rabiner}. Following the HMM literature, we call them LEft-to-Right HMMs.
+
+We consider the problem of learning the structure and parameters of scripts in the form of HMMs from sequences of natural language sentences. Our solution to script learning is a novel bottom-up method for structure learning, called {\em SEM-HMM}, which is inspired by Bayesian Model Merging (BMM) \cite{stolcke1994best} and Structural Expectation Maximization (SEM)  \cite{friedman1998bayesian}. It starts with a fully enumerated HMM representation of the event sequences and incrementally merges states and deletes edges to improve the posterior probability of the structure and the parameters given the data. We compare our approach to several informed baselines on many natural datasets and show its superior performance. We believe our work represents the first formalization of scripts that supports probabilistic inference, and paves the way for robust understanding of natural language texts.
+
+\section{Problem Setup}
+%removedVspace
+
+Consider an activity such as answering the doorbell.  An example HMM representation of this activity is illustrated in Figure \ref{fig:dbscript}.  Each box represents a state, and the text within is a set of possible event descriptions (i.e., observations). Each event description is also marked with its conditional probability.  %Some event descriptions are omitted for the sake of brevity. % and presentation. % The string of the form "s[0-9]+" is the name of the state.
+Each edge represents a transition from one state to another and is annotated with its conditional probability.
+
+\begin{figure}
+\centering
+	\includegraphics[scale=.35]{pretty.png}
+\caption{A portion of a learned ``Answer the Doorbell'' script}
+\label{fig:dbscript}
+\end{figure}
+
+In this paper, we consider a special class of HMMs with the following
+properties. %First, unlike the standard HMMs, the observations occur on state
+%transitions. This is a natural convention in natural language applications
+%%where observations correspond to events that represent state transitions.
+First, we allow some observations to be missing. This is a natural phenomenon in text, where not all events are mentioned or extracted. We call these null observations and represent them with a special symbol $\lambda$.  Second, we assume that the states of the HMM can be ordered such that all transitions take place only in that order. These are called Left-to-Right HMMs in the literature \cite{rabiner,bahl}. Self-transitions of states are permitted and represent ``spurious'' observations or events with multi-time step durations. While our work can be generalized to arbitrary HMMs, we find that the Left-to-Right HMMs suffice to model scripts in our corpora.  %Null observations change the distribution of observations generated by an HMM.  %For example, in Figure~\ref{fig:dbscript}, the observed sequence that begins with ``Hear'', ``Go'', ``Greet'' has a non-zero probability, even though ``Open'' and ``Look'' are not observed. Not true any more.
+
+Formally, an HMM is a 4-tuple $(Q, T, O, \Omega)$, where $Q$ is a set of states, $T(q^\prime|q)$ is the probability of transition from $q$ to $q^\prime$, $O$ is a set of possible non-null observations, and $\Omega(o|q)$ is the probability of observing $o$ when in state $q$\footnote{$\Omega$ can be straightforwardly generalized to depend on both of the states in a state transition.},  where $o \in O \cup \{\lambda\}$, and $q_n$ is the terminal state. An HMM is Left-to-Right if the states of the HMM can be ordered from $q_0$ thru $q_n$ such that $T(q_j|q_i)$ is non-zero only if $i \leq j$. We assume that our target HMM is Left-to-Right. We index its states according to a topological ordering of the transition graph. An HMM is a generative model of a distribution over sequences of observations. For convenience w.l.o.g. we assume that each time it is ``run'' to generate a sample, the HMM starts in the same initial state $q_0$, and goes through a sequence of transitions according to $T$ until it reaches the same final state $q_n$, while emitting an observation in $O \cup \{\lambda\}$ in each state according to $\Omega$. The initial state $q_0$ and the final state $q_n$ respectively emit the distinguished observation symbols, ``$<$'' and ``$>$'' in $O$, which are emitted by no other state.
+The concatenation of observations in successive states consitutes a sample of the distribution represented by the HMM. Because the null observations are removed from the generated observations, the length of the output string may be smaller than the number of state transitions. It could also be larger than the number of {\em distinct} state transitions, since we allow observations to be generated on the self transitions. Thus spurious and missing observations model insertions and deletions in the outputs of HMMs without introducing special states as in profile HMMs \cite{profileHMMs}. %However, profile HMMs introduce special states to deal with them. Our algorithm accounts for insertions and deletions without introducing special states.
+% Unlike in profile HMMs, we do not introduce special states to deal with insertions and deletions, and directly account for them in our maximum likelihood estimation procedure.
+ %Thus the HMM encodes a probability distribution over $O^*$, which is the set of all sequences over $O$.
+
+%For example, consider an observed sequence of "Hear", "Go", "Greet" ... etc. for the doorbell answering script in Figure~\ref{fig:dbscript}.
+%In a standard HMM the sequence would have zero probability since "Open" or ``Look'' is not observed, but every path in the HMM goes through a state whose observations include
+%``Open'' or ``Look'' as the only possible observations. This type of omission is relatively common in natural texts. While it is possible to model this omission by adding bypassing links around every node, it is more natural and easier to model it as an $\lambda$-HMM.  Under an $\lambda$-HMM model and assuming $\Omega(\lambda|q) = 0.1$ for all states $q$, the probability of the partial sequence until state S11, according to Figure~\ref{fig:dbscript}, would be about $0.045$.
+
+%Thus the observation sequence of a run with $\lambda$'s in them loses the marking of time and is shorter than the state transition sequence of the run.
+
+In this paper we address the following problem. Given a set of narrative texts, each of which describes a stereotypical event sequence drawn from a fixed but unknown distribution, learn the structure and parameters of a Left-to-Right HMM model that best captures the distribution of the event sequences. We evaluate the algorithm on natural datasets by how well the learned HMM can predict observations removed from the test sequences.  %Importantly, the narrative texts may be missing some events without any special indication of passage of time as is typical in natural texts.
+
+%a sequence completion task on a test set. that can serve as a generative model of a set of narrative texts. Before we introduce the learning algorithm, we describe our adaptation of the Forward-Backward  inference algorithm to $\lambda$-HMMs in the next section.
+
+\section{HMM-Script Learning}
+%removedVspace
+
+At the top level, the algorithm is input a set of documents $D$, where each document is a sequence of natural language sentences that describes the same stereotypical activity.
+The output of the algorithm is a Left-to-Right HMM that represents that activity.
+%{\sf HMM-Scripter}, is decribed in Algorithm~\ref{HMM-Scripter}.
+%The algorithm starts with first extracting all events from the documents
+%and cluster
+%with an empty HMM and
+%merges batches of $r$ documents, one batch
+%at a time. Each merge consists of
+%extracting all events from the docu
+%first extracts events from all documents and clusters them.
+%A chain graph is constructed for each document where each node represents an event and is linked to the next event in the
+%sequence. It creates a trivial HMM by merging several chain graphs
+%such that they all begin with the same special initial state and end with the
+%special terminal state, and the common prefixes of every pair of chain graphs
+%are merged.
+
+
+% It then incrementally merges sets of $r$ such chain graphs at a time with the current HMM (which is initialized to be empty).
+%Each merge consists of adding the $r$ chain graphs to the current HMM and then
+%performing a series of state merges to improve its score according to a
+%Bayesian structure scoring function. To simplify the structure further
+%taking advantage of the power of the $\lambda$-HMM to occasionally
+%emit no observations, we consider
+%he above approach does not treat
+%missing observations properly, as event sequences with missing observations
+%create spurious edges in the resulting HMM. Hence, after all the chain graphs
+%are merged, the structure is further simplified by
+%deleting some edges in the
+%graph and propagating the evidence in these edges to other edges, as long as
+%the overall score improves. When the score cannot be further improved,
+%the resulting HMM structure and the estimated parameters are returned.
+
+%\begin{algorithm}
+%\begin{algorithmic}
+
+%\Procedure{HMM-Scripter}{Empty HMM $M$, Documents $D$, Integer $r$}
+%        \State $E = \phi$
+%	\ForAll {$d \in D$}
+%           \State  $E = E \bigcup$ Extract\_Events($d$)
+%        \EndFor
+%        \While {$E$ is non-empty}
+%             \State $E' = Next $r$ sequences in $E$
+%             \State $M =$ Learn($M, E'$)
+%        \EndWhile
+%        \State $M =$ Learn($M$, $E$, DeleteEdges)
+%       \State $Chain_$m \leftarrow m_0$
+%	\State $m \leftarrow m_0$
+%	\For {$i \leftarrow 1$ to $|O|$}
+%		\State $m \leftarrow Learn(m, O_{1,i},s)$
+%	\EndFor
+%	\State \Return $M$
+%\EndProcedure
+%\end{algorithmic}
+%\caption{The Top-level Algorithm}
+%\label{HMM-Scripter}
+%\end{algorithm}
+
+%Since this bottom-up learning procedure considers all possible pairwise merges, each round of merging is $O(n^2)$ in the number of states.  The maximum number of rounds is limited by the number states, the overall complexity is $O(n^3)$.  A practical variation of the learning algorithm involves building a PTA on a small set of sequences, then adding in one sequence at a time and running the merging process after each addition.  The algorithm can be seen in Algorithm \ref{iterLearn}. The incremental learning strategy is not better in the worst case, but in practice it will fair much better.  If there are at most $k$ events per document, $d$ documents, and assuming the merging process results a k sized HMM, the total complexity will be $O(d k^3)$.  Since $n \le kd$ the complexity is equivalent to $O( \frac{n^3}{d^2} )$ which is generally a non-trivial speedup.
+
+%\begin{algorithm}
+%\begin{algorithmic}
+
+%\Procedure{TwoPhaseLearn}{$O$}
+%\State $m = IterLearn(PTA(O), O, StateMerge)$
+%\State \Return $Learn(m, O, EdgeDeletion)$
+%\EndProcedure
+
+%\end{algorithmic}
+%\caption{}
+%\label{twophase}
+%\end{algorithm}
+
+Our approach has four main components, which are described in the next four subsections: Event Extraction, Parameter Estimation, Structure Learning, and Structure Scoring. The event extraction step clusters the input sentences into event types and replaces the sentences with the corresponding cluster labels.  After extraction, the event sequences are iteratively merged with the current HMM in batches of size $r$ starting with an empty HMM. Structure Learning then merges pairs of states (nodes) and removes state transitions (edges) by greedy hill climbing guided by the improvement in approximate
+posterior probability of the HMM.  Once the hill climbing converges to a local optimum, the maxmimum likelihood HMM parameters are re-estimated using the EM procedure based on all the data seen so far. Then the next batch of $r$ sequences are processed.  We will now describe these steps in more detail.
+
+\subsection{Event Extraction}
+%removedVspace
+
+Given a set of sequences of sentences, the event extraction algorithm clusters them into events and arranges them into a tree structured HMM. For this step, we assume that each sentence has a simple structure that consists of a single verb and an object. We make the further simplifying assumption that the sequences of sentences in all documents describe the events in temporal order. Although this assumption is often violated in natural documents, we ignore this problem to focus on script learning. There have been some approaches in previous work that specifically address the problem of inferreing temporal order of events from texts, e.g., see \cite{Raghavan:temporal}.
+
+%, and the sentences are in the correct temporal order.
+% Note that we assume that the sentences are in the correct temporal order, which simplifies the problem.
+%The short and relatively consistent language lends itself to relatively easy event extraction.
+
+Given the above assumptions, following \cite{regneri2010learning}, we apply a simple agglomerative clustering algorithm that uses a semantic similarity function over sentence pairs  $Sim(S_1, S_2)$ given by $w_1 PS(V_1, V_2) + w_2 PS(O_1, O_2)$, where $V_i$ is the verb and $O_i$ is the object in the sentence $S_i$. Here $PS(w, v)$ is the path similarity metric from Wordnet \cite{miller1995wordnet}. It is applied to the first verb (preferring verbs that are not stop words) and to the objects from each pair of sentences.  The constants $w_1$ and $w_2$ are tuning parameters that adjust the relative importance of each component. Like \cite{regneri2010learning}, we found that a high weight on the verb similarity was important to finding meaningful clusters of events.  %Intuitively the clustering algorithm groups the sentences by their approximate meaning.
+The most frequent verb in each cluster is extracted to name the event type that corresponds to that cluster.
+
+The initial configuration of the HMM is a Prefix Tree Acceptor,
+which is constructed by starting with a single event
+sequence and then adding sequences by branching the tree
+at the first place the new sequence differs from it
+\cite{dupont1994search,seymore1999learning}.   %as illustrated in Figure \ref{fig:pta}.
+By repeating this process, an HMM that fully enumerates the data is
+constructed.  %PTAs were originally proposed in the Finite State Machine (FSM) learning literature and were later adapted to HMM learning
+
+
+%\begin{figure}
+%\centering
+%	\includegraphics[scale=.4]{pics/pta.pdf}
+%\caption{An example of a Prefix Tree Acceptor}
+%\label{fig:pta}
+%\end{figure}
+
+\subsection{Parameter Estimation with EM}
+%removedVspace
+\label{em}
+
+In this section we describe our parameter estimation methods.  While parameter estimation in this kind of HMM was treated earlier in the literature \cite{rabiner,bahl}, we provide a more principled approach to estimate the state-dependent probability of $\lambda$ transitions from data without introducing special insert and delete states \cite{profileHMMs}. We assume that the structure of the Left-to-Right HMM is fixed based on the preceding structure learning step, which is described in Section~\ref{struct}.
+
+%our treatment of null observations appears to be slightly different.
+%For completeness we describe it fully.
+
+%Our method adapts
+%contribution in this section is a non-trivial extension of
+%the Baum-Welch procedure
+%\cite{baum1970maximization}, which is an Expectation
+%Maximization (EM) algorithm,
+%to acyclic $\lambda$-HMMs.
+%First, note that the parameters can be straight-forwardly estimated through maximum likelihood approach if the states the HMM goes through at each time step are observed. Since these are hidden,
+The main difficulty in HMM parameter estimation is that the
+states of the HMM are not observed. The Expectation-Maximization  (EM)
+procedure (also called the Baum-Welch algorithm in HMMs) alternates between estimating the hidden states in the event sequences by running the Forward-Backward algorithm (the Expectation step) and finding the maximum likelihood estimates (the Maximization step) of the transition and observation parameters of the HMM \cite{baum1970maximization}. % based on the expected counts.
+Unfortunately, because of the $\lambda$-transitions the state transitions of our HMM are not necessarily aligned with the observations. Hence we
+%We need to adapt the Forward-Backward algorithm to our case
+%Note that since
+%%$\lambda$-HMMs because
+%unlike in the standard HMMs, the index of time does not correspond to the
+%index of the observation in the observation sequence.
+explicitly maintain two indices, the time index $t$ and the observation index $i$.  We define $\alpha_{q_j}(t,i)$ to be the joint probability that the HMM is in state $q_j$ at time $t$ and has made the observations $\vec{o}_{0,i}$. This is computed by the forward pass of the algorithm using the following recursion. Equations \ref{eq:fw1} and \ref{eq:fw2} represent the base case of the recursion, while Equation \ref{eq:fw3} represents the case for null observations. Note that the observation index $i$ of the recursive call is not advanced unlike in the second half of Equation \ref{eq:fw3} where it is advanced for a normal observation.  We exploit the fact that the HMM is Left-to-Right and only consider transitions to $j$ from states with indices $k \leq j$. The time index $t$ is incremented starting $0$, and the observation index $i$ varies from $0$ thru $m$. %Note that $o_0$ is the special
+{\footnotesize
+%removedVspace
+\begin{align}
+&\alpha_{q_0}(0,0) = 1 \label{eq:fw1}\\
+&\forall j > 0, \alpha_{q_j}(0,0) = 0 \label{eq:fw2}\\
+&\alpha_{q_j}(t,i) = \sum_{0 \leq k \leq j} T(q_j|q_k) \{\Omega(\lambda|q_j) \alpha_{q_k}(t-1,i) \label{eq:fw3}\\
+&\qquad + \Omega(o_{i}|q_j) \alpha_{q_k}(t-1,i-1) \} \nonumber
+\end{align}
+%removedVspace
+}%
+
+The backward part of the standard Forward-Backward algorithm starts from the last time step $\tau$ and reasons backwards. Unfortunately in our setting, we do not know $\tau$---the true number of state transitions---as some of the observations are missing.  Hence, we define $\beta_{q_j}(t,i)$ as the conditional probability of observing $\vec{o}_{i+1,m}$ in the remaining $t$ steps given that the current state is $q_j$.  This allows us to increment $t$ starting from $0$ as recursion proceeds, rather than decrementing it from $\tau$.
+{\footnotesize
+%removedVspace
+\begin{align}
+&\beta_{q_n}(0,m) = 1 \\
+&\forall j < n, \beta_{q_j}(0,m) = 0 \\
+&\beta_{q_j}(t,i) = \sum_{j \leq k} T(q_k|q_j) \{ \Omega(\lambda|q_k) \beta_{q_k}(t-1,i) \\  %deletion
+&\qquad + \Omega(o_{i+1}|q_k) \beta_{q_k}(t-1,i+1) \} \nonumber %match
+\end{align}
+%removedVspace
+}%
+%Alternatively, the Baum-Welch algorithm s, was also considered for parameter learning.  It makes use of the Forward-Backward algorithm to estimate the transition and signal distribution parameters. The E-step is the Forwards-Backwards algorithm run on all event sequences for all states.  It is essentially computing expected counts of sequences passing through states. The M-Step is estimating the parameters based on the expected counts.  The formula for estimators is as follows:
+%We can compute the state distributions of $\alpha$ and $\beta$ at time $t$ by marginalizing $i$ in the above equations.
+
+Equation \ref{eq:z} calculates the probability of the observation sequence $z = P(\vec{o})$, which is computed by marginalizing $\alpha_q(t,m)$ over time $t$ and state $q$ and setting the second index $i$ to the length of the observation sequence $m$. The quantity $z$ serves as the normalizing factor for the last three equations.
+{\footnotesize
+\begin{align}
+&z = P(\vec{o}) = \sum_{q \in Q} \sum_{t} \alpha_{q}(t,m) \label{eq:z}\\
+&\gamma_q(t,i) = P(q | \vec{o}) = z^{-1} \sum_{\tau} \alpha_q(t,i) \beta_q(\tau-t,i) \label{eq:gamma}\\
+&\delta_{q,q^\prime \uparrow \lambda}(t) = P(q \rightarrow q^\prime,\lambda | \vec{o}) = z^{-1}T(q^\prime | q) \Omega(\lambda |q^\prime) \label{eq:delta1}\\
+&\qquad \sum_{\tau} \sum_i \{ \alpha_q(t,i) \beta_{q^\prime}(\tau-t-1,i) \} \nonumber\\
+&\forall o \in \Omega, \delta_{q,q^\prime \uparrow o}(t) = P(q \rightarrow q^\prime,o | \vec{o}) \label{eq:delta2}\\
+&\qquad = z^{-1}T(q^\prime | q) \Omega(o | q^\prime) \nonumber\\
+&\qquad \sum_{\tau} \sum_i \{ \alpha_q(t,i) I(o_{i+1}=o) \beta_{q^\prime}(\tau-t-1,i+1) \} \nonumber
+\end{align}
+%removedVspace
+}%
+
+%The first function $\alpha$ defined above represents the probability of the HMM state $q$ after the first $t$-length prefix of the observation sequence. It is computed using the forward step of the Forward-Backward algorithm as described in the recurrence equation in the previous section. Note that while doing so it accounts for possibly missing observations in some of the intermediate steps. The second function $\beta$ represents the probability of observing the suffix of the observation sequence given the current state and is computed by a similar backward recursion.
+%Since the number of state transitions $\tau$ is now a random variable,
+%the second equation computes the distribution of this variable by normalizing
+%$\alpha_{q_n}(t,m)$ with respect to $t$, the time at which the terminal state
+%$q_n$ is reached after the observation sequence is processed.
+Equation \ref{eq:gamma}, the joint distribution of the state and observation index $\gamma$ at time $t$ is computed by convolution, i.e., multiplying the $\alpha$ and $\beta$ that correspond to the same time step and the same state and marginalizing out the length of the state-sequence $\tau$. Convolution is necessary, as the length of the state-sequence $\tau$ is a random variable equal to the sum of the corresponding time indices of $\alpha$ and $\beta$.
+
+Equation \ref{eq:delta1} computes the joint probability of a state-transition associated with a null observation by first multiplying the state transition probability by the null observation probability given the state transition and the appropriate $\alpha$ and $\beta$ values. It then marginalizes out the observation index $i$. Again we need to compute a convolution with respect to $\tau$ to take into account the variation over the total number of state transitions.
+Equation \ref{eq:delta2} calculates the same probability for a non-null observation $o$. This equation is similar to Equation \ref{eq:delta1} with two differences.  First, we ensure that the observation is consistent with $o$ by multiplying the product with the indicator function $I(o_{i+1} = o)$ which is $1$ if $o_{i+1} = o$ and $0$ otherwise.  Second, we advance the observation index $i$ in the $\beta$ function.
+
+% by computing the appropriate product, marginalizing the observation index $i$, and normalizing. Again here we separate the treatment of null observation from the rest of the observations as only the non-null observations advance the observation index.
+Since the equations above are applied to each individual observation sequence, $\alpha$, $\beta$, $\gamma$, and $\delta$ all have an implicit index $s$ which denotes the observation sequence and has been omitted in the above equations. We will make it explicit below and calculate the expected counts of state visits, state transitions, and state transition observation triples.
+{\footnotesize
+\begin{align}
+&\forall q \in Q, C(q) = \sum_{s,t,i} \gamma_q(s,t,i) \label{eq:count}\\
+&\forall q, q^\prime \in Q, C(q \rightarrow q^\prime) = \sum_{s,t,o \in \Omega \bigcup \{\lambda\}} \delta_{q,q^\prime \uparrow o}(s,t) \label{eq:transCount}\\
+&\forall q, q^\prime \in Q, o \in \Omega \bigcup \{\lambda\}, \label{eq:sigCount}\\
+&\qquad C(q, q^\prime \uparrow o) = \sum_{s,t} \delta_{q,q^\prime \uparrow o}(s,t) \nonumber
+\end{align}
+%removedVspace
+}%
+
+%$\hat{\Omega}(o | q) = \frac{C(q \uparrow o)}{\sum_{p} C(q \uparrow p)}$ \\
+%$\hat{T}(q^\prime | q) = \frac{C(q \rightarrow q^\prime)}{\sum_{p^\prime} C(q \rightarrow p^\prime)}$ \\
+
+%\end{tabbing}
+
+Equation \ref{eq:count} counts the total expected number of visits of each state in the data. Also, Equation \ref{eq:transCount} estimates the expected number of transitions between each state pair. Finally, Equation \ref{eq:sigCount} computes the expected number of observations and state-transitions including null transitions. This concludes the E-step of the EM procedure.
+%The fourth equation computes the expected number of observations when transitioning to a different state.
+
+%HMM emits an observation $o$ or $\lambda$ over all training sequences
+%in the data. % The third equation computes the total number of $\lambda$ transitions in state $q$ by subtracting the number of times a non-null observation is emitted from the number of times $q$ is entered.
+%The third equation computes the total expected transitions from $q$ to $q^\prime$.
+
+%For all other states,
+The M-step of the EM procedure consists of
+Maximum Aposteriori (MAP) estimation of the
+transition and observation distributions is done
+assuming an uninformative Dirichlet prior. This
+amounts to
+adding a pseudocount of 1 to each of the next states and observation
+symbols.
+%We assume that the final state is an absorbing state in that
+%it always transitions to itself. Similarly
+The observation distributions for the initial and final states $q_0$ and
+$q_n$ are fixed to be the Kronecker delta distributions at their true values.
+{\footnotesize
+\begin{align}
+&\hat{T}(q^\prime | q) = \frac{ C(q \rightarrow q^\prime) + 1}{[C(q)+ \sum_{p^{\prime} \in Q} 1]} \\
+&\hat{\Omega}(o|q^\prime) = \frac {{\sum_{q} C(q, q^\prime \uparrow o)} + 1} {\sum_{o^\prime} \{ \sum_q C(q,q^\prime \uparrow o^\prime)\} + 1}
+\end{align}
+%removedVspace
+}%
+
+The E-step and the M-step are repeated until convergence of the
+parameter estimates.
+% As this is quite expensive to do, we employ an
+%approximation that exploits the factored nature of the HMM and is
+%similar to the optimistic approximate Viterbi counts approach of
+%BMM \cite{stolcke1994best} and the local parameter estimation advocated in
+%SEM  \cite{friedman1998bayesian}.
+
+\subsection{Structure Learning}
+%removedVspace
+\label{struct}
+
+We now describe our structure learning algorithm, SEM-HMM.  Our algorithm is inspired by Bayesian Model Merging (BMM) \cite{stolcke1994best} and Structural EM (SEM) \cite{friedman1998bayesian} and adapts them to learning HMMs with missing observations.
+%We in fact describe two different algorithms, namely
+% Structural EM
+%and (SEM) and
+%These are adapted from the similarly named algorithms for Bayesian networks \cite{friedman1998bayesian}
+%and HMMs \cite{stolcke1994best} respectively.
+SEM-HMM performs a greedy hill climbing search through the space of acyclic
+HMM structures. It iteratively proposes changes to the structure either
+by merging states or by deleting edges. It evaluates each change and makes the one with the best score.
+% while excluding models with cycles.
+An exact implementation of this method is expensive, because, each time a structure change is considered, the MAP parameters of the structure given the data must be re-estimated.
+%is modified, the EM algorithm
+%should be re-run on the entire observation data to re-estimate all
+%the parameters. In the next section, we describe an approach that
+%lets us approximate the changes to the parameters more efficiently.
+%As this is approximate, we still run the parameter estimation algorithm after
+%every few rounds of structure changes.
+One of the key insights of both SEM and BMM is that this expensive
+re-estimation can be avoided in factored models by incrementally
+computing the changes to various expected counts using only local
+information. While this calculation is only approximate, it is highly
+efficient.
+
+%we have found that it more than compensates for accuracy in speed
+%and yields excellent results.
+
+During the structure search, the algorithm considers every possible structure change, i.e., merging of pairs of states and deletion of state-transitions, checks that the change does not create cycles, evaluates it according to the scoring function and selects the best scoring structure. This is repeated until the structure can no longer be improved (see Algorithm~\ref{learningAlg}).
+%There are two phases to the structure learning algorithm,
+%where the first phase
+%considers only state merges and the second phase considers
+%only edge deletions. %They differ in the details of how they estimate the parameters after a changed structure is proposed. The SEM algorithm uses the Baum-Welch procedure \cite{baum-welch} to estimate the parameters whereas the BMM algorithm uses optimistic approximate Viterbi counts (OAVC) for efficiency.
+
+\begin{algorithm}
+\footnotesize
+\begin{algorithmic}
+	\Procedure{Learn}{Model $M$, Data $D$, Changes $S$}
+
+		\While {$Not Converged$}
+                        \State ${\cal M}$ = AcyclicityFilter $(S(M))$
+			\State $M^* = argmax_{M^\prime \in {\cal M}} P(M^\prime|D)$
+
+			\If {$P(M^* | D) \le P(M | D)$}
+				\State \Return $M$
+			\Else
+				\State $M = M^*$
+			\EndIf
+
+		\EndWhile
+	\EndProcedure
+\end{algorithmic}
+\caption{}
+\label{learningAlg}
+\end{algorithm}
+
+The Merge States operator creates a new state from the union of a state pair's transition and observation distributions.
+It must assign transition and observation distributions to the new merged
+state. To be exact, we need to redo the parameter estimation for the changed
+structure. To compute the impact of several proposed changes efficiently,
+we assume that all probabilistic state transitions and trajectories for
+the observed sequences remain the same as before except in the changed
+parts of the structure. We call this ``locality of change'' assumption, which
+allows us to
+add the corresponding expected counts from the states being merged as shown below. % This is an approximation that would be exact if all probabilistic state transitions and trajectories for the observed sequences are the same in both the unmerged and merged graphs except for the changed nodes. The updates are computed as follows:
+{\footnotesize
+\begin{align}
+&C(r) = C(p) + C(q) \nonumber\\
+&C(r \rightarrow s) = C(p \rightarrow s) +  C(q \rightarrow s) \nonumber \\
+&C(s \rightarrow r) = C(s \rightarrow p) +  C(s \rightarrow q) \nonumber \\
+&C(r,s \uparrow o) = C(p,s \uparrow o) +  C(q,s \uparrow o) \nonumber \\
+&C(s,r \uparrow o) = C(s,p \uparrow o) +  C(s,q \uparrow o) \nonumber
+\end{align}
+%removedVspace
+}%
+
+%The optimistic approximate Viterbi counts (OVAC)
+%approach  \cite{stolcke1994best}
+%is similar except that the counts are not expected counts but are originally
+%initialized in the PTA as the number of sequences that pass through each state.
+%They are added in the same way as described when the structure is modified
+%through state merges.
+
+%.  Each transition in the original PTA has a count equal
+% to the number of observations that pass through it, denoted as $C(q \rightarrow q^\prime)$.  Likewise, each state has a count for the number of times an event is observed, $C(q  \uparrow o)$.  For a state merge, the respective counts are summed together for the new state
+
+% However, OVAC is favored over Baum-Welch, for two reasons. After each merge operation, only those non-zero probability transitions which begin or end in the new state need to estimated.  First, this is constant in time complexity as opposed to an EM approach which is at least linear.  Second, is the fact that EM is a local search and generally finds a local optima.  It is possible when all the parameters are re-estimated after a merge that some of values are perturbed because a different local optima is found.  These changes can have a significant effect on likelihood of the data and can end up effecting the overall score of merge negatively. In effect, the merge could be judged by the side effects of EM rather than the effect of the merge itself.
+
+
+%iteratively proposing changes to the structure,
+%checking that the resulting structure is acyclic, if so
+% estimating the parameters that best fit the data, and
+%using the Bayesian scoring method described earlier to greedily select the best change to the model.
+
+%Both our structure learning algorithms
+%is based on Bayesian Model Merging \cite{stolcke1994best}.
+% The algorithm
+%do a greedy hill climbing search through the space of $\lambda$-HMMs by merging pairs of states and deleting edges while excluding models with cycles. It evaluates each resulting stucture based on the scoring function, i.e., the posterior probability of the structure, selects the best and moves on until the structure can no longer be improved. The algorithm is outlined in the procedure shown in Algorithm \ref{learningAlg}.
+
+% This high level structure of the algorithm is described in Algorithm~\ref{LearningAlg}.
+
+%The Structural EM algorithm resembles the structural EM proposed for Bayesian networks \cite{SEM} and shares its overall
+%gboth of which share the same structure learning com
+
+%The process of learning the structure starts with an initial configuration of the $\lambda$-HMM, searches the space of $\lambda$-HMMs, and terminates when no higher scored model is found.
+
+
+%Each iteration of the algorithm considers two types of actions.
+
+The second kind of structure change we consider is edge deletion and consists of removing a transition between two states and
+redistributing its evidence along the other paths between the same states.
+Again, making the locality of change assumption, we only recompute
+the parameters of the transition and observation distributions
+that occur in the paths between the two states.
+% are re-computed after a deletion, which is justified by the factored nature of the HMM.
+We re-estimate the parameters due to deleting an edge $(q_s,q_e)$,
+by effectively redistributing the expected transitions from
+$q_s$ to $q_e$, $C(q_s \rightarrow q_e)$,
+among other edges between $q_s$ and $q_e$ based on the parameters of the current model.
+%Likewise during an edge deletion, the transition count of the deleted edge is distributed on all the other paths between the start and end state according to each path's probability under null observations.
+
+This is done efficiently using a procedure similar to the
+Forward-Backward algorithm under the null observation sequence.
+Algorithm~\ref{deleteedge} takes the current model $M$, an edge
+($q_s \rightarrow q_e$), and the expected count of the number of transitions
+from $q_s$ to $q_e$, $N = C(q_s \rightarrow q_e)$,
+as inputs. It updates the counts of
+the other transitions to compensate for removing the edge between
+$q_s$ and $q_e$. It initializes the $\alpha$ of $q_s$ and the $\beta$
+of $q_e$ with 1 and the rest of the $\alpha$s and $\beta$s to $0$.
+It makes two passes through the HMM,
+first in the topological order of the nodes in the graph and the second
+in the reverse topological order. In the first, ``forward'' pass
+from $q_s$ to $q_e$,
+it calculates  the $\alpha$ value of each node $q_i$
+that represents the probability that a sequence that
+passes through $q_s$ also passes through $q_i$
+while emitting no observation. In the second, ``backward'' pass,
+it computes the $\beta$ value of a node $q_i$
+that represents the probability that a sequence that passes
+through
+$q_i$ emits no observation and later
+passes through $q_e$. The product of
+$\alpha(q_i)$ and $\beta(q_i)$ gives the probability that
+$q_i$ is passed through when going from $q_s$ to $q_t$ and emits
+no observation. Multiplying it by the
+expected number of transitions $N$ gives the
+expected number of additional counts %$\Delta(q_i)$ (or $\Delta(q_i,c)$)
+which are added to $C(q_i)$
+%that would have to pass through state $q_i$ (or edge $(q_i,c)$)
+to compensate for the deleted transition $(q_s \rightarrow q_e)$.
+After the distribution of the evidence,
+all the transition and observation probabilities are re-estimated for
+the nodes and edges affected by the edge deletion
+
+\begin{algorithm}
+\footnotesize
+\begin{algorithmic}
+
+\Procedure{DeleteEdge}{Model $M$, edge $(q_s \rightarrow q_e)$, count $N$}
+
+\State $\forall i s.t. s \leq i \leq e, \alpha(q_i) = \beta(q_i) = 0$
+%\For {$i = s$ {\bf to} $e$}
+%   \State
+%\For {$j = s+1$ {\bf to} $e$}
+%
+%\EndFor
+%\EndFor
+   \State $\alpha(q_s) = \beta(q_e) = 1$
+\For {$i = s+1$ {\bf to}  $e$}
+    \ForAll {$q_p \in Parents(q_i)$}
+      \State  $\alpha(q_p \rightarrow q_i) = \alpha(q_p) T(q_i|q_p) \Omega(\lambda|q_i)$
+      \State $\alpha(q_i) = \alpha(q_i) + \alpha(q_p \rightarrow q_i)$
+\EndFor
+\EndFor
+
+\For {$i = e-1$ {\bf downto} $s$}
+   \ForAll {$q_c \in Children(q_i)$}
+      \State  $\beta(q_i \rightarrow q_c) = \beta(q_c) T(q_c|q_i) \Omega(\lambda|q_c)$
+      \State  $C(q_i \rightarrow q_c)$ = $C(q_i \rightarrow q_c) + \alpha(q_i \rightarrow q_c)  \beta(q_i \rightarrow q_c) N$
+      \State  $C(q_i)$ = $C(q_i) + C(q_i \rightarrow q_c)$
+      \State $\beta(q_i) = \beta(q_i) + \beta(q_i \rightarrow q_c)$
+%      \State  $C(q_i)$ += $\Delta(q_i) + \Delta(q_i \rightarrow c)$
+\EndFor
+\EndFor
+\EndProcedure
+
+\end{algorithmic}
+\label{deleteedge}
+\caption{Forward-Backward algorithm to delete an edge and re-distribute the expected counts.}
+\end{algorithm}
+
+%The additional counts $\Delta(q_i \rightarrow c)$ are added to the
+%original expected counts $C(q_i \rightarrow c)$ for each edge $(q_i,c)$.
+%Similarly the count $\Delta(q_i)$ is added to the
+%current expected count of $C(q_i \uparrow \lambda)$.
+%and edges in between $q_s$ and $q_e$.
+%Note that this would also
+%allow us to estimate the probability of a missing observation in
+%any state.
+
+%Although in principle the state merges and edge deletions can be interleaved, in practice, we found that breaking the learning procedure into two separate phases improves the performance of both in terms of accuracy and running time.  The first step is to run the iterative learning procedure only considering models produced by state mergers.  The resulting model is then used as the initial model of the second learning phase which greedily considers edge deletions.
+%Overall, the two phase learning procedure first generalizes sequences of events by merging states, and then removes edges that do not have sufficient evidence.
+
+In principle, one could continue making incremental structural changes and
+parameter updates and never run EM again. This is exactly
+what is done in
+Bayesian Model Merging (BMM) \cite{stolcke1994best}.
+%Although approximate, it allows us to efficiently estimate the effect
+%of a proposed change.
+However, a series of structural changes followed
+by approximate incremental parameter updates could lead to bad
+local optima. Hence, after merging each batch of $r$ sequences into the HMM,  we
+re-run EM for parameter estimation on all sequences seen thus far.
+
+%The maximum likelihood learning (EM) was only run on all the accumulated traini ng data seen so far after all the state merges are done for each batch and after every edge deletion.
+%once after every $r$ sequences are merged. After that each structural change only requires incremental update of the affected parameters and is highly efficient. %The pseudo-code for the procedure can be found in Algorithm \ref{twophase}.
+
+%\begin{figure}
+%\begin{algorithmic}
+
+%\Procedure{BSEM}{$m_0, O$}
+
+%\While {}
+
+%\State
+
+%\EndProcedure
+
+%\end{algorithmic}
+%\label{BSEM}
+%\end{figure}
+
+%TODO add actual pta figure
+
+\subsection{Structure Scoring}
+%removedVspace
+\label{sec:fb}
+
+We now describe how we score the structures produced by our algorithm to select the best structure.
+%In this section we describe how an $\lambda$-HMM and its parameters, is scored using the training data. The scoring function is used to select the best scoring $\lambda$-HMM. % as described in the next section.
+We employ a Bayesian scoring function, which is
+% result of a state merger or edge deletion is a new model which is scored according to the
+the posterior probability of the model given the data, denoted $P(M|D)$.  The score is decomposed via Bayes Rule (i.e., $P(M|D) \propto P(M) P(D|M))$), and the denominator is omitted since it is invariant with regards to the model.
+
+Since each observation sequence is independent of the others,
+the data likelihood $P(D|M) = \Pi_{\vec{o} \in D} P(\vec{o})$ is calculated
+using the Forward-Backward algorithm and Equation \ref{eq:z} in
+Section~\ref{em}. Because the initial model fully enumerates the data, any merge can only reduce the data likelihood. Hence, the model prior $P(M)$ must be designed to encourage generalization via state merges and edge deletions (described in Section~\ref{struct}). We employed a prior with three components: the first two components are syntactic and penalize the number of states $|Q|$ and the number of non-zero transitions $|T|$ respectively. The third component penalizes the number of frequently-observed semantic constraint violations $|C|$. In particular, the prior probabilty of the model  $P(M) = \frac{1}{Z}\exp( -(\kappa_q |Q| + \kappa_t |T| +\kappa_c |C|))$.
+% and a semantic prior that penalizes violations of frequently observed constraints on the training data. The values $|Q|$ and $|T|$ correspond to the number of states and the number of non-zero probability transitions respectively.
+The $\kappa$ parameters assign weights to each component in the prior.
+
+%We employ uninformed Dirichlet priors for all our state-transition and
+%state-observation parameters, which are implemented by initializing the
+%expected counts of each possible state transition and state-observation
+%pair to 1 (correct?).
+%assuming a Dirichlet prior are as follows. We use an uninformative Dirichlet prior for this paper, setting each $\alpha_i$ to $2$. %The use of optimistic approximate Viterbi counts (OAVC) allows for efficient parameter estimation, since only the transitions to and from a new state as well as its observation distribution need to be computed for each merge operation.
+
+The semantic constraints are learned from the event sequences for use in the model prior.  The constraints take the simple form ``$X$ never follows $Y$.''  They are learned by generating all possible such rules using
+pairwise permutations of event types, and evaluating them on the training data.
+In particular, the number of times each rule is violated is counted and a $z$-test is performed to determine if the violation rate is lower than a predetermined error rate. Those rules that pass the hypothesis test with a threshold of $0.01$ are included.  When evaluating a model, these contraints are considered violated if the model could generate a sequence of observations that violates the constraint. %In practice, this means comparing the observation distribution of each state with the distributions of their ancestor states.
+
+%Finally, BMM, including our extension, fits into the framework of Bayesian Structural EM (BSEM) \cite{friedman1998bayesian}.  The BSEM procedure defines a class of structural learning algorithms for any family of factored models.  $\lambda$-HMMs naturally fall into the class of factored models. For the E-step, BSEM requires a successor function for structural search over the family of models and a Bayesian objective to evaluate the expected score of each model. BMM is based on a successor function that yields models created by pairwise state merges.  Further, each model is evaluated by the score $P(M|D)$ which of course is evaluated with the Forward pass of the Forward-Backward algorithm and the model prior.  The M-Step of BSEM selects the model that maximizes the score.  These steps are repeated until convergence. Hence, BMM is simply a specific realization of BSEM for HMM structure learning.
+%The Forward pass can be viewed as taking the expected score of a sequence of observations over a set of hidden paths.
+
+%An essential tool for inference in HMMs is the Forward-Backward algorithm.
+
+Also, in addition to incrementally computing the transition and observation counts, $C(r \rightarrow s)$ and $C(r,s \uparrow o)$, the likelihood, $P(D|M)$ can be incrementally updated with structure changes as well. Note that the likelihood can be expressed as $P(D|M) = \prod_{q, r \in Q} \prod_{o \in O} T(r|q)^{C(q \rightarrow r)} \Omega(o|r)^{C(q,r \uparrow o)}$ when the state transitions are observed. Since the state transitions are not actually observed, we approximate the above expression by replacing the observed counts with expected counts. Further, the locality of change assumption allows us to easily
+%When a structure is locally changed, only a small number of parameters and expected counts are effected. Hence we can easily
+calculate the effect of changed expected counts and parameters on the likelihood by dividing it by the old products and multiplying by the new products. We call this version of our algorithm SEM-HMM-Approx.
+
+\section{Experiments and Results}
+%removedVspace
+
+We now present our experimental results on SEM-HMM and SEM-HMM-Approx. The
+evaluation task is to predict missing events from an observed sequence of events.
+For comparison, four baselines were also evaluated.  The ``Frequency'' baseline predicts the most frequent event in the training set that is not found in the observed test sequence. The ``Conditional'' baseline predicts the next event based on what most frequently follows the prior event.  % Thus for each query, it responds with the most frequent event not found in the query.
+A third baseline, referred to as ``BMM,'' is a version of our algorithm that does not use EM for parameter estimation and instead only incrementally updates the parameters starting from the raw document counts. Further, it learns a standard HMM, that is, with no $\lambda$ transitions.
+%out any probability of missing data.
+This is very similar to the Bayesian Model Merging approach for HMMs \cite{stolcke1994best}.
+The fourth baseline is the same as above, but uses our EM algorithm for parameter estimation without $\lambda$ transitions. It is referred to as ``BMM + EM.''
+%Also ``SEM-HMM Approx.'' is the same as ``SEM-HMM'' but uses the incremental likelihood update.
+
+\begin{table}
+\footnotesize
+\begin{center}
+\begin{tabular}{|l|r|r|r|}
+\hline
+Batch Size $r$ & 2 & 5 & 10\\
+\hline
+SEM-HMM & 42.2\% & 45.1\% & 46.0\%\\
+SEM-HMM Approx.& 43.3\% & 43.5\% & 44.3\%\\
+BMM + EM & 41.1\% & 41.2\% & 42.1\%\\
+BMM & 41.0\% & 39.5\% & 39.1\%\\
+\hline
+Conditional & \multicolumn{3}{r|}{36.2\%}\\
+Frequency & \multicolumn{3}{r|}{27.3\%}\\
+\hline
+\end{tabular}
+\caption{The average accuracy on the OMICS domains}
+\end{center}
+\label{table:omics}
+\end{table}
+
+The Open Minds Indoor Common Sense (OMICS) corpus was developed by the Honda Research Institute and is based upon the Open Mind Common Sense project \cite{gupta2004common}. It describes 175 common household tasks with each task having 14 to 122 narratives describing, in short sentences, the necessary steps to complete it.  Each narrative consists of temporally ordered, simple sentences from a single author that describe a plan to accomplish a task.  Examples from the ``Answer the Doorbell'' task can be found in Table 2. The OMICS corpus has 9044 individual narratives and its short and relatively consistent language lends itself to relatively easy event extraction. % A simple sentence semantic similarity function, $Sim(S_1, S_2)_{(V_i, O_i) \in S_i} = \alpha PS(V_1, V_2) + \beta PS(O_1, O_2)$, used with an agglomerative clustering algorithm to group the sentences by approximate meaning and the most frequent dominate verb was extracted as the event.  The similarity function is directly based on a similar approach described in \cite{regneri2010learning}.  In the function, $PS(w, v)$ is the path similarity metric from Wordnet and was applied to the first verb, preferring those which are not stop words, and objects from each pair of sentences\cite{miller1995wordnet}.  The constants $\alpha$ and $\beta$ are tuning parameters used to adjust the relative importance of each component.
+
+%example 1 is story 3
+%example 2 is story 48
+%example 3 is story 53
+
+\begin{table}
+\footnotesize
+\begin{center}
+\begin{tabular}{| l | l |}
+\hline
+Example 1 & Example 2 \\
+\hline
+\underline{Hear} the doorbell. & \underline{Listen} for the doorbell. \\
+\underline{Walk} to the door. & \underline{Go} towards the door. \\
+\underline{Open} the door. & \underline{Open} the door. \\
+\underline{Allow} the people in. & \underline{Greet} the vistor. \\
+\underline{Close} the door. & \underline{See} what the visitor wants. \\
+& \underline{Say} goodbye to the visitor. \\
+& \underline{Close} the door. \\
+\hline
+\end{tabular}
+\caption{Examples from the OMICS ``Answer the Doorbell'' task with event triggers underlined}
+\end{center}
+\label{table:omicsexample}
+\end{table}
+
+The 84 domains with at least 50 narratives and 3 event types were used for evaluation.
+For each domain, forty percent of the narratives were withheld for testing, each with one randomly-chosen event omitted.  The model was evaluated on the proportion of correctly predicted events given the remaining sequence.
+On average each domain has 21.7 event types with a standard deviation of 4.6.  Further, the average narrative length across domains is 3.8 with standard deviation of 1.7.  This implies that
+only a frcation of the event types are present in any given narrative.
+There is a high degree of omission of events and many different ways of accomplishing each task.
+Hence, the prediction task is reasonably difficult, as evidenced by the simple baselines.
+%The purpose of the simple baselines is to attempt to quantify the difficulty of the task.
+Neither the frequency of events nor simple temporal structure is enough to accurately fill in the gaps which indicates that most sophisticated modeling such as SEM-HMM is needed.
+
+%A portion of the script for the Answer the Doorbell domain is shown in Figure \ref{fig:dbscript}.
+The average accuracy across the 84 domains for each method is found in Table 1.
+On average our method significantly out-performed all the baselines, with the average improvement in accuracy across OMICS tasks between SEM-HMM and each baseline being statistically significant at a .01 level across all pairs and on sizes of $r = 5$ and $r= 10$ using one-sided paired t-tests.  For $r=2$ improvement was not statistically greater than zero. %, indicating that SEM-HMM fails at smaller values of $r$.
+We see that the results improve with batch size $r$ until $r=10$ for
+SEM-HMM and BMM+EM, but they decrease with batch size for BMM without EM.
+Both of the methods which use EM depend on statistics to be robust and hence need a larger $r$ value to be accurate.  However for BMM, a smaller $r$ size means it reconciles a couple of documents with the current model in each iteration which ultimately helps guide the structure search.
+The accuracy for ``SEM-HMM Approx.'' is close to the exact version at each batch level, while only taking half the time on average.
+%\begin{figure}
+%\centering
+	%\includegraphics[scale=.5]{pics/accuracy_vs_missing.pdf}
+%\caption{Accuracy as a function of missing data in the OMICS domain}
+%\label{fig:missing}
+%\end{figure}
+
+%Also, SEM-HMM can be used to get a general estimate of the level of missing data.  By averaging the value of $P(\lambda)$, we obtain a rough estimate of the proportion missing events in each OMICS task with the mean being 14.6\% with a standard deviation of .1 with the maximum being 61.1\%.
+%The accuracy of each predictor is plotted against the average estimated missing-level and the results are shown in Figure \ref{fig:missing}.
+%The accuracy of each predictor was compared against the average estimated missing-level and the trend of all the predictors is down as the level of missing data increases.
+%This result is intuitive as the task of prediction should be become increasinly difficult as information decreases.  However, SEM-HMM, while more accurate a lower levels of missing data, eventually fails at high levels of incompleteness just like the other predictors.
+
+%\begin{table}
+%\begin{tabular}{l l}
+%Initial $p(\lambda)$& KL Divergance\\
+%\hline
+%10\% & 0.0020458\\
+%20\% & 0.0020465\\
+%30\% & 0.0012179\\
+%40\% & 0.0012184\\
+%50\% & 0.0012189\\
+%60\% & 0.0012195\\
+%70\% & 0.0012204\\
+%80\% & 0.00051863\\
+%90\% & 0.0012238\\
+%\end{tabular}
+%\caption{Sensitivity to initialization with a
+%uniform 50\% chance of true missingness.}
+%\label{table:syn_calib}
+%\end{table}
+
+%we could directly compare the learned HMMs with the generative model.
+%The baselines were compared against the generative HMM with its probability of missingness set to zero.
+%, since that is the best result the baselines could achieve.%  The difference between the prediction distributions was measured with KL-Divergence and the average difference was reported in table \ref{table:syn}.
+%The model for each initial parameter was evaluated versus the generative model using the same task as previously described.
+%The results (not shown) in table \ref{table:syn_calib}
+
+\section{Conclusions}
+%removedVspace
+
+In this paper, we have given the first formal treatment of scripts as
+%showed that scripts are naturally modeled as
+HMMs with missing observations.
+% which naturally represents stereotypical event sequences with missing
+%observations.
+We adapted the HMM inference and parameter estimation procedures
+to scripts and developed a new structure
+learning algorithm, SEM-HMM, based on the EM procedure.
+%Our structure learning algorithm is
+%more general than previous structure learning
+%algorithms developed for profile
+%HNMs in that it learns arbitrary acyclic structures.
+It improves upon BMM by allowing for $\lambda$ transitions and by
+incorporating maximum likelihood parameter estimation via EM.
+%and structure learning algorithms for $\lambda$-HMMs,
+%by adapting the ideas from Structural EM and Bayesian Model Merging.
+We showed that our algorithm is effective in learning scripts from
+documents and performs better than
+other baselines on sequence prediction tasks. Thanks to the
+assumption of missing observations, the graphical
+structure of the scripts is usually sparse and intuitive.
+Future work includes learning from more natural text such as
+newspaper articles, enriching the representations to include objects and
+relations, and integrating HMM inference into text understanding.
+% in a broader variety of inference tasks.
+
+%connected Scripts with HMMs and provided a method of learning them with Bayesian Model Merging.  Additionally, HMMs were extended into $\lambda$-HMMs to better account for the nature and structure of natural language.  Likewise, Bayesian Model Merging was expanded to learn $\lambda$-HMMs by modifying the Forward-Backward algorithm.  A type of operation, edge deletions, were also added to Bayesian Model Merging to more effectively learn $\lambda$-HMMs.  Moreover, event prediction was defined as a method for evaluating Scripts.  This method was used to evalutate $\lambda$-HMMs and our extensions to Bayesian Model Merging.
+
+%The results show that this model and technique are effective ways of learning Scripts and surpass the existing methods.  Finally, it was shown that Bayesian Model Merging is a realization of Bayesian Structural EM, a well-known technique for learning factored models.
+
+\section*{Acknowledgments}
+We would like to thank Nate Chambers, Frank Ferraro, and Ben Van Durme for their helpful comments, criticism, and feedback.  Also we would like to thank the SCALE 2013 workshop. This work was supported by the DARPA and AFRL under contract No. FA8750-13-2-0033. Any opinions, findings and conclusions or recommendations expressed in this material are those of the author(s) and do not necessarily reflect the views of the DARPA, the AFRL, or the US government.
+
+%
+
+
+Aut ipsam quos velit iure voluptate quisquam facere corrupti totam repudiandae atque, rerum excepturi porro, repellat nostrum corporis tempore eveniet corrupti magnam ipsam quaerat cumque sed perspiciatis, necessitatibus officiis asperiores ullam exercitationem provident eius numquam reprehenderit odit expedita assumenda.Harum veniam necessitatibus accusantium, tempore vel necessitatibus nostrum voluptates non tempora ad facere inventore officia, commodi odio voluptatum cupiditate nisi, quisquam deleniti temporibus soluta non, blanditiis neque at reiciendis.Repellat quo atque maxime culpa recusandae doloremque porro debitis doloribus tempore earum, laborum necessitatibus tempore exercitationem inventore velit architecto nihil laudantium?Incidunt alias provident sed nesciunt aut reiciendis exercitationem dolore vel voluptatum quae,
+\bibliography{hmm}
+\bibliographystyle{aaai}
+
+
+\end{document}
