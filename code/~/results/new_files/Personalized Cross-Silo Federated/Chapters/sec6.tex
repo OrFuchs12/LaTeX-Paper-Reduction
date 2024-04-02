@@ -1,0 +1,263 @@
+% !TEX root = ../main.tex
+
+\section{HeurFedAMP: Heuristic Improvement of FedAMP on Deep Neural Networks}
+\label{sec:instances}
+
+In this section, we tackle the challenge in the message passing mechanism when deep neural networks are used by clients, and propose a heuristic improvement of FedAMP.
+
+%we first explain why we need a heuristic extension to FedAMP, then we introduce how to extend FedAMP by a simple heuristic to achieve good practical performance when clients adopt deep neural networks as personalized models.
+
+\nop{ the attentive message passing mechanism of FedAMP iteratively encourages the clients with similar personalized models to collaborate more by passing model aggregation messages with larger weights to each other. }
+
+
+\nop{
+The message weights $\xi_{i,1}, \ldots, \xi_{i,m}$ are determined by the similarity function $\mA^\prime$ that evaluates the similarity between the personalized models of different clients.
+A good similarity function that accurately measures the model similarity will produce a set of high quality message weights $\xi_{i,1}, \ldots, \xi_{i,m}$. This will boost the effectiveness of the attentive message passing mechanism to achieve good personalized federated learning performance.
+}
+
+As illustrated in Section~\ref{sec:alg}, the effectiveness of the attentive message passing mechanism of FedAMP
+largely depends on the weights $\xi_{i,1}, \ldots, \xi_{i,m}$ of the model aggregation messages. These message weights are determined by the similarity function $A^\prime(\|\mathbf{w_i} - \mathbf{w_j}\|^2)$ that
+measures the similarity between the model parameter sets $\mathbf{w_i}$ and $\mathbf{w_j}$ based on their Euclidean distance $\|\mathbf{w_i} - \mathbf{w_j}\|$.
+
+\nop{
+evaluates the similarities between the personalized models of different clients.
+}
+\nop{
+the weight $\xi_{i,j}$ of the model aggregation message passed from client $C_j$ to client $C_i$ is determined by the similarity between their personalized models $\mathcal{M}(w_i)$ and $\mathcal{M}(w_j)$. }
+
+\nop{
+For FedAMP, the similarity between the personalized models $\mathcal{M}(w_i)$ and $\mathcal{M}(w_j)$ directly determines the weight $\xi_{i,j}$ of the model aggregation message passed from client $C_j$ to client $C_i$.
+This similarity is evaluated by the similarity function $\mA^\prime(\| w_i - w_j\|^2)$ that measures the similarity between $w_i$ and $w_j$ based on their Euclidean distance $\|w_i - w_j\|$. 
+}
+
+When the dimensionalities of $\mathbf{w_i}$ and $\mathbf{w_j}$ are small, Euclidean distance is a good measurement to evaluate their difference. In this case, the similarity function $A^\prime(\|\mathbf{w_i} - \mathbf{w_j}\|^2)$ works well in evaluating the similarity between $\mathbf{w_i}$ and $\mathbf{w_j}$. % The weights $\xi_{i,1}, \ldots, \xi_{i,m}$ of the model aggregation messages are properly computed to achieve an effective attentive message passing mechanism.
+%
+However, when clients adopt deep neural networks as their personalized models, each personalized model involves a large number of parameters, which means the dimensionalities of both $\mathbf{w_i}$ and $\mathbf{w_j}$ are high.
+In this case, Euclidean distance may not be effective in evaluating the difference between $\mathbf{w_i}$ and $\mathbf{w_j}$ anymore due to the curse of dimensionality~\cite{verleysen2005curse}. Consequently, the message weights produced by $A^\prime(\|\mathbf{w_i} - \mathbf{w_j}\|^2)$ may not be an effective attentive message passing mechanism.  Thus, we need a better way to produce the message weights instead of using $A^\prime(\|\mathbf{w_i} - \mathbf{w_j}\|^2)$.
+
+To tackle the challenge, we propose HeurFedAMP, a heuristic revision of FedAMP when clients use deep neural networks.
+The key idea of HeurFedAMP is to heuristically compute the message weights in a different way that works well with the high-dimensional model parameters of deep neural networks. %keep the attentive message passing mechanism of FedAMP, however, in practice.
+Specifically, HeurFedAMP follows the optimization steps of FedAMP exactly, except that, when computing message weights $\xi_{i,1}, \ldots, \xi_{i,m}$ in the $k$-th iteration, HeurFedAMP first treats weight $\xi_{i,i}$ as a self-attention hyper-parameter that controls the proportion of the message $\mathbf{w_i^{k-1}}$ sent from client $C_i$ to its own personalized cloud model, and then computes the weight of the message passed from a client $C_j$ to client $C_i$ by
+\begin{equation}
+\label{eq:heurweights}
+\xi_{i,j} = \frac{e^{\sigma\cos(\mathbf{w_i^{k-1}},\mathbf{w_j^{k-1}})}}
+{\sum_{h\neq i}^m e^{\sigma\cos(\mathbf{w_i^{k-1}},\mathbf{w_h^{k-1}})}}\cdot (1-\xi_{i,i}),
+\end{equation}
+where $\sigma$ is a scaling hyper-parameter and $\cos(\mathbf{w_i^{k-1}},\mathbf{w_j^{k-1}})$ is the cosine similarity between $\mathbf{w_i^{k-1}}$ and $\mathbf{w_j^{k-1}}$.
+
+
+
+All the weights $\xi_{i,1}, \ldots, \xi_{i,m}$ computed by HeurFedAMP are non-negative and sum to 1. Applying the weights computed by HeurFedAMP to Eq.~\eqref{eq:grad-step-eq}, the model parameter set $\mathbf{u_i^k}$ of the personalized cloud model of client $C_i$ is still a convex combination of all the messages that it receives.
+
+Furthermore, according to from Eq.~\eqref{eq:heurweights}, 
+if the model parameter sets $\mathbf{w_i^{k-1}}$ and $\mathbf{w_j^{k-1}}$ of two clients have a large cosine similarity $\cos(\mathbf{w_i^{k-1}}, \mathbf{w_j^{k-1}})$, their messages have large weights and contribute more to the personalized cloud models of each other. In other words, HeurFedAMP builds a positive feedback loop similar to that of FedAMP to realize the attentive message passing mechanism.
+
+As to be demonstrated in Section~\ref{sec:exp}, HeurFedAMP improves the performance of FedAMP when clients adopt deep neural networks as personalized models, because cosine similarity is well-known to be more robust in evaluating similarity between high dimensional model parameters than Euclidean distance.
+
+
+
+
+
+\nop{
+FedAMP builds a positive feedback loop that iteratively encourages clients with similar model parameters to have stronger collaborations, which makes it possible to adaptively group similar clients together to conduct more effective collaborations.
+This is exactly how FedAMP discovers the underlying collaboration relationships between similar clients. 
+As demonstrated later in Section~\ref{sec:exp}, FedAMP accurately discovers the group collaboration structure of clients and achieves outstanding personalized federated learning performance.
+}
+
+
+
+
+\nop{
+, while keeping the attentive message passing mechanism of FedAMP intact. 
+}
+
+
+\nop{
+for these high-dimensional model parameters, the Euclidean distance between $w_i$ and $w_j$ may not be a good measurement to derive their similarity.
+}
+
+\nop{
+, that is, the personalized models of clients $C_i$ and $C_j$ do not involve too many parameters
+}
+
+\nop{
+based on the L2-distance between the model parameters $w_i$ and $w_j$.
+}
+
+\nop{
+The {FedAMP} proposed in Algorithm \ref{alg:FedAMP} needs to be instantiated by specifying the attention-inducing function. The class of attention-inducing functions is broad. In particular, examples of function $\mA$ that satisfies the conditions (i) and (ii) in Definition \ref{defi:att-ind} includes the negative exponential function $\mA(t) = 1 - e^{-t/\sigma}$ and the tamed square root function $\mA(t) = t/(2\sigma)$ if $t\in[0,\sigma^2]$ and $\mA(t) = \sqrt{t}-\sigma/2$ if $t>\sigma^2$, where $\sigma>0$ is a parameter that can be chosen by the user. Also, the smoothly clipped absolute deviation (SCAD) function~\cite{fan2001variable} and the minimax concave penalty (MCP) function~\cite{zhang2010nearly}, which are popular for inducing sparse estimators in high-dimensional statistics, are also examples that satisfy (i) and (ii). 
+
+Next, we use the negative exponential function $\mA(t) = 1 - e^{-t/\sigma}$ as an example to further illustrate the attention mechanism in {FedAMP}. With $\mA(t) = 1 - e^{-t/\sigma}$, the $z_i^{k-1}$ in Eq.~\eqref{eq:colla-center} can be written as
+\begin{equation}\label{eq:aggre-exp}
+z_i^{k-1} = \frac{\sum_{j\neq i}^m e^{-\frac{\|w_i^{k-1} - w_j^{k-1}\|^2}{2\sigma}}\cdot w_j^{k-1}}{\sum_{j\neq i}^m e^{-\frac{\|w_i^{k-1} - w_j^{k-1}\|^2}{2\sigma}}},
+\end{equation}
+which is then used to construct the personalized cloud model $u_i^k$ via Eq.~\eqref{eq:grad-step-cvx-combi}. Note that $K(x,y) = e^{-\|x-y\|^2/2\sigma}$ is the so-called radial basis function (RBF) kernel that is broadly used in kernelized learning algorithms as a similarity measure~\cite{vert2004primer}. Then, from Eq.~\eqref{eq:grad-step-cvx-combi} and Eq.~\eqref{eq:aggre-exp}, we can observe that for every $j\neq i$, the contribution of $w_j^{k-1}$ to the personalized cloud model $u_i^{k}$ for client $i$ is proportional to the similarity between $w_i^{k-1}$ and $w_j^{k-1}$, where the similarity is measured by the RBF kernel. This induces an attentive mechanism of collaboration as desired. 
+}
+% We remark that the theoretical guarantees provided in Section \ref{sec:analysis} applies as it is an instance of the {FedAMP} framework.
+\nop{
+As mentioned above, in the $k$-th round of {FedAMP}, the messages collected from clients other than $i$ are aggregated into $z_i^{k-1}$ via a convex combination in Eq.~\eqref{eq:colla-center}, which then contributes to the construction of a personalized cloud model $u_i^k$ by Eq.~\eqref{eq:grad-step-cvx-combi}. 
+}
+\nop{
+Below we provide several examples of attention-inducing functions and then specify their effects on the computation of $z_i^{k-1}$. It can be verified that the following functions satisfy the conditions on $\mA$ in Definition \ref{defi:att-ind}.
+\begin{itemize}
+    \item[(i)] Negative exponential function: $\mA(t) = 1 - e^{-t/\sigma}$.
+    \item[(ii)] Minimax concave penalty (MCP) function:
+    $$ \mA(t) = \left\{\begin{array}{ll}
+    \sigma t - \frac{t^2}{2\theta}, & \mbox{if} \ t<\theta\sigma, \\
+    \frac{\theta\sigma^2}{2}, & \mbox{if} \ t>\theta\sigma.
+    \end{array}
+    \right.
+    $$
+    \item[(iii)] Smoothly clipped absolute deviation (SCAD) function: 
+    $$ \mA(t) = \left\{ \begin{array}{ll}
+    \sigma t, & \mbox{if} \ t\leq \sigma, \\
+    \frac{-t^2+2\theta\sigma t - \sigma^2}{2(\theta-1)}, & \mbox{if} \ \sigma<t\leq \theta \sigma, \\
+    \frac{(\theta+1)\sigma^2}{2}, & \mbox{if} \ t>\theta\sigma.
+    \end{array}
+    \right.
+    $$
+    \item[(iv)] Tamed square root function: 
+    % $\mA(t) = t/(2\sigma)$ if $t\in[0,\sigma^2]$ and $\mA(t) = \sqrt{t}-\sigma/2$ if $t>\sigma^2$.
+    % \item[(ii)] Tamed square root function:
+    $$ \mA(t) = \left\{\begin{array}{ll}
+    t/(2\sigma), & \mbox{if} \ t\in[0,\sigma^2], \\
+    \sqrt{t} - \sigma/2, & \mbox{if} \ t>\sigma^2.
+    \end{array}\right.
+    $$
+\end{itemize}
+Here, $\sigma>0$ and $\theta>2$ are parameters that can be chosen by the user. The SCAD and MCP functions are well known for inducing sparse solutions in high-dimensional statistics~\cite{fan2001variable,zhang2010nearly}, and the tamed square root function in (ii) modifies the square root function $\mA(t) = \sqrt{t}$ so that it satisfies the condition $\lim_{t\rightarrow 0^+} \mA^\prime(t) < \infty$ in Definition \ref{defi:att-ind}. 
+For the MCP function in (ii), Eq.~\eqref{eq:colla-center} can be written as
+\begin{equation}\label{eq:aggre-MCP}
+z_i^{k-1} = \frac{\sum_{j\neq i}^m [\theta\sigma - \|w_i^{k-1} - w_j^{k-1}\|^2]_+\cdot w_j^{k-1}}{\sum_{j\neq i}^m [\theta\sigma - \|w_i^{k-1} - w_j^{k-1}\|^2]_+},
+\end{equation}
+where $[a]_+ = \max\{0,a\}$ for any $a\in\R$. 
+}
+
+
+%\subsubsection{Squared Euclidean Distance}
+% {\bf Squared Euclidean Distance.} As a warm-up, we first instantiate the {FedAMP} framework with $D$ being the squared Euclidean distance, {\it i.e.}, $D(x,y) = \|x - y\|^2/2$.
+%\begin{equation}
+%\label{eq:s-ed}
+%D(x,y) = \frac{1}{2}\|x - y\|^2,
+%\end{equation}
+%where $\|\cdot\|$ stands for the $\ell_2$-norm in $\R^d$. 
+% Substituting this into Eq.~\eqref{eq:our-form}, one can easily verify that for all $i$, $\nabla_i\mD(w_1,\dots,w_m) = \sum_{j\neq i}^m (w_i - w_j)$.
+% %$$ \nabla_i\mD(w_1,\dots,w_m) = \sum_{j\neq i}^m (w_i - w_j). $$
+% It then follows from Eq.~\eqref{eq:grad-step} that
+% $$ u_i^{k} = w_i^{k} - \alpha_{k,i}\sum_{j\neq i}^m(w_i^{k} - w_j^{k}) = (1 - (m-1)\alpha_{k,i})w_i^{k} + \alpha_{k,i}\sum_{j\neq i}^mw_j^{k}. $$
+% In light of this, we choose $\alpha_{k,i} = (1-\tau_{k,i})/(m-1)$ for some $\tau_{k,i}\in[0,1)$, which leads to 
+% %the following simple implementation of Eq.~\eqref{eq:grad-step}:
+% \begin{equation}
+% \label{eq:gs-s-ed}
+% u_i^{k} = \tau_{k,i}w_i^{k} + (1 - \tau_{k,i})\frac{\sum_{j\neq i}^mw_j^{k}}{m-1}.
+% \end{equation}
+% This yields that $u_i^{k}$ is a weighted average of $(w_1^{k},\dots,w_m^{k})$ with a parameter $\tau_{k,i}$ controlling the attention to the $i$-th client itself and for every $j\neq i$, $w_j^{k}$ contributes equally to $u^k_i$. From Eq.~\eqref{eq:gs-s-ed} and Algorithm \ref{alg:FedAMP}, we observe that {FedAMP} with squared Euclidean distance function generalizes the FedAvg method in \cite{li2018federated}. Indeed, by letting $\tau_{k,i}\equiv m^{-1}$ in Eq.~\eqref{eq:gs-s-ed}, {FedAMP} reduces to the form of FedAvg. Moreover, due to the presence of $\tau_{k,i}$, {FedAMP} constructs personalized cloud models $(u_1^{k},\dots,u_m^{k})$ for each client while FedAvg uses one cloud model for all the clients. 
+%that shall be used as the prox-centers in local training Eq.~\eqref{eq:local-training}. 
+
+% %\subsubsection{Smoothed Euclidean Distance}
+% {\bf Smoothed Euclidean Distance.} The second instance we would like to consider is the Euclidean distance function $\|x - y\|$. Since $\|\cdot\|$ is not differentiable at the origin, the Euclidean distance function does not satisfy our assumption for $D$. Instead, we consider a smoothed version of it:
+% \begin{equation}
+% \label{eq:sm-ed}
+% D(x,y) = \left\{
+% \begin{aligned}
+% & \frac{1}{2\mu}\|x - y\|^2, \quad \ \mbox{if} \ \|x - y\|\leq \mu, \\
+% & \|x - y\| - \frac{\mu}{2}, \quad \mbox{otherwise},
+% \end{aligned}\right.
+% \end{equation}
+% where $\mu>0$ is a smoothing parameter. 
+% %Upon substituting Eq.~\eqref{eq:sm-ed} into Eq.~\eqref{eq:our-form}, one can verify that
+% %$$ \nabla_i\mD(w_1,\dots,w_m) = \sum_{\begin{subarray}{c}
+% %j\neq i \\ \|w_i - w_j\|\leq \mu
+% %\end{subarray}} \frac{w_i - w_j}{\mu} + \sum_{\begin{subarray}{c}
+% %j\neq i \\ \|w_i - w_j\|> \mu
+% %\end{subarray}}\frac{w_i - w_j}{\|w_i - w_j\|}. $$
+% %$$ \nabla_i\mD(w_1,\dots,w_m) = \sum_{j\neq i}^m \frac{w_i - w_j}{\max\left\{\mu, \, \|w_i - w_j\|\right\}} = \sum_{j\neq i}^m\min\left\{\mu^{-1},\,\|w_i - w_j\|^{-1}\right\}\cdot(w_i - w_j) $$
+% %It then follows from Eq.~\eqref{eq:grad-step} that
+% %$$ u_i^{k} = w_i^{k} - \alpha_{k,i}\sum_{j\neq i}^m \min\left\{\mu^{-1}, \, \|w_i^{k} - w_j^{k}\|^{-1}\right\}\cdot\left(w_i^{k} - w_j^{k}\right). $$
+% %Then, by choosing $\alpha_{k,i} = \tau_{k,i}\cdot\left(\sum_{j\neq i}^m \min\left\{\mu^{-1}, \, \|w_i^{k} - w_j^{k}\|^{-1}\right\}\right)^{-1}$ for some $\tau_{k,i}\in(0,1]$, the step Eq.~\eqref{eq:grad-step} can be implemented as:
+% Following the same arguments as above and letting $\alpha_{k,i} = (1-\tau_{k,i})/(\sum_{j\neq i}^m \min\left\{\mu^{-1}, \, \|w_i^{k} - w_j^{k}\|^{-1}\right\})$ for some $\tau_{k,i}\in[0,1)$, one can verify that Eq.~\eqref{eq:grad-step} is equivalent to
+% \begin{equation}
+% \label{eq:gs-sm-ed}
+% u_i^{k} = \tau_{k,i}w_i^{k} + (1-\tau_{k,i})\frac{\sum_{j\neq i}^m \min\left\{\mu^{-1}, \, \|w_i^{k} - w_j^{k}\|^{-1}\right\}\cdot w_j^{k}}{\sum_{j\neq i}^m \min\left\{\mu^{-1}, \, \|w_i^{k} - w_j^{k}\|^{-1}\right\}}.
+% \end{equation}
+% Similar to Eq.~\eqref{eq:gs-s-ed}, here $u_i^{k}$ is also a weighted average of $(w_1^{k},\dots,w_m^{k})$ with a parameter $\tau_{k,i}$ controlling the attention to the $i$-th client itself. On the other hand, unlike Eq.~\eqref{eq:gs-s-ed}, the weights of $w_j^{k}$ for all $j\neq i$ are not equally distributed in Eq.~\eqref{eq:gs-sm-ed}. Indeed, for any $j\neq i$, the weight of $w_j^{k}$ in Eq.~\eqref{eq:gs-sm-ed} is proportional to $\min\left\{\mu^{-1}, \, \|w_i^{k} - w_j^{k}\|^{-1}\right\}$. This implies that an $w_j^{k}$ with $j\neq i$ contributes more to the aggregation Eq.~\eqref{eq:gs-sm-ed} if $\|w_i^{k} - w_j^{k}\|$ is smaller, or equivalently, if $w_j^{k}$ is closer to $w_i^{k}$.  
+
+%\subsubsection{Gaussian Kernel Distance}
+% {\bf Gaussian Kernel Distance.}  The attention-inducing function induced by the Gaussian kernel is defined as $D(x,y) = 1 - e^{-\frac{\|x - y\|^2}{2\sigma}}$ for some $\sigma>0$. Substituting this into Eq.~\eqref{eq:our-form}, one can easily verify that for all $i$, $ \nabla_i\mD(w_1,\dots,w_m) = \frac{1}{\sigma}\sum_{j\neq i}^me^{-\frac{\|w_i - w_j\|^2}{2\sigma}}(w_i - w_j)$.
+% %$$ \nabla_i\mD(w_1,\dots,w_m) = \sum_{j\neq i}^m (w_i - w_j). $$
+% It then follows from Eq.~\eqref{eq:grad-step} that
+% $$ u_i^{k} = w_i^{k} - \frac{\alpha_{k,i}}{\sigma}\sum_{j\neq i}^me^{-\frac{\|w_i^{k} - w_j^{k}\|^2}{2\sigma}}(w_i^{k} - w_j^{k}). $$
+% In light of this, we choose $\alpha_{k,i} = (1-\tau_{k,i})/(m-1)$ for some $\tau_{k,i}\in[0,1)$, which leads to 
+% %the following simple implementation of Eq.~\eqref{eq:grad-step}:
+% \begin{equation}
+% \label{eq:gs-s-ed}
+% u_i^{k} = \tau_{k,i}w_i^{k} + (1 - \tau_{k,i})\frac{\sum_{j\neq i}^mw_j^{k}}{m-1}.
+% \end{equation}
+% This yields that $u_i^{k}$ is a weighted average of $(w_1^{k},\dots,w_m^{k})$ with a parameter $\tau_{k,i}$ controlling the attention to the $i$-th client itself and for every $j\neq i$, $w_j^{k}$ contributes equally to $u^k_i$.
+%\begin{equation}
+%\label{eq:gk-dist}
+%D(x,y) = 1 - e^{-\frac{\|x - y\|^2}{2\sigma}}
+%\end{equation}
+%for some $\sigma>0$. 
+%Upon substituting Eq.~\eqref{eq:gk-dist} into Eq.~\eqref{eq:our-form}, one can verify that
+%$$ \nabla_i\mD(w_1,\dots,w_m) = \frac{1}{\sigma}\sum_{j\neq i}^me^{-\frac{\|w_i - w_j\|^2}{2\sigma}}(w_i - w_j). $$
+%It then follows from Eq.~\eqref{eq:grad-step} that
+%$$ u_i^{k} = w_i^{k} - \frac{\alpha_{k,i}}{\sigma}\sum_{j\neq i}^me^{-\frac{\|w_i^{k} - w_j^{k}\|^2}{2\sigma}}(w_i^{k} - w_j^{k}). $$
+%Then, by choosing $\alpha_{k,i} = \tau_{k,i}\sigma\left(\sum_{j\neq i}^me^{-\frac{\|w_i^{k} - w_j^{k}\|^2}{2\sigma}}\right)^{-1}$ for some $\tau_{k,i}\in(0,1]$, the step Eq.~\eqref{eq:grad-step} can be implemented as:
+% Following the same arguments as above and letting $\alpha_{k,i} = (1-\tau_{k,i})\sigma/\left(\sum_{j\neq i}^me^{-\frac{\|w_i^{k} - w_j^{k}\|^2}{2\sigma}}\right)$ for some $\tau_{k,i}\in(0,1]$, one can verify that Eq.~\eqref{eq:our-form} is equivalent to
+% \begin{equation}
+% \label{eq:gs-gk-dist}
+% u_i^{k} = \tau_{k,i} w_i^{k} + (1-\tau_{k,i})\frac{\sum_{j\neq i}^m e^{-\frac{\|w_i^{k} - w_j^{k}\|^2}{2\sigma}}\cdot w_j^{k}}{\sum_{j\neq i}^m e^{-\frac{\|w_i^{k} - w_j^{k}\|^2}{2\sigma}}}.
+% \end{equation}
+% Again $u_i^{k}$ is a weighted average of $(w_1^{k},\dots,w_m^{k})$ with a parameter $\tau_{k,i}$ controlling the attention to the $i$-th client itself. Moreover, for any $j\neq i$, the weight of $w_j^{k}$ in Eq.~\eqref{eq:gs-gk-dist} is proportional to $e^{-\frac{\|w_i^{k} - w_j^{k}\|^2}{2\sigma}}$, which implies that $w_j^{k}$ contributes more to the aggregation Eq.~\eqref{eq:gs-gk-dist} if $w_j^{k}$ is closer to $w_i^{k}$.  
+
+%In view of Eq.~\eqref{eq:gs-s-ed}, Eq.~\eqref{eq:gs-sm-ed}, and Eq.~\eqref{eq:gs-gk-dist}, it is clear that {FedAMP} can promote attentive collaboration among the personalized models $(w_1,\dots,w_m)$. Indeed, the intermediate model $u_i^{k}$, which shall be used in the $k$-th round of {FedAMP} as the prox-center to enhance the local training on client $i$, is a convex combination of the models $(w_1^{k},\dots,w_m^{k})$ that are computed in the $k$-th round. Moreover, the contribution of any $w_j^{k}$ with $j\neq i$ to $u_i^{k}$ is proportional to the similarity between $w_i^{k}$ and $w_j^{k}$. 
+% Before ending this subsection, we provide in Algorithm \ref{alg:Fed-GK} the pseudo-code of an instance of {FedAMP}, where $D$ is the attention-inducing function with $\mA$ being a negative exponential function. For {FedAMP} other types of  attention-inducing function, one can simply rewrite Eq.~\eqref{eq:aggre} in Algorithm \ref{alg:Fed-GK} accordingly as provided in supplemental material.
+
+%\section{A Heuristic Extension of {FedAMP}}\label{sec:heuristic}
+
+\nop{
+\chu{=================}
+
+Recall from Eq.~\eqref{eq:grad-step-cvx-combi} and Eq.~\eqref{eq:colla-center} that in the attentive mechanism of {FedAMP}, the similarity between any two models is measured as a function of their Euclidean distance; see Eq.~\eqref{eq:aggre-exp} for an example. However, this may be inadequate for application domains where the Euclidean distance between models is not very meaningful. To remedy this issue, we can develop heuristic algorithms that resembles the form of {FedAMP} but incorporate favorable measure of similarity. As an example, one may use the popular cosine similarity to measure the similarity between models, which is defined as $\cos(x,y) = (x/\|x\|)^T(y/\|y\|)$. In addition, to improve the effectiveness of attention, we compose it with an exponential function, resulting in a non-negative similarity function $s(x,y) = e^{\sigma \cos(x,y)}$ for some $\sigma>0$. Moreover, we further allow the self-attention parameters $\{\tau_{k,i}\}$ in Eq.~\eqref{eq:grad-step-cvx-combi} and the local training parameters $\{\beta_k\}$ in Eq.~\eqref{eq:local-training} to be customized by the clients. The obtained heuristic algorithm is summarized in Algorithm \ref{alg:Fed-Heu}. Its convergence guarantee is unclear, but we will demonstrate its strong empirical performance in Sec.~\ref{sec:exp}.
+}
+% \begin{equation}
+% \label{eq:aggre-heuristic}
+% z_i^{k-1} = \frac{\sum_{j\neq i}^m e^{\sigma\cos(w_i^{k-1},w_j^{k-1})}\cdot w_j^{k-1}}{\sum_{j\neq i}^m e^{\sigma\cos(w_i^{k-1},w_j^{k-1})}}.
+% \end{equation}
+% We can observe that, for any $j\neq i$, the weight of $w_j^{k}$ in Eq.~\eqref{eq:aggre-heuristic} is proportional to $ e^{\sigma\cos(w_i^k,w_j^k)}$, which implies that $w_j^{k}$ contributes more to the aggregation Eq.~\eqref{eq:aggre-heuristic} if it is closer to $w_i^{k}$ in the sense of cosine similarity. 
+
+
+
+\nop{
+\begin{algorithm}[t]
+\DontPrintSemicolon
+\SetKwInput{KwInput}{Input}               
+\SetKwInput{KwOutput}{Output} 
+\KwInput{The number of clients $m$, initial models $(w_1^{0},\dots, w_m^{0})$, total communication rounds $K$, self-attention parameters $\{\tau_{k,i}\}$, parameters $\{\beta_{k,i}\}$ for local training}
+% \KwOutput{the final models $(w_1^{K},\dots, w_m^{K})$ and $(u_1^{K},\dots, u_m^{K})$}             
+\For{$k=1,2,\dots, K$}{
+For every $i=1,\dots,m$, server computes the attentive aggregation of $\{w_j^{k-1}\}_{j\neq i}$ by 
+\begin{equation}
+\label{eq:aggre-heuristic}
+z_i^{k-1} = \frac{\sum_{j\neq i}^m e^{\sigma\cos(w_i^{k-1},w_j^{k-1})}\cdot w_j^{k-1}}{\sum_{j\neq i}^m e^{\sigma\cos(w_i^{k-1},w_j^{k-1})}}.
+\end{equation}\\
+% \begin{equation}\label{eq:aggre}
+% w^{k}_{i,c} = \frac{\sum_{j\neq i}^m e^{-\frac{\|w_i^{k} - w_j^{k}\|^2}{2\sigma}}\cdot w_j^{k}}{\sum_{j\neq i}^m e^{-\frac{\|w_i^{k} - w_j^{k}\|^2}{2\sigma}}}
+% \end{equation}\\
+For every $i=1,\dots,m$, server computes the personalized cloud model $u_i^{k}$ by \\
+\begin{equation}\label{eq:cvx-comb}
+u_i^{k} = (1 - \tau_{k,i})w_i^{k-1} + \tau_{k,i}z_i^{k-1}
+\end{equation}\\
+Server sends each $u_i^{k}$ to client $i$ \\
+Every client $i$ computes an updated local models $w_i^k$ by Eq.~\eqref{eq:local-training} with $\beta_{k,i}$\\
+%\begin{equation}
+%\label{eq:local-training-c}
+%w_i^{k} \approx \arg\min_{w\in\R^d} F_i(w) + \frac{1}{2\alpha_{k,i}}\|w - u_i^{k}\|^2
+%\end{equation}
+Server collects the updated local models $(w_1^{k},\dots,w_m^{k})$
+}
+\caption{A Heuristic Extension of {FedAMP}  ({\sc HeurFedAMP})}
+\label{alg:Fed-Heu}
+\end{algorithm}
+}

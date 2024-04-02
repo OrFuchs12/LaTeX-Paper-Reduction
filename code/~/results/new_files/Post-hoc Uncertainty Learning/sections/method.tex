@@ -1,0 +1,104 @@
+\section{Method}\label{sec:method}
+
+In this section, we specify the post-hoc uncertainty learning framework defined in Problem~\ref{prob:general}. First, we introduce the structure of the meta-model. Next, we discuss the meta-model training procedure, including the training objectives and a validation trick. Finally, we define metrics for uncertainty quantification used in different applications.
+
+% This paper provides a simple and effective way to realize this framework. 
+The design of our proposed meta-model method is based on three high-level insights: (1) Different intermediate layers of the base model usually capture various levels of feature representation, from low-level features to high-frequency features, e.g., for OOD detection task, the OOD data is unlikely to be similar to in-distribution data across all levels of feature representations. Therefore, it is crucial to leverage the diversity in feature representations to achieve better uncertainty quantification performance. (2) Bayesian method is known to be capable of modeling different types of uncertainty for various uncertainty quantification applications, i.e., total uncertainty and epistemic uncertainty. Thus, we propose a Bayesian meta-model to parameterize the Dirichlet distribution, used as the conjugate prior distribution over label distribution. (3) We believe that the overconfident issue of the base model is caused by over-fitting in supervised learning with cross-entropy loss. In the post-hoc training of the meta-model, a validation strategy is proposed to improve the performance of uncertain learning instead of prediction accuracy.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=1\linewidth]{figures/toy_problem.pdf}
+  \vspace{-0.5em}
+  \captionsetup{font=small}
+  \caption{A toy example of our proposed meta-model method in OOD detection application shows the diversity of features in different layers. MetaModel utilizes two intermediate features, while Layer1 and Layer2 only are trained with one individual feature.}
+  \label{fig: toy_problem}
+\end{figure}
+
+Before discussing the details of our proposed method, we want to use a toy example of the OOD detection task shown in Figure~\ref{fig: toy_problem} to elaborate our insights. The goal is to improve the OOD (FashionMNIST) detection performance of a LeNet base model trained on MNIST. The meta-model takes base-model intermediate feature representation as input and parameterizes a Dirichlet distribution over the probability simplex. We train three different meta-models using both intermediate layer features, using either of the two features, respectively, and then visualize and compare the output Dirichlet distribution on the simplex. Specifically, we take the three dominant classes with the largest logits to approximately visualize the Dirichlet distribution over the probability simplex. We observe that the meta-model outputs a much sharper distribution for the in-distribution sample than the OOD sample. Moreover, compared to the meta-model trained with one feature, the meta-model trained with multiple intermediate layers can further distinguish the two distributions on simplex. They generate sharper distribution for the in-distribution sample while exhibiting a more uniform distribution for the OOD sample, which strongly supports our key claims. 
+
+% Before discussing the details of our proposed method, we consider a toy example for OOD detection task shown in Figure~\ref{fig: toy_problem}. The goal is to improve the OOD (FashionMNIST) detection performance of a base-model trained on MNIST. The meta-model takes base-model intermediate feature representation as input and parameterize a Dirichlet distribution over the probability simplex. We train different meta-models using both two intermediate layer features, using each of the two feature, respectively, and then visualize and compare the output Dirichlet distribution on the simplex . We observe that the meta-model outputs a much sharper distribution for in-distribution sample than OOD sample. Moreover, compared to the meta-model trained with individual feature, the meta-model trained with multiple intermediate layers can further distinguish the two distributions on simplex. They generate sharper distribution for in-distribution sample while exhibit more uniform distribution for OOD sample, which strongly support our key claims. %insights.
+
+
+
+
+\subsection{Meta-Model Structure}\label{subsec: model}
+The proposed meta-model consists of multiple linear layers $\{\vg_j\}_{j=1}^{m}$ attached to different intermediate layers from the base model, and a final linear layer $\vg_{c}$ that combines all the features and generates a single output. Specifically, given an input sample $\vx$, denote the multiple intermediate feature representation extracted from the base-model as $\{\Phi_j\left(\vx\right)\}_{j=1}^{m}$. For each intermediate base-feature $\Phi_j$, the corresponding linear layer will construct a low-dimensional meta-feature $\{\vg_j\left(\Phi_j\left(\vx\right)\right)\}_{j=1}^{m}$. Then, the final linear layer of the meta-model takes the multiple meta-features as inputs and generates a single output, i.e., $\tilde{\vy} = \vg\left(\{\Phi_j\left(\vx\right)\}_{j=1}^{m}; \vw_g\right) = \vg_c\left(\{\vg_j\left(\Phi_j\left(\vx\right)\right)\}_{j=1}^{m}; \vw_{g_c}\right) $. In practice, the linear layers $\vg_{i}$ and $\vg_{c}$ only consist of fully connected layers and activation function, which ensures the meta-model has a much simpler structure and enables efficient training. 
+
+Given an input sample $\vx$, the base model outputs a conditional label distribution $P_B\left(\vy | \Phi(\vx)\right) \in \Delta^{K-1}$, corresponding to a single point in the probability simplex. However, such label distribution $P_B\left(\vy | \Phi(\vx)\right)$ is a point estimate, which only shows the model's uncertainty about different classes but cannot reflect the uncertainty due to the lack of knowledge of a given sample, i.e., the epistemic uncertainty. To this end, we adopt the Dirichlet technique commonly used in the recent literature~\citep{malinin2018predictive, malinin2019reverse, nandy2020towards, charpentier2020posterior} in order to better quantify the epistemic uncertainty. Let the label distribution as a random variable over probability simplex, denote as $\boldsymbol{\pi} = [\pi_1, \pi_2, ..., \pi_k]$, 
+the Dirichlet prior distribution is the conjugate prior of the categorical distribution, i.e., 
+\begin{equation}
+\operatorname{Dir}(\boldsymbol{\pi} | \boldsymbol{\alpha}) \triangleq \frac{\Gamma\left(\alpha_{0}\right)}{\prod_{c=1}^{K} \Gamma\left(\alpha_{c}\right)} \prod_{c=1}^{K} \pi_{c}^{\alpha_{c}-1}, \alpha_c>0,\alpha_0 \triangleq \sum_{c=1}^K \alpha_c,
+\end{equation}
+Our meta-model $\vg$ explicitly parameterize the posterior Dirichlet distribution, i.e, 
+\begin{equation*}
+    q(\boldsymbol{\pi}|\Phi(\vx);\vw_g ) \triangleq \operatorname{Dir}(\boldsymbol{\pi} | \boldsymbol{\alpha}(\vx)), \  \boldsymbol{\alpha}(\vx) = e^{\vg\left(\Phi(\vx); \vw_g\right)},
+\end{equation*}
+where the output of our meta-model is $\tilde{\vy} = \log{\boldsymbol{\alpha}(\vx)}$, and $\boldsymbol{\alpha}(\vx) = [\alpha_1(\vx), \alpha_2(\vx), ..., \alpha_k(\vx)]$ is the concentration parameter of the Dirichlet distribution given an input $\vx$. The overall structure of the meta-model is shown in Figure~\ref{fig: structure}.
+
+
+%To quantify the epistemic uncertainty better, we introduce a Bayesian method that models the label distribution as a random variable over probability simplex. Denote it as $\boldsymbol{\pi} = [\pi_1, \pi_2, ..., \pi_k]$, which can be used to measure the uncertainty over the categorical distribution. Inspired by~\citep{malinin2018predictive}, we adopt the Dirichlet prior distribution in our method, i.e., the conjugate prior of the categorical distribution, 
+%\begin{equation}
+%\operatorname{Dir}(\boldsymbol{\pi} | \boldsymbol{\alpha}) \triangleq \frac{\Gamma\left(\alpha_{0}\right)}{\prod_{c=1}^{K} \Gamma\left(\alpha_{c}\right)} \prod_{c=1}^{K} \pi_{c}^{\alpha_{c}-1},\quad \alpha_c>0,\quad \alpha_0 \triangleq \sum_{c=1}^K \alpha_c,
+%\end{equation}
+%where $\boldsymbol{\alpha}$ is the concentration parameter, and $\alpha_0$ is  the precision of the Dirichlet distribution. We use the meta-model to parameterize the posterior Dirichlet distribution, i.e, 
+%\begin{equation}
+%    q(\boldsymbol{\pi}|\Phi(\vx);\vw_g ) \triangleq \operatorname{Dir}(\boldsymbol{\pi} | \boldsymbol{\alpha}(\vx)), \quad \boldsymbol{\alpha}(\vx) = e^{\vg\left(\Phi(\vx); \vw_g\right)}.
+%\end{equation}
+
+% $P(\boldsymbol{\pi} | \boldsymbol{\alpha}) = P(\boldsymbol{\pi}|\Phi(\vx); \vw_g)$, where 
+%Then, the predicted label distribution using the Dirichlet meta-model is given by the expected categorical distribution: 
+%\begin{equation}
+%q(y=c|\Phi(\vx); \vw_g) = \E_{q(\boldsymbol{\pi}|\Phi(\vx); \vw_g)} [P(y=c|\boldsymbol{\pi})] = \frac{\alpha_c(\vx)}{\alpha_0(\vx)}.
+%\end{equation}
+%Where $\alpha_0=\sum_{c=1}^K \alpha_c$ is the precision of the Dirichlet distribution.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=1\linewidth]{figures/structure.pdf}
+  \vspace{-0.5em}
+  \captionsetup{font=small}
+  \caption{Meta-Model structure}
+  \label{fig: structure}
+\end{figure}
+
+\subsection{Uncertainty Learning}
+\paragraph{Training Objective}\label{subsec: objective}
+% For a labeled sample pair $(\vx,y)$, the label $y$ can be directly used as the target for training the base model with cross-entropy loss, but the training for the Dirichlet meta-model is non-trivial. 
+From Bayesian perspective, the predicted label distribution using the Dirichlet meta-model is given by the expected categorical distribution: 
+\begin{equation}
+q(y=c|\Phi(\vx); \vw_g) = \E_{q(\boldsymbol{\pi}|\Phi(\vx); \vw_g)} [P(y=c|\boldsymbol{\pi})] = \frac{\alpha_c(\vx)}{\alpha_0(\vx)},
+\end{equation}
+where $\alpha_0=\sum_{c=1}^K \alpha_c$ is the precision of the Dirichlet distribution.
+
+The true posterior of the categorical distribution over sample $(\vx,y)$ is $P(\boldsymbol{\pi}| \Phi(\vx), y) \propto P(y | \boldsymbol{\pi}, \Phi(\vx)) P(\boldsymbol{\pi} | \Phi(\vx))$, which is difficult to evaluate. Instead, we utilize a variational inference technique used in~\citep{joo2020being} to generate a variational distribution $q(\boldsymbol{\pi}| \Phi(\vx); \vw_g)$ parameterized by Dirichlet distribution with meta-model to approximate the true posterior distribution $P(\boldsymbol{\pi}| \Phi(\vx), y)$, then minimize the KL-divergence $\mathrm{KL}\left(q(\boldsymbol{\pi}| \Phi(\vx); \vw_g) \| P(\boldsymbol{\pi}| \Phi(\vx), y)\right)$, which is equivalent to maximize the evidence lower bound (ELBO) loss (derivation is provided in Appendix~\ref{sec:ELBO-appendix}), i.e.,
+\begin{align}
+\gL_{\mathrm{VI}}(\vw_g) &=\frac{1}{N_M}\sum_{i=1}^{N_M} \mathbb{E}_{q(\boldsymbol{\pi}| \Phi(\vx_i); \vw_g)}[\log P(y_i \mid \boldsymbol{\pi}, \boldsymbol{x}_i)] \nonumber \\
+&\quad - \lambda\cdot\mathrm{KL}\left(q(\boldsymbol{\pi}| \Phi(\vx_i); \vw_g) \| P(\boldsymbol{\pi} | \Phi(\vx_i))\right)\\
+&= \frac{1}{N_M}\sum_{i=1}^{N_M} \psi\left(\alpha^{(i)}_{y_i}\right)-\psi\left(\alpha^{(i)}_{0}\right)  \nonumber\\
+&\quad - \lambda\cdot \mathrm{KL}\left( \operatorname{Dir}(\boldsymbol{\pi}| \boldsymbol{\alpha}^{(i)}) \| \operatorname{Dir}(\boldsymbol{\pi} | \boldsymbol{\beta})\right),
+\end{align}
+where $\boldsymbol{\alpha}^{(i)}$ is the Dirichlet concentration parameter parameterized by the meta-model, i.e., $\boldsymbol{\alpha}^{(i)} = e^{\left(\vg\left(\Phi(\vx_i); \vw_g\right)\right)}$, $\boldsymbol{\psi}$ is the digamma function, and $\boldsymbol{\beta}$ is the predefined concentration parameter of prior distribution. In practice, we simply let $\boldsymbol{\beta} = [1,\cdots,1]$. The likelihood term encourages the categorical distribution to be sharper around the true class on the simplex, and the KL-divergence term can be viewed as a regularizer to prevent overconfident prediction, and $\lambda$ is the hyper-parameter to balance the trade-off.
+
+
+\paragraph{Validation for Uncertainty Learning} \label{sec:validation}
+% Validation with early stopping in supervised learning is a commonly used technique to train a model with desired generalization performance optimally, i.e., stop training when the error evaluated on the validation set starts increasing. For the uncertainty learning, we observe that directly applying the traditional validation is sub-optimal. Intuitively, the model might achieve optimal accuracy with minimum validation loss, but may not achieve desired uncertainty quantification performance, i.e., the model can still be overconfident. To this end, we propose a simple and effective validation approach specifically for the uncertainty learning. Instead of monitoring the validation loss, we directly evaluate the performance metric for certain uncertainty quantification task. For example, for OOD task, we create another noisy validation set by adding noise to the validation samples, and treat such noisy validation samples as OOD samples. We evaluate the uncertainty score $\vu\left(\tilde{\vy}\right)$ on both the validation set and noisy validation set, and early stop the meta-model training when the OOD detection performance is optimal based on specific predefined metrics, e.g. AUROC score. Unlike most existing literature using auxiliary training data to help achieve desired performance~\citep{hendrycks2018deep, kristiadi2021learnable, malinin2018predictive}, we still do not require any additional data for training the meta model, akin to not using validation data for training in supervised learning.
+
+
+Validation with early stopping is a commonly used technique in supervised learning to train a model with desired generalization performance, i.e., stop training when the error evaluated on the validation set starts increasing. However, we observe that the standard validation method does not work well for uncertainty learning. One possible explanation is that model achieves the highest accuracy when validation loss is small, but may not achieve the best UQ performance, i.e., the model can be overconfident. To this end, we propose a simple and effective validation approach specifically for uncertainty learning. Instead of monitoring the validation cross-entropy loss, we evaluate a specific uncertainty quantification performance metric. For example, we create another noisy validation set for the OOD task by adding noise to the original validation samples and treating such noisy validation samples as OOD samples (more details are provided in the Appendix~\ref{ood-dataset-appendix}). We evaluate the uncertainty score $\vu\left(\tilde{\vy}\right)$ on both the validation set and noisy validation set and stop the meta-model training when the OOD detection performance achieves its maximum based on some predefined metrics, e.g., AUROC score. Unlike most existing literature using additional training data to help achieve desired performance~\citep{hendrycks2018deep, kristiadi2021learnable, malinin2018predictive}, we nonetheless do not require any additional data for training the meta-model.
+
+
+\subsection{Uncertainty Metrics} \label{sec:metric}
+%So far, we have defined the realizations of all components in Problem~\ref{prob:general} except the uncertainty metric function $\vu$. 
+In this section, we show that our meta-model has the desired behavior to quantify different uncertainties and how they can be used in various applications.
+
+%By taking a Bayesian approach, the Dirichlet distribution has the desired behavior to quantify different types of uncertainties: Epistemic uncertainty is relevant to the spread of categories distribution over the simplex, e.g., low epistemic uncertainty corresponds to a sharp distribution, i.e., large $\alpha_0$. In addition, Aleatoric uncertainty is reflected by the mean of Dirichlet distribution on the simplex; e.g., low aleatoric uncertainty should have a distribution concentrated around the simplex corner. The total uncertainty can be captured by both the spread and position of the label distribution on the simplex. The metric for different uncertainties will be discussed in~\ref{sec:metric}.
+
+\textbf{Total Uncertainty.} 
+Total uncertainty, also known as predictive uncertainty, is a combination of epistemic uncertainty and aleatoric uncertainty. The total uncertainty is often used for misclassification detection problems, where the misclassified samples are viewed as in-distribution hard samples. There are two standard ways to measure total uncertainty: (1) \textbf{Entropy} (Ent): The Shannon entropy of expected categorical label distribution over the Dirichlet distribution, i.e., $\gH\left(P(y|\Phi(\vx); \vw_g) \right) = \gH\left(\E_{P(\boldsymbol{\pi}|\Phi(\vx); \vw_g)}[P(y|\boldsymbol{\pi})]\right)
+$; (2) \textbf{Max Probability} (MaxP): The probability of the predicted class in label distribution, i.e., $\max_c P(y=c|\Phi(\vx); \vw_g)$.
+%e.g., it's more ambiguous which class it is, which usually contain larger total uncertainty.
+
+\textbf{Epistemic Uncertainty.}
+The epistemic uncertainty quantifies the uncertainty when the model has insufficient knowledge of a prediction, e.g., 
+%when the model is uncertain about the prediction 
+the case of an unseen data sample. The epistemic uncertainty is especially useful in OOD detection problems. When the meta-model encounters an unseen sample during testing, it will output a high epistemic uncertainty score due to a lack of knowledge. We define three metrics to measure the epistemic uncertainties. (1) \textbf{Differential Entropy} (Dent): Differential entropy measures the entropy of the Dirichlet distribution, a large differential entropy corresponds a more spread Dirichlet distribution, i.e., $\gH\left(P(\boldsymbol{\pi}| \Phi(\vx_i); \vw_g) \right) = -\int P(\boldsymbol{\pi}| \Phi(\vx_i); \vw_g)\cdot \log{P(\boldsymbol{\pi}| \Phi(\vx_i); \vw_g)} d\boldsymbol{\pi}$. (2) \textbf{Mutual Information} (MI): Mutual Information is the difference between the Entropy (measures total uncertainty) and the expected entropy of the categorical distribution sampled from the Dirichlet distribution (approximates aleatoric uncertainty), i.e., $\gI\left(y,\boldsymbol{\pi}|\Phi(\vx_i) \right) = \gH\left(\E_{P(\boldsymbol{\pi}|\Phi(\vx); \vw_g)} [P(y|\boldsymbol{\pi})]\right)- \E_{P(\boldsymbol{\pi}|\Phi(\vx); \vw_g)}[\gH\left(P(y|\boldsymbol{\pi})\right)]$.  (3) \textbf{Precision}(Prec): The precision is the summation of the Dirichlet distribution concentration parameter $\boldsymbol{\alpha}$, larger value corresponds to sharper distribution and higher confidence, i.e., $\alpha_0 = \sum_{c=1}^k \alpha_c$.

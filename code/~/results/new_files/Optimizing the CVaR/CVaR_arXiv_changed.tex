@@ -1,0 +1,443 @@
+\documentclass[letterpaper]{article}
+\usepackage{aaai}
+\usepackage{times}
+\usepackage{helvet}
+\usepackage{courier}
+\frenchspacing
+\setlength{\pdfpagewidth}{8.5in}
+\setlength{\pdfpageheight}{11in}
+\setcounter{secnumdepth}{2}
+\setcounter{secnumdepth}{2}
+
+\usepackage{url}
+
+
+\usepackage{graphicx} % more modern
+
+
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{MnSymbol} % for interior product
+
+
+\newcommand{\prob}{\mathrm{Pr}}
+\newcommand{\variance}{\mathrm{Var}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\cvar}{\Phi_\alpha}
+\newcommand{\var}{\nu_\alpha}
+\newcommand{\cP}{\mathcal{P}}
+\newcommand{\cD}{\mathcal{D}}
+\newcommand{\cL}{\mathcal{L}}
+\newcommand{\cX}{\mathcal{X}}
+\newcommand{\cY}{\mathcal{Y}}
+\newcommand{\cS}{\mathcal{S}}
+\newcommand{\cA}{\mathcal{A}}
+\newcommand{\cK}{\mathcal{K}}
+\newcommand{\bx}{\mathbf{x}}
+\newcommand{\bX}{\mathbf{X}}
+\newcommand{\by}{\mathbf{y}}
+\newcommand{\bY}{\mathbf{Y}}
+\newcommand{\cXt}{\mathcal{X}_\textrm{test}}
+\newcommand{\cU}{\mathcal{U}}
+\newcommand{\cZ}{\mathcal{Z}}
+\newcommand{\is}{\textrm{IS}}
+\newcommand{\Dth}{\frac{\partial}{\partial \theta_j}}
+\newcommand{\Dom}{\frac{\partial}{\partial \omega}}
+\newcommand{\Dt}[1]{\frac{\partial {#1}}{\partial \theta_j}}
+\newcommand{\T}{^{\top}}
+\newcommand{\dcvar}{\Delta_{j;N}} % estimated CVaR gradient
+\newcommand{\dcvarfull}{\Delta_{1;N},\dots,\Delta_{K;N}} % full estimated CVaR gradient
+\newcommand{\dcvarIS}{\Delta_{j;N}^{\is}} % estimated CVaR gradient
+\newcommand{\evar}{\tilde{v}}  % estimated VaR
+
+\newcommand{\alggiven}{\textbf{Given:}}
+\newcommand{\algreturn}{\textbf{Return:}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\newcommand{\citealt}[1]{\citeauthor{{#1}}, \citeyear{{#1}}}
+\newcommand{\citet}[1]{\citeauthor{{#1}} (\citeyear{{#1}})}
+\newcommand{\citep}[1]{\cite{{#1}}}
+
+\newcommand{\skl}{\psi}
+
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{assumption}{Assumption}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{question}{Question}
+
+\begin{document}
+
+\title{Optimizing the CVaR via Sampling}
+
+\author{
+Aviv Tamar, Yonatan Glassner, \and Shie Mannor \\
+Electrical Engineering Department\\
+The Technion - Israel Institute of Technology\\
+Haifa, Israel 32000\\
+\{avivt, yglasner\}@tx.technion.ac.il, shie@ee.technion.ac.il \\
+}
+
+\maketitle
+
+\begin{abstract}
+\begin{quote}
+Conditional Value at Risk (CVaR) is a prominent risk measure that is being used extensively in various domains. We develop a new formula for the gradient of the CVaR in the form of a conditional expectation. Based on this formula, we propose a novel sampling-based estimator for the gradient of the CVaR, in the spirit of the likelihood-ratio method. We analyze the bias of the estimator, and prove the convergence of a corresponding stochastic gradient descent algorithm to a local CVaR optimum. Our method allows to consider CVaR optimization in new domains. As an example, we consider a reinforcement learning application, and learn a risk-sensitive controller for the game of Tetris.
+\end{quote}
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+
+Conditional Value at Risk (CVaR; \citealt{rockafellar2000optimization}) is an established risk measure that has found extensive use in finance among other fields.
+For a random payoff $R$, whose distribution is parameterized by a controllable parameter $\theta$, the $\alpha$-CVaR is defined as the expected payoff over the $\alpha \%$ worst outcomes of $Z$:
+\begin{equation*}
+    \Phi(\theta) = \E^\theta \left[ \left. R \right| R \leq \nu_\alpha(\theta) \right],
+\end{equation*}
+where $\nu_\alpha(\theta)$ is the $\alpha$-quantile of $R$. CVaR optimization aims to find a parameter $\theta$ that maximizes $\Phi(\theta)$.
+
+When the payoff is of the structure $R = f_\theta(X)$, where $f_\theta$ is a deterministic function, and $X$ is random but does not depend on $\theta$, CVaR optimization may be formulated as a stochastic program, and solved using various approaches \cite{rockafellar2000optimization,hong_simulating_2009,iyengar2013fast}. Such a payoff structure is appropriate for certain domains, such as portfolio optimization, in which the investment strategy generally does not affect the asset prices. However, in many important domains, for example queueing systems, resource allocation, and reinforcement learning, the tunable parameters also control the \emph{distribution} of the random outcomes. Since existing CVaR optimization methods are not suitable for such cases, and due to increased interest in risk-sensitive optimization recently in these domains \cite{tamar2012policy,prashanth2013actor}, there is a strong incentive to develop more general CVaR optimization algorithms.
+
+In this work, we propose a CVaR optimization approach that is applicable when $\theta$ also controls the distribution of $X$. The basis of our approach is a new formula that we derive for the CVaR gradient $\frac{\partial \Phi(\theta)}{\partial \theta}$ in the form of a conditional expectation. Based on this formula, we propose a sampling-based estimator for the CVaR gradient, and use it to optimize the CVaR by stochastic gradient descent.
+
+In addition, we analyze the bias of our estimator, and use the result to prove convergence of the stochastic gradient descent algorithm to a local CVaR optimum. Our method allows us to consider CVaR optimization in new domains. As an example, we consider a reinforcement learning application, and learn a risk-sensitive controller for the game of Tetris. To our knowledge, CVaR optimization for such a domain is beyond the reach of existing approaches. Considering Tetris also allows us to easily interpret our results, and show that we indeed learn sensible policies.
+
+We remark that in certain domains, CVaR is often not maximized directly, but used as a constraint in an optimization problem of the form $\max_\theta \E^\theta [R] \text{ s.t. } \Phi(\theta) \geq b$. Extending our approach to such problems is straightforward, using standard penalty method techniques (see, e.g., \citealt{tamar2012policy}, and \citealt{prashanth2013actor}, for a such an approach with a variance-constrained objective), since the key component for these methods is the CVaR gradient estimator we provide here. Another appealing property of our estimator is that it naturally incorporates importance sampling, which is important when $\alpha$ is small, and the CVaR captures \emph{rare} events.
+
+\paragraph{Related Work}
+Our approach is similar in spirit to the \emph{likelihood-ratio} method (LR; \citealt{glynn1990likelihood}), that estimates the gradient of the \emph{expected} payoff. The LR method has been successfully applied in diverse domains such as queueing systems, inventory management, and financial engineering \cite{Fu2006gradients}, and also in reinforcement learning (RL; \citealt{sutton_reinforcement_1998}), where it is commonly known as the \emph{policy gradient} method \cite{baxter2001infinite,peters_reinforcement_2008}. Our work extends the LR method to estimating the gradient of the CVaR of the payoff.
+
+Closely related to our work are the studies of \citet{hong_simulating_2009} and \citet{scaillet_nonparametric_2004}, who proposed perturbation analysis style estimators for the gradient of the CVaR, for the setting mentioned above, in which $\theta$ {\em does not affect} the distribution of $X$. Indeed, their gradient formulae are different than ours, and do not apply in our setting.
+
+LR gradient estimators for other risk measures have been proposed by \citet{borkar2001sensitivity} for exponential utility functions, and by \citet{tamar2012policy} for mean--variance. These measures, however, consider a very different notion of risk than the CVaR. For example, the mean--variance measure is known to underestimate the risk of rare, but catastrophic events \cite{agarwal2004risks}.
+
+Risk-sensitive optimization in RL is receiving increased interest recently. A mean-variance criterion was considered by \citet{tamar2012policy} and \citet{prashanth2013actor}. \citet{morimura_nonparametric_2010} consider the expected return, with a CVaR based risk-sensitive policy for guiding the exploration while learning. Their method, however, does not scale to large problems. \citet{borkar2014risk} optimize a CVaR constrained objective using dynamic programming, by augmenting the state space with the accumulated reward. As such, that method is only suitable for a finite horizon and a small state-space, and \emph{does not scale-up} to problems such as the Tetris domain we consider. A function approximation extension of \cite{borkar2014risk} is mentioned, using a three time scales stochastic approximation algorithm. In that work, three different learning rates are decreased to 0, and convergence is determined by the slowest one, leading to an overall slow convergence. In contrast, our approach requires only a single learning rate.
+Recently, \citet{prashanth2014cvar} used our gradient formula of Proposition \ref{prop:grad_general} (from a preliminary version of this paper) in a two time-scale stochastic approximation scheme to show convergence of CVaR optimization.
+Besides providing the theoretical basis for that work, our current convergence result (Theorem \ref{thm:CVaRPG_convergence}) obviates the need for the extra time-scale, and results in a simpler and faster algorithm.
+
+\section{A CVaR Gradient Formula}\label{sec:CVaR_Sensitivity}
+
+In this section we present a new LR-style formula for the gradient of the CVaR. This gradient will be used in subsequent sections to optimize the CVaR with respect to some parametric family.
+We start with a formal definition of the CVaR, and then present a CVaR gradient formula for 1-dimensional random variables. We then extend our result to the multi-dimensional case.
+
+Let $Z$ denote a random variable with a cumulative distribution function (C.D.F.) $F_Z(z) = \prob(Z \leq z)$. For convenience, we assume that $Z$ is a continuous random variable, meaning that $F_Z(z)$ is everywhere continuous. We also assume that $Z$ is bounded.
+Given a confidence level $\alpha\in (0,1)$, the $\alpha$-Value-at-Risk, (VaR; or $\alpha$-quantile) of $Z$ is denoted $\var(Z)$, and given by
+\begin{equation}\label{eq:VaR_def}
+\var (Z) = F_Z^{-1}(\alpha) \doteq \inf\left\{z:F_Z(z) \geq \alpha \right\}.
+\end{equation}
+The $\alpha$-Conditional-Value-at-Risk of $Z$ is denoted by $\cvar(Z)$ and defined as the expectation of the $\alpha$ fraction of the worst outcomes of $Z$
+\begin{equation}\label{eq:CVaR_def}
+\cvar (Z) = \E \left[ \left. Z \right| Z \leq \var (Z)\right].
+\end{equation}
+
+We next present a formula for the sensitivity of $\cvar(Z)$ to changes in $F_Z(z)$.
+\subsection{CVaR Gradient of a 1-Dimensional Variable}\label{ssec:1D_formula}
+
+Consider again a random variable $Z$, but now let its probability density function (P.D.F.) $f_Z(z;\theta)$ be parameterized by a vector $\theta \in \R^k$. We let $\var (Z;\theta)$ and $\cvar (Z;\theta)$ denote the VaR and CVaR of $Z$ as defined in Eq. \eqref{eq:VaR_def} and \eqref{eq:CVaR_def}, when the parameter is $\theta$, respectively.
+
+We are interested in the sensitivity of the CVaR to the parameter vector, as expressed by the gradient $\Dth \cvar (Z;\theta)$. In all but the most simple cases, calculating the gradient analytically is intractable. Therefore, we derive a formula in which $\Dth \cvar (Z;\theta)$ is expressed as a conditional expectation, and use it to calculate the gradient by \emph{sampling}.
+For technical convenience, we make the following assumption:
+\begin{assumption}\label{assumption:bounded_cont_Z}
+$Z$ is a continuous random variable, and bounded in $[-b,b]$ for all $\theta$.
+\end{assumption}
+
+We also make the following smoothness assumption on $\var (Z;\theta)$ and $\cvar (Z;\theta)$
+\begin{assumption}\label{assumption:bounded_derivatives}
+For all $\theta$ and $1 \!\leq \!j \!\leq \!k$, the gradients $\Dt{ \var (Z;\theta)}$ and $\Dt{ \cvar (Z;\theta)}$ exist and are bounded.
+\end{assumption}
+Note that since $Z$ is continuous, Assumption \ref{assumption:bounded_derivatives} is satisfied whenever $\Dth f_Z(z;\theta)$ is bounded. Relaxing Assumptions \ref{assumption:bounded_cont_Z} and \ref{assumption:bounded_derivatives} is possible, but involves technical details that would  complicate the presentation, and is left to future work.
+The next assumption is standard in LR gradient estimates
+\begin{assumption}\label{assumption:LR_assumption}
+For all $\theta$, $z$, and $1 \leq j \leq k$, we have that $\Dt{ f_Z(z;\theta) }/ f_Z(z;\theta)$ exists and is bounded.
+\end{assumption}
+
+In the next proposition we present a LR-style sensitivity formula for $\cvar (Z;\theta)$, in which the gradient is expressed as a conditional expectation. In Section \ref{sec:CVaR_Algorithm} we shall use this formula to suggest a sampling algorithm for the gradient.
+\begin{proposition}\label{prop:Grad}
+Let Assumptions \ref{assumption:bounded_cont_Z}, \ref{assumption:bounded_derivatives}, and \ref{assumption:LR_assumption} hold. Then
+\begin{equation*}
+\Dt{ \cvar \!(\!Z;\!\theta)} \!=\!
+\E^{\theta}\!\left[ \!\left.\Dt{ \log \! f_Z(Z;\theta)}(Z \!-\! \var (Z;\theta)\!)\right|\!Z \!\leq\! \var \!(Z;\!\theta)\! \right]\!\!.
+\end{equation*}
+\end{proposition}
+
+\begin{proof}
+Define the level-set $D_{\theta} \!=\! \left\{ \!z\in [-b,b] : z \leq \var\!(Z;\theta) \right\}.$
+By definition, $D_\theta \equiv [-b, \var(Z;\theta) ]$, and
+$
+\int_{z\in D_{\theta}}f_Z\left(z;\theta\right)dz=\alpha.
+$
+Taking a derivative and using the Leibniz rule we obtain
+\begin{equation}\label{eq:proof0}
+\begin{split}
+0 &= \Dth \int_{-b}^{\var(Z;\theta)}f_Z\left(z;\theta\right)dz \\
+ &= \int_{-b}^{\var(Z;\theta)}\Dt{ f_Z\left(z;\theta\right)}dz
+ +\Dt{ \var(Z;\theta)} f_Z\left(\var(Z;\theta);\theta\right).
+ \end{split}\raisetag{3.4\baselineskip}
+\end{equation}
+By definition \eqref{eq:CVaR_def} we have
+$
+\cvar (Z;\theta)=\int_{z\in D_{\theta}}\frac{f_Z\left(z;\theta\right)z}{\alpha}dz
+= \alpha^{-1}\int_{-b}^{\var(Z;\theta)}f_Z\left(z;\theta\right)z dz.
+$
+Now, taking a derivative and using the Leibniz rule we obtain
+\begin{equation}\label{eq:proof1}
+\begin{split}
+\Dth \cvar (Z;\theta)
+=& \alpha^{-1} \int_{-b}^{\var(Z;\theta)}\Dt{f_Z\left(z;\theta\right)}z dz \\
+&\!+\! \alpha^{-1} \Dt{ \var(Z;\theta)} f_Z \! \left(\var(Z;\theta);\theta\right)\var(Z;\theta).
+\end{split}\raisetag{3.4\baselineskip}
+\end{equation}
+
+Rearranging, and plugging \eqref{eq:proof0} in \eqref{eq:proof1} we obtain
+$
+\Dth \cvar (Z;\theta)=
+\alpha^{-1} \int_{-b}^{\var(Z;\theta)}\Dt{ f_Z\left(z;\theta\right)}\left(z - \var(Z;\theta)\right)dz.
+$
+Finally, using the likelihood ratio trick -- multiplying and dividing
+by $f_Z\left(z;\theta\right)$ inside the integral, which is justified due to Assumption \ref{assumption:LR_assumption}, we obtain the required expectation.
+\end{proof}
+
+Let us contrast the CVaR LR formula of Proposition \ref{prop:Grad} with the standard LR formula for the expectation \cite{glynn1990likelihood} $\Dth \E^{\theta}[Z] = \E^{\theta}\left[\Dt{ \log f_Z(Z;\theta)}(Z-b)\right]$, where the baseline $b$ could be any arbitrary constant. Note that in the CVaR case the baseline is \emph{specific}, and, as seen in the proof, accounts for the sensitivity of the level-set $D_{\theta}$.
+Quite surprisingly, this specific baseline turns out to be exactly the VaR, $\var(Z;\theta)$, which, as we shall see later, also leads to an elegant sampling based estimator.
+
+In a typical application, $Z$ would correspond to the performance of some system, such as the profit in portfolio optimization, or the total reward in RL. Note that in order to use Proposition \ref{prop:Grad} in a gradient estimation algorithm, one needs access to $\Dth \log f_Z(Z;\theta)$: the sensitivity of the performance distribution to the parameters. Typically, the system performance is a complicated function of a high-dimensional random variable. For example, in RL and queueing systems, the performance is a function of a trajectory from a stochastic dynamical system, and calculating its probability distribution is usually intractable. The sensitivity of the trajectory distribution to the parameters, however, is often easy to calculate, since the parameters typically control how the trajectory is generated. We shall now generalize Proposition \ref{prop:Grad} to such cases. The utility of this generalization is further exemplified in Section \ref{sec:RL}, for the RL domain.
+
+\subsection{CVaR Gradient Formula -- General Case}\label{ssec:multi-D_formula}
+
+Let $\bX=(X_1,X_2,\dots,X_n)$ denote an $n-$dimensional random variable with a finite support $[-b,b]^n$, and let $Y$ denote a discrete random variable taking values in some countable set $\cY$. Let $f_{Y}(y;\theta)$ denote the probability mass function of $Y$, and let $f_{\bX|Y}(\bx|y;\theta)$ denote the probability density function of $\bX$ given $Y$. Let the reward function $r$ be a bounded mapping from $[-b,b]^n \times \cY$ to $\R$, and consider the random variable $R \doteq r(\bX,Y)$. We are interested in a formula for $\Dth \cvar (R;\theta)$.
+
+We make the following assumption, similar to Assumptions \ref{assumption:bounded_cont_Z}, \ref{assumption:bounded_derivatives}, and \ref{assumption:LR_assumption}.
+\begin{assumption}\label{assumption:bounded_cont_rZ}
+The reward $R$ is a continuous random variable for all $\theta$. Furthermore, for all $\theta$ and $1 \leq j \leq k$, the gradients $\Dth \var (R;\theta)$ and $\Dth \cvar (R;\theta)$ are well defined and bounded. In addition $\Dt{ \log f_{\bX|Y}\left(\bx|y;\theta\right)}$ and $\Dt{ \log f_{Y}\left(y;\theta\right)}$ exist and are bounded for all $\bx$, $y$, and $\theta$.
+\end{assumption}
+
+Define the level-set
+$
+\cD_{y;\theta} = \left\{ \bx \in [-b,b]^n : r(\bx,y)\leq \var(R;\theta) \right\}.
+$
+We require some smoothness of the function $r$, that is captured by the following assumption on $\cD_{y;\theta}$.
+\begin{assumption}\label{assumption:D_finite_sum}
+For all $y$ and $\theta$, the set $\cD_{\!y;\theta}$ may be written as a finite sum of $L_{y;\theta}$ disjoint, closed, and connected components $D_{\!y;\theta}^i$, each with positive measure:
+$
+\cD_{\!y;\theta} \!=\! \sum_{i=1}^{L_{y;\theta}} D_{\!y;\theta}^i.
+$
+\end{assumption}
+Assumption \ref{assumption:D_finite_sum} may satisfied, for example, when $r(\bx,y)$ is Lipschitz in $\bx$ for all $y\in \cY$.
+We now present a sensitivity formula for $\cvar (R;\theta)$.
+\begin{proposition}\label{prop:grad_general}
+Let Assumption \ref{assumption:bounded_cont_rZ} and \ref{assumption:D_finite_sum} hold. Then
+\begin{equation*}
+\begin{split}
+&\Dth \cvar (R;\theta) = \E^{\theta}\left[\left(\frac{\partial {\log f_Y(Y;\theta)}}{\partial \theta_j}+ \right.\right.\\
+&\left.\left.\left. \frac{\partial {\log f_{\bX|Y}(\bX|Y;\theta)}}{\partial \theta_j}\right)\left(R - \var (R;\theta)\right)\right| R  \leq  \var (R;\theta)\right].
+\end{split}
+\end{equation*}
+\end{proposition}
+
+The proof of Proposition \ref{prop:grad_general} is similar in spirit to the proof of Proposition \ref{prop:Grad}, but involves some additional difficulties of applying the Leibnitz rule in a multidimensional setting. It is given in \cite{tamar2014cvar}. We reiterate that relaxing Assumptions 4 and 5 is possible, but is technically involved, and left for future work. In the next section we show that the formula in Proposition \ref{prop:grad_general} leads to an effective algorithm for estimating $\Dth \cvar (R;\theta)$ by sampling.
+\section{A CVaR Gradient Estimation Algorithm}\label{sec:CVaR_Algorithm}
+
+The sensitivity formula in Proposition \ref{prop:grad_general} suggests a natural Monte--Carlo (MC) estimation algorithm. The method, which we label \texttt{GCVaR} (Gradient estimator for CVaR), is described as follows. Let $\bx_{1},y_1\dots,\bx_{N},y_N$ be $N$ samples drawn i.i.d. from $f_{\bX,Y}(\bx,y;\theta)$, the joint distribution of $\bX$ and $Y$.
+We first estimate $\var(R;\theta)$ using the empirical $\alpha$-quantile\footnote{Algorithmically, this is equivalent to first sorting the $r(\bx_i,y_i)$'s in ascending order, and then selecting $\evar$ as the $\lceil \alpha N \rceil$ term in the sorted list.} $\evar$
+\begin{equation}\label{eq:empirical_VaR}
+\evar = \inf_z \hat{F}(z) \geq \alpha,
+\end{equation}
+where $\hat{F}(z)$ is the empirical C.D.F. of $R$:
+$
+\hat{F}(z) \doteq \frac{1}{N} \sum_{i=1}^{N} \mathbf{1}_{r(\bx_{i},y_i)\leq z}.
+$
+The MC estimate of the gradient $\dcvar \approx \Dth\cvar (R;\theta)$ is given by
+\begin{equation}\label{eq:simple_alg}
+\begin{split}
+\dcvar =& \frac{1}{\alpha N}\!\sum_{i=1}^{N} \!\left(\Dt{ \log f_{Y}\left(y_i;\theta\right)} \!+\! \Dt{ \log f_{\bX|Y}\left(\bx_{i}|y_i;\theta\right)}\right) \!\!\times\\
+& \times\! \left( r(\bx_{i},y_i)-\evar \right) \mathbf{1}_{r(\bx_{i},y_i)\leq \evar}.
+\end{split}\raisetag{0.8\baselineskip}
+\end{equation}
+
+\begin{algorithm} \label{alg:GCVaR}
+\caption{\texttt{GCVaR}}
+1: \alggiven
+\begin{itemize}
+\item CVaR level $\alpha$
+\item A reward function $r(\bx,y):\R^n\times \cY \to \R$
+\item Derivatives $\Dt{}$ of the probability mass function $f_Y\left(y;\theta\right)$ and probability density function $f_{\bX|Y}\left(\bx|y;\theta\right)$
+\item An i.i.d. sequence $\bx_{1},y_1,\dots,\bx_{N},y_N \sim f_{\bX,Y}(\bx,y;\theta)$.
+\end{itemize}
+2: Set $r_1^s,\dots,r_N^s = \textrm{Sort}\left(r(\bx_{1},y_1),\dots,r(\bx_{N},y_N)\right)$
+
+3: Set $\evar = r_{\lceil \alpha N \rceil}^s$
+
+4: For $j = 1,\dots,k$ do
+\begin{equation*}
+\begin{split}
+\dcvar =& \frac{1}{\alpha N}\! \sum_{i=1}^{N} \! \left(\Dt{ \log f_{Y}\left(y_i;\theta\right)} \!+\! \Dt{ \log f_{\bX|Y}\left(\bx_{i}|y_i;\theta\right)}\right)\!\! \times\\
+& \times \! \left( r(\bx_{i},y_i)-\evar \right) \mathbf{1}_{r(\bx_{i},y_i)\leq \evar}
+\end{split}
+\end{equation*}
+5: \algreturn $\Delta_{1;N},\dots,\Delta_{k;N}$
+\end{algorithm}
+
+It is known that the empirical $\alpha$-quantile is a biased estimator of $\var(R;\theta)$. Therefore, $\dcvar$ is also a biased estimator of $\Dth\cvar (R;\theta)$. In the following we analyze and bound this bias.
+We first show that $\dcvar$ is a consistent estimator. The proof is similar to the proof of Theorem 4.1 in \cite{hong_simulating_2009}, and given in the supplementary material.
+
+\begin{theorem}\label{thm:consistent}
+Let Assumption \ref{assumption:bounded_cont_rZ} and \ref{assumption:D_finite_sum} hold. Then $\dcvar \to \Dth\cvar (R;\theta)$ w.p. 1 as $N \to \infty$.
+\end{theorem}
+
+With an additional smoothness assumption we can explicitly bound the bias.
+Let $f_R(\cdot;\theta)$ denote the P.D.F. of $R$, and define the function
+$
+g(\beta;\theta) \doteq \E^\theta \!\!\left[ \!\left. \left(\frac{\partial {\log f_Y(Y;\theta)}}{\partial \theta_j}\!+\!\frac{\partial {\log f_{\bX|Y}(\bX|Y;\theta)}}{\partial \theta_j}\right)\!\!(R \!-\! \var (R;\theta)\!) \right| \! R=\beta\right]\!\!.
+$
+\begin{assumption}\label{assumption:nice_f_g}
+For all $\theta$, $f_R(\cdot;\theta)$ and $g(\cdot;\theta)$ are continuous at $\var (R;\theta)$, and $f_R(\var (R;\theta);\theta) > 0$.
+\end{assumption}
+
+Assumption \ref{assumption:nice_f_g} is similar to Assumption 4 of \cite{hong_simulating_2009}, and may be satisfied, for example, when $\Dt{ \log f_{\bX|Y}\left(\bx|y;\theta\right)}$ is continuous and $r(\bx,y)$ is Lipschitz in $\bx$.
+The next theorem shows that the bias is $\mathcal{O}(N^{-1/2})$. The proof, given in the supplementary material, is based on separating the bias to a term that is bounded using a result of \citet{hong_simulating_2009}, and an additional term that we bound using well-known results for the bias of empirical quantiles.
+\begin{theorem}\label{thm:bias_bound}
+Let Assumptions \ref{assumption:bounded_cont_rZ}, \ref{assumption:D_finite_sum}, and \ref{assumption:nice_f_g} hold. Then $\E \left[ \dcvar \right] - \Dth\cvar (R;\theta)$ is $O(N^{-1/2})$.
+\end{theorem}
+
+At this point, let us again contrast \texttt{GCVaR} with the standard LR method. One may naively presume that applying a standard LR gradient estimator to the $\alpha \%$ worst samples would work as a CVaR gradient estimator. This corresponds to applying the \texttt{GCVaR} algorithm without subtracting the $\evar$ baseline from the reward in \eqref{eq:simple_alg}. Theorems \ref{thm:consistent} and \ref{thm:bias_bound} show that such an estimator \emph{would not be consistent}. In fact, in the supplementary material we give an example where the gradient error of such an approach may be arbitrarily large.
+
+In the sequel, we use \texttt{GCVaR} as part of a stochastic gradient descent algorithm
+for CVaR optimization. An asymptotically decreasing gradient bias, as may be established from Theorem \ref{thm:consistent}, is necessary to guarantee convergence of such a procedure. Furthermore, the bound of Theorem \ref{thm:bias_bound} will allow us to quantify how many samples are needed at each iteration for such convergence to hold.
+
+\subsection*{Variance Reduction by Importance Sampling}\label{ssec:IS}
+For very low quantiles, i.e., $\alpha$ close to $0$, the \texttt{GCVaR} estimator would suffer from a high variance, since the averaging is effectively only over $\alpha N$ samples. This is a well-known issue in sampling based approaches to VaR and CVaR estimation, and is often mitigated using variance reduction techniques such as
+Importance Sampling (IS; \citealt{rubinstein2011simulation}; \citealt{bardou2009computing}). In IS, the variance of a MC estimator is reduced by using samples from a \emph{different} sampling distribution, and suitably modifying the estimator to keep it unbiased. It is straightforward to incorporate IS into LR gradient estimators in general, and to our \texttt{GCVaR} estimator in particular. Due to space constraints, and since this is fairly standard textbook material (e.g., \citealt{rubinstein2011simulation}), we provide the full technical details in the supplementary material. In our empirical results we show that using IS indeed leads to significantly better performance.
+
+\section{CVaR Optimization}\label{sec:CVaR_OPT}
+In this section, we consider the setting of Section \ref{ssec:multi-D_formula}, and aim to solve the CVaR optimization problem:
+\begin{equation}\label{eq:CVaR_optimization}
+\max_{\theta \in \R^{k}} \cvar (R;\theta).
+\end{equation}
+For this goal we propose \texttt{CVaRSGD}: a stochastic gradient descent algorithm, based on the \texttt{GCVaR} gradient estimator. We now describe the \texttt{CVaRSGD} algorithm in detail, and show that it converges to a local optimum of \eqref{eq:CVaR_optimization}.
+
+In \texttt{CVaRSGD}, we start with an arbitrary initial parameter $\theta^0\in \R^{k}$. The algorithm proceeds iteratively as follows. At each iteration $i$ of the algorithm, we first sample $n_i$ i.i.d. realizations $x_1,y_1,\dots,x_{n_i},y_{n_i}$ of the random variables $\bX$ and $Y$, from the distribution $f_{\bX,Y}(\bx,y;\theta^i)$. We then apply the \texttt{GCVaR} algorithm to obtain an estimate $\Delta_{j;n_i}$ of $\Dth \cvar (R;\theta^i)$, using the samples $x_1,y_1,\dots,x_{n_i},y_{n_i}$. Finally, we update the parameter according to
+\begin{equation}\label{eq:theta_update_SGD}
+\theta_{j}^{i+1} = \Gamma \left( \theta_{j}^{i} + \epsilon_i \Delta_{j;n_i} \right),
+\end{equation}
+where $\epsilon_i$ is a positive step size, and $\Gamma: \R^k \to \R^k$ is a projection to some compact set $\Theta$ with a smooth boundary.
+The purpose of the projection is to facilitate convergence of the algorithm, by guaranteeing that the iterates remain bounded (this is a common stochastic approximation technique; \citealt{kushner2003stochastic}). In practice, if $\Theta$ is chosen large enough so that it contains the local optima of $\cvar (R;\theta)$, the projection would rarely occur, and would have a negligible effect on the algorithm.
+Let $\hat{\Gamma}_{\theta}(\nu)\doteq \lim_{\delta\to 0}\frac{\Gamma(\theta + \delta \nu) - \theta}{\delta}$ denote an operator that, given a direction of change $\nu$ to the parameter $\theta$, returns a modified direction that keeps $\theta$ within $\Theta$. Consider the following ordinary differential equation:
+\begin{equation}\label{eq:ODE_SGD}
+    \dot{\theta} = \hat{\Gamma}_{\theta}\left( \nabla \cvar (R;\theta) \right), \quad \theta(0) \in \Theta.
+\end{equation}
+Let $\cK$ denote the set of all asymptotically stable equilibria of \eqref{eq:ODE_SGD}. The next theorem shows that under suitable technical conditions, the \texttt{CVaRSGD} algorithm converges to $\cK$ almost surely. The theorem is a direct application of Theorem 5.2.1 of \citet{kushner2003stochastic}, and given here without proof.
+
+\begin{theorem}\label{thm:CVaRPG_convergence}
+Consider the \texttt{CVaRSGD} algorithm \eqref{eq:theta_update_SGD}. Let Assumptions \ref{assumption:bounded_cont_rZ}, \ref{assumption:D_finite_sum}, and \ref{assumption:nice_f_g} hold, and assume that $\cvar (R;\theta)$ is continuously differentiable in $\theta$. Also, assume that $\sum_{i=1}^\infty \epsilon_i = \infty$, $\sum_{i=1}^\infty \epsilon_i^2 < \infty$, and that $\sum_{i=1}^\infty \epsilon_i \left| \E \left[ \Delta_{j;n_i} \right] - \Dth\cvar (R;\theta^i)\right|< \infty$ w.p. 1 for all $j$. Then $\theta^i \to \cK$ almost surely.
+\end{theorem}
+
+Note that from the discussion in Section \ref{sec:CVaR_Algorithm}, the requirement $\sum_{i=1}^\infty \epsilon_i \left| \E \left[ \Delta_{j;n_i} \right] - \Dth\cvar (R;\theta^i)\right|< \infty$ implies that we must have $\lim_{i \to \infty} n_i = \infty$. However, the rate of $n_i$ could be very slow, for example, using the bound of Theorem \ref{thm:bias_bound} the requirement may be satisfied by choosing $\epsilon_i = 1/i$ and $n_i = (\log i)^4$.
+
+
+\section{Application to Reinforcement Learning}\label{sec:RL}
+
+In this section we show that the \texttt{CVaRSGD} algorithm may be used in an RL policy-gradient type scheme, for optimizing performance criteria that involve the CVaR of the total return. We first describe some preliminaries and our RL setting, and then describe our algorithm.
+
+We consider an episodic\footnote{Also known as a stochastic shortest path \cite{Ber2012DynamicProgramming}.} Markov Decision Problem (MDP) in discrete time with a finite state space $\cS$ and a finite action space $\cA$.
+At time $t \in \{0,1,2,\dots\}$ the state is $s_t$, and an action $a_t$ is chosen according to a parameterized policy $\pi_\theta$, which assigns a distribution over actions $f_{a|h}(a|h;\theta)$ according to the observed history of states $h_t = s_0,\dots,s_t$. Then, an immediate random reward $\rho_t \sim f_{\rho|s,a} (\rho|s,a)$ is received,
+and the state transitions to $s_{t+1}$ according to the MDP transition probability $f_{s'|s,a}(s'|s,a)$. We denote by $\zeta_0$ the initial state distribution and by $s^*$ a terminal state, and we assume that for all $\theta$, $s^*$ is reached w.p. 1.
+
+For some policy $\pi_\theta$, let $s_0,a_0,\rho_0,s_1,a_1,\rho_1,\dots,s_\tau$ denote a state-action-reward trajectory from the MDP under that policy, that terminates at time $\tau$, i.e., $s_\tau = s^*$. The trajectory is a random variable, and we decompose\footnote{This decomposition is not restrictive, and used only to illustrate the definitions of Section \ref{sec:CVaR_Sensitivity}. One may alternatively consider a continuous state space, or discrete rewards, so long as Assumptions \ref{assumption:bounded_cont_rZ}, \ref{assumption:D_finite_sum}, and \ref{assumption:nice_f_g} hold.} it into a discrete part $Y \doteq s_0,a_0,s_1,a_1,\dots,s^*$ and a continuous part $X \doteq \rho_0,\rho_1,\dots,\rho_{\tau-1}$. Our quantity of interest is the total reward along the trajectory $R \doteq \sum_{t=0}^{\tau} \rho_t$.
+In standard RL, the objective is to find the parameter $\theta$ that maximizes the expected return $V(\theta) = \E^\theta \left[ R \right]$. Policy gradient methods \cite{baxter2001infinite,MarTsi98,peters_reinforcement_2008} use simulation to estimate $\partial V(\theta) / \partial \theta_j$, and then perform stochastic gradient ascent on the parameters $\theta$. In this work we are risk-sensitive, and our goal is to \emph{maximize the CVaR of the total return}
+$
+J(\theta) \doteq \cvar (R;\theta).
+$
+In the spirit of policy gradient methods, we estimate $\partial J(\theta) / \partial \theta_j$ from simulation, using \texttt{GCVaR}, and optimize $\theta$ using \texttt{CVaRSGD}. We now detail our approach.
+
+
+First, it is well known \cite{MarTsi98} that by the Markov property of the state transitions:
+\begin{equation}\label{eq:MDP_dlogf}
+\partial \log f_{Y}\left(Y;\theta\right) / \partial \theta = \sum_{t=0}^{\tau-1} \partial \log f_{a|h}(a_t|h_t;\theta)/ \partial \theta.
+\end{equation}
+Also, note that in our formulation we have
+\begin{equation}\label{eq:MDP_dlogf2}
+    \partial \log f_{\bX|Y}\left(x_{i}|y_i;\theta\right) / \partial \theta=0,
+\end{equation}
+since the reward does not depend on $\theta$ directly.
+
+To apply \texttt{CVaRSGD} in the RL setting, at each iteration $i$ of the algorithm we simulate $n_i$ trajectories $x_1,y_1,\dots,x_{n_i},y_{n_i}$ of the MDP using policy $\pi_{\theta^i}$ (each $x_k$ and $y_k$ here together correspond to a single trajectory, as realizations of the random variables $X$ and $Y$ defined above). We then apply the \texttt{GCVaR} algorithm to obtain an estimate $\Delta_{j;n_i}$ of $\partial J(\theta) / \partial \theta_j$, using the simulated trajectories $x_1,y_1,\dots,x_{n_i},y_{n_i}$, Eq. \eqref{eq:MDP_dlogf}, and Eq. \eqref{eq:MDP_dlogf2}.
+Finally, we update the policy parameter according to Eq. \eqref{eq:theta_update_SGD}.
+Note that due to Eq. \eqref{eq:MDP_dlogf}, the transition probabilities of the MDP, which are generally not known to the decision maker, are not required for estimating the gradient using \texttt{GCVaR}. Only policy-dependent terms are required.
+
+We should remark that for the standard RL criterion $V(\theta)$, a Markov policy that depends only on the current state suffices to achieve optimality \cite{Ber2012DynamicProgramming}. For the CVaR criterion this is not necessarily the case. \citet{bauerle2011markov} show that under certain conditions, an augmentation of the current state with a function of the accumulated reward suffices for optimality. In our simulations, we used a Markov policy, and still obtained useful and sensible results.
+
+Assumptions \ref{assumption:bounded_cont_rZ}, \ref{assumption:D_finite_sum}, and \ref{assumption:nice_f_g}, that are required for convergence of the algorithm, are reasonable for the RL setting, and may be satisfied, for example, when $f_{\rho|s,a} (\rho|s,a)$ is smooth, and $\partial\log f_{a|h}(a|h;\theta) / \partial \theta_j$ is well defined and bounded. This last condition is standard in policy gradient literature, and a popular policy representation that satisfies it is softmax action selection \cite{sutton_policy_2000,MarTsi98}, given by
+$
+f_{a|h}(a|h;\theta) = \frac{\exp ( \phi(h,a)^{\T} \theta)}{\sum_{a'} \exp(\phi(h,a')^{\T} \theta)},
+$
+where $\phi(h,a)\in \R^k$ are a set of $k$ features that depend on the history and action.
+
+In some RL domains, the reward takes only discrete values. While this case is not specifically covered by the theory in this paper, one may add an arbitrarily small smooth noise to the total reward for our results to hold. Since such a modification has negligible impact on performance, this issue is of little importance in practice. In our experiments the reward was discrete, and we did not observe any problem.
+
+
+
+
+
+
+
+
+\begin{figure*}[ht]
+\centering
+\includegraphics[width=\textwidth]{fig1.png}
+\vskip -0.1in
+\caption{\textbf{\texttt{GCVaR} vs. policy gradient.} (A,B) Average return (A) and CVaR ($\alpha=0.05$) of the return (B) for \texttt{CVaRSGD} and standard policy-gradient vs. iteration. (C) Histogram (counts from 10,000 independent runs) of the total return of the final policies. The lower plot is a zoom-in on the left-tail, and clearly shows the risk-averse behavior of the \texttt{CVaRSGD} policy. (D) Final policy parameters. Note the difference in the Board Well feature, which encourages risk taking. (E) CVaR ($\alpha=0.01$) of the return for \texttt{CVaRSGD} vs. iteration, with and without importance sampling.}
+\label{fig1}
+\vskip -0.1in
+\end{figure*}
+
+\subsection{Experimental Results}\label{sec:experiments}
+We examine Tetris as a test case for our algorithms. Tetris is a popular RL benchmark that has been studied extensively. The main challenge in Tetris is its large state space, which necessitates some form of approximation in the solution technique. Many approaches to learning controllers for Tetris are described in the literature, among them are approximate value iteration \cite{tsitsiklis1996feature}, policy gradients \cite{kakade2001natural,furmston2012unifying}, and modified policy iteration \cite{gabillon2013approximate}.
+The standard performance measure in Tetris is the expected number of cleared lines in the game. Here, we are interested in a risk-averse performance measure, captured by the CVaR of the total game score. Our goal in this section is to compare the performance of a policy optimized for the CVaR criterion versus a policy obtained using the standard policy gradient method. As we will show, optimizing the CVaR indeed produces a different policy, characterized by a risk-averse behavior. We note that at present, the best results in the literature (for the standard performance measure) were obtained using a modified policy iteration approach \cite{gabillon2013approximate}, and not using policy gradients. We emphasize that our goal here is not to compete with those results, but rather to illustrate the application of \texttt{CVaRSGD}. We do point out, however, that whether the approach of \citet{gabillon2013approximate} could be extended to handle a CVaR objective is currently not known.
+
+
+We used the regular  $10\times 20$ Tetris board with the 7 standard shapes (a.k.a. \textit{tetrominos}). In order to induce risk-sensitive behavior, we modified the reward function of the game as follows. The score for clearing 1,2,3 and 4 lines is 1,4,8 and 16 respectively. In addition, we limited the maximum number of steps in the game to 1000. These modifications strengthened the difference between the risk-sensitive and nominal policies, as they induce a tradeoff between clearing many 'single' lines with a low profit, or waiting for the more profitable, but less frequent, 'batches'.
+
+
+We used the softmax policy, with the feature set of \citet{thiery2009improvements}.
+Starting from a fixed policy parameter $\theta_0$, which was obtained by running several iterations of standard policy gradient (giving both methods a 'warm start'), we ran both \texttt{CVaRSGD} and standard policy gradient\footnote{Standard policy gradient is similar to \texttt{CVaRSGD} when $\alpha = 1$. However, it is common to subtract a baseline from the reward in order to reduce the variance of the gradient estimate. In our experiments, we used the average return $<r>$ as a baseline, and our gradient estimate was $\frac{1}{N}\sum_{i=1}^{N} \Dt{ \log f_Y\left(y_{i};\theta\right)}(r(x_i,y_{i})-<r>)$.} for enough iterations such that both algorithms (approximately) converged. We set $\alpha = 0.05$ and $N = 1000$.
+
+In Fig.~\ref{fig1}A and Fig.~\ref{fig1}B we present the average return $V(\theta)$ and CVaR of the return $J(\theta)$ for the policies of both algorithms at each iteration (evaluated by MC on independent trajectories). Observe that for \texttt{CVaRSGD}, the average return has been compromised for a higher CVaR value.
+
+This compromise is further explained in Fig.~\ref{fig1}C, where we display the reward distribution of the final policies.
+It may be observed that the left-tail distribution of the CVaR policy is significantly lower than the standard policy. For the risk-sensitive decision maker, such results are very important, especially if the left-tail contains catastrophic outcomes, as is common in many real-world domains, such as finance.
+To better understand the differences between the policies, we compare the final policy parameters $\theta$ in Fig.~\ref{fig1}D. The most significant difference is in the parameter that corresponds to the Board Well feature. A \textit{well} is a succession of unoccupied cells in a column, such that their left and right cells are both occupied. The controller trained by \texttt{CVaRSGD} has a smaller negative weight for this feature, compared to the standard controller, indicating that actions which create deep-wells are repressed. Such wells may lead to a high reward when they get filled, but are risky as they heighten the board.
+
+To demonstrate the importance of IS in optimizing the CVaR when $\alpha$ is small, we chose $\alpha=0.01$, and $N = 200$, and compared \texttt{CVaRSGD} against its IS version, \texttt{IS\_CVaRSGD}, described in the supplementary material.
+As Fig.~\ref{fig1}E shows, \texttt{IS\_GCVaRSGD} converged significantly faster, improving the convergence rate by more than a factor of 2. The full details are provided in the supplementary material.
+
+
+
+\section{Conclusion and Future Work}
+We presented a novel LR-style formula for the gradient of the CVaR performance criterion. Based on this formula, we proposed a sampling-based gradient estimator, and a stochastic gradient descent procedure for CVaR optimization that is guaranteed to converge to a local optimum. To our knowledge, this is the first extension of the LR method to the CVaR performance criterion, and our results extend CVaR optimization to new domains.
+
+We evaluated our approach empirically in an RL domain: learning a risk-sensitive policy for Tetris. To our knowledge, such a domain is beyond the reach of existing CVaR optimization approaches. Moreover, our empirical results show that optimizing the CVaR indeed results in useful risk-sensitive policies, and motivates the use of simulation-based optimization for risk-sensitive decision making.
+
+
+
+
+\section*{Acknowledgments}
+The authors thank Odalric-Ambrym Maillard for many helpful discussions. The research leading to these results has received funding from the European Research Council under the European Union's Seventh Framework Program (FP/2007-2013) / ERC Grant Agreement n. 306638.
+
+
+\small
+\bibliographystyle{aaai}
+Quae voluptate laboriosam dolorem doloremque ea eum exercitationem non, officia officiis consequatur quidem, quam ullam illum fugit id expedita blanditiis optio placeat facilis repudiandae non.Ipsa itaque minus possimus accusantium accusamus, eius nihil modi explicabo error sunt neque magnam, consectetur illo non, eaque commodi nostrum?Libero repellat voluptatum sed corporis explicabo natus sapiente sint, quas ipsam hic voluptas officiis dolorum quo deserunt, dolorem tempora modi quae sequi laborum quos eaque vitae fugiat ea aut.Aut ratione architecto, facere laudantium vitae consequuntur libero quaerat deleniti incidunt ullam, id aut corporis quod similique sit nulla deserunt eveniet eligendi reprehenderit, suscipit magnam a animi distinctio doloribus impedit mollitia fuga.Ducimus distinctio sequi perspiciatis tempore voluptatem ipsum nisi soluta nemo quaerat consequatur, voluptatibus ipsum id, recusandae ut porro aspernatur fugit deserunt quos illo ipsa natus, quo in minima assumenda cum aperiam at iusto esse ipsam, velit mollitia dolor itaque enim recusandae ipsum a sed?Magni quos hic magnam autem, optio id totam vel aliquid ut, est eos nemo.\clearpage
+\bibliography{my_library}
+
+
+\normalsize
+\onecolumn
+\end{document}

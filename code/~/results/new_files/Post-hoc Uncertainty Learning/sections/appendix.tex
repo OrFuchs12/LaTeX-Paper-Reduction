@@ -1,0 +1,423 @@
+\section{Derivation of ELBO loss} \label{sec:ELBO-appendix}
+The Dirichlet ELBO loss can be fomulated as follows:
+\begin{align}
+\gL_{\mathrm{VI}}(\vw_g) &=\frac{1}{N_M}\sum_{i=1}^{N_M} \mathbb{E}_{q(\boldsymbol{\pi}| \Phi(\vx_i); \vw_g)}[\log P(y_i \mid \boldsymbol{\pi}, \boldsymbol{x}_i)] \nonumber \\
+&- \lambda\cdot\mathrm{KL}\left(q(\boldsymbol{\pi}| \Phi(\vx_i); \vw_g) \| P(\boldsymbol{\pi} | \Phi(\vx_i))\right)
+\end{align}
+\normalsize
+The second term in the summation is simply the KL-divergence between variational distribution parameterized by the meta model and the predefined prior distribution, i.e., $\mathrm{KL}\left( \operatorname{Dir}(\boldsymbol{\pi}| \boldsymbol{\alpha}^{(i)}) \| \operatorname{Dir}(\boldsymbol{\pi} | \boldsymbol{\beta})\right)$. The first term in the summation is the expectation of cross-entropy loss w.r.t the variational Dirichlet distribution, whose closed form can be obtained as follows,
+\begin{align}
+&\mathbb{E}_{q(\boldsymbol{\pi}| \Phi(\vx_i); \vw_g)}[\log P(y_i \mid \boldsymbol{\pi}, \boldsymbol{x}_i)] \nonumber \\
+=& \mathbb{E}_{ \operatorname{Dir}(\boldsymbol{\pi}| \boldsymbol{\alpha}^{(i)})}[\log \boldsymbol{\pi}_{y_i}]\\
+=& \int \log \boldsymbol{\pi}_{y_i} \operatorname{Dir}(\boldsymbol{\pi}| \boldsymbol{\alpha}^{(i)}) d\boldsymbol{\pi}\\
+=&\int_{0}^{1} \log \boldsymbol{\pi}_{y_i} \operatorname{Beta}(\alpha^{(i)}_{y_i}, \alpha^{(i)}_{0}-\alpha^{(i)}_{y_i}) d\boldsymbol{\pi}_{y_i}\\
+=& \int_{0}^{1} \log \boldsymbol{\pi}_{y_i} \frac {\boldsymbol{\pi}_{y_i}^{\alpha^{(i)}_{y_i}-1}(1-\boldsymbol{\pi}_{y_i})^{\alpha^{(i)}_{0}-\alpha^{(i)}_{y_i}-1}} {\operatorname{B}(\alpha^{(i)}_{y_i}, \alpha^{(i)}_{0}-\alpha^{(i)}_{y_i})} d\boldsymbol{\pi}_{y_i}\\
+=& \frac {\int_{0}^{1} \frac {d \boldsymbol{\pi}_{y_i}^{\alpha^{(i)}_{y_i}-1}}{d\alpha^{(i)}_{y_i}}(1-\boldsymbol{\pi}_{y_i})^{\alpha^{(i)}_{0}-\alpha^{(i)}_{y_i}-1} d\boldsymbol{\pi}_{y_i}}
+{\operatorname{B}(\alpha^{(i)}_{y_i}, \alpha^{(i)}_{0}-\alpha^{(i)}_{y_i})} \\
+=& \frac { \frac{d}{d\alpha^{(i)}_{y_i}}  \int_{0}^{1}  \boldsymbol{\pi}_{y_i}^{\alpha^{(i)}_{y_i}-1} (1-\boldsymbol{\pi}_{y_i})^{\alpha^{(i)}_{0}-\alpha^{(i)}_{y_i}-1} d\boldsymbol{\pi}_{y_i}}
+{\operatorname{B}(\alpha^{(i)}_{y_i}, \alpha^{(i)}_{0}-\alpha^{(i)}_{y_i})} \\
+=& \frac {1} {\operatorname{B}(\alpha^{(i)}_{y_i}, \alpha^{(i)}_{0}-\alpha^{(i)}_{y_i})} \frac {d\operatorname{B}(\alpha^{(i)}_{y_i}, \alpha^{(i)}_{0}-\alpha^{(i)}_{y_i})} {d\alpha^{(i)}_{y_i}}\\
+=& \frac {d \log \operatorname{B}(\alpha^{(i)}_{y_i}, \alpha^{(i)}_{0}-\alpha^{(i)}_{y_i})} {d\alpha^{(i)}_{y_i}}\\
+=& \frac {d \left(\log \Gamma(\alpha^{(i)}_{y_i})+ \log \Gamma(\alpha^{(i)}_{0}-\alpha^{(i)}_{y_i}) - \log \Gamma(\alpha^{(i)}_{0})\right)} {d\alpha^{(i)}_{y_i}}\\
+=& \frac {d \log \Gamma(\alpha^{(i)}_{y_i})}{d\alpha^{(i)}_{y_i}} - \frac {d \log \Gamma(\alpha^{(i)}_{0})}{d\alpha^{(i)}_{0}}\\
+=& \psi\left(\alpha^{(i)}_{y_i}\right)-\psi\left(\alpha^{(i)}_{0}\right)
+\end{align}  
+Therefore, the ELBO loss can be formulated as the closed form as follows,
+\begin{align}
+\gL_{\mathrm{VI}}(\vw_g) 
+&= \frac{1}{N_M}\sum_{i=1}^{N_M} \psi\left(\alpha^{(i)}_{y_i}\right)-\psi\left(\alpha^{(i)}_{0}\right)  \nonumber\\
+&- \lambda\cdot \mathrm{KL}\left( \operatorname{Dir}(\boldsymbol{\pi}| \boldsymbol{\alpha}^{(i)}) \| \operatorname{Dir}(\boldsymbol{\pi} | \boldsymbol{\beta})\right).
+\end{align}
+
+
+
+
+\newpage
+\section{Experiment Setup} \label{setup-appendix}
+\subsection{Implementation Details for OOD and Misclassification}
+The post-hoc uncertainty learning problem aims to improve the UQ performance of a pretrained base model. First, we generate the pretrained model by training the base model using cross-entropy loss to achieve optimal testing accuracy. The maximum epochs for training LeNet, VGG-16, and WideResNet-16 are set to be 20, 200, and 200, respectively. Then, in the second stage, we freeze the parameter of the pretrained base model and train the meta-model on top of it using the Dirichlet variational loss. The meta-model uses the same training data as the base model, and the maximum epochs for training the meta-model is set to be 50. All the models are optimized using an SGD optimizer. The hyper-parameters for training the base model and meta-model are summarized in Table~\ref{table: hyper}, where $bs$ denotes the batch size, $lr$ denotes the learning rate, $m$ denotes the momentum, $wd$ denotes the weight decay, $\lambda$ is the hyper-parameter to balance the two terms in variational loss, and $\beta$ is the concentration parameter of prior Dirichlet distribution. All experiments are implemented in PyTorch using Titan RTX GPUs with 24 GB memory.
+\begin{table*}[t]
+  \caption{Hyper-parameter for training the base model and meta-model}
+  \centering
+  \begin{tabular}{llllllllll}
+    \toprule
+    Dataset & Model & Epoch & $bs$ & $\lambda$ & $\beta$ & $lr$ & $m$ & $wd$\\
+    \midrule
+    MNIST & LeNet-Base & 20 & 128 & / & / & 0.01 & 0.9 & $5\times10^{-4}$ \\
+    \midrule
+    MNIST & LeNet-Meta & 50 & 128 & $10^{-1}$ & 1 & 0.1 & 0.9 & $5\times10^{-4}$ \\
+    \midrule
+    CIFAR10 & VGG16-Base & 200 & 128 & / & / & 0.1 & 0.9 & $1\times10^{-4}$ \\
+    \midrule
+    CIFAR10 & VGG16-Meta & 50 & 128 & $10^{-3}$ & 1 & 0.001 & 0.9 & $1\times10^{-4}$ \\
+    \midrule
+    CIFAR100 & WideResNet-Base & 200 & 128 & / & / & 0.1 & 0.9 & $1\times10^{-4}$ \\
+    \midrule
+    CIFAR100 & WideResNet-Meta & 50 & 128 & $10^{-3}$ & 1 & 0.1 & 0.9 & $1\times10^{-4}$ \\
+    \bottomrule
+  \end{tabular}
+  \label{table: hyper}
+\end{table*}
+\subsection{Implementation Details of Trustworthy Trnasfer Learning}
+We download the pretrained ResNet-50 trained on ImageNet as the base-model. Similarly, we freeze the parameter of the pretrained model and train the meta-model on top of it using the training data of the target task. All the models are optimized using an SGD optimizer. The hyper-parameters for training the meta-model are summarized in Table~\ref{table: hyper-transfer}, where $bs$ denotes the batch size, $lr$ denotes the learning rate, $m$ denotes the momentum, $wd$ denotes the weight decay, $\lambda$ is the hyper-parameter to balance the two terms in variational loss, and $\beta$ is the concentration parameter of prior Dirichlet distribution. 
+\begin{table*}[t]
+  \caption{Hyper-parameter}
+  \centering
+  \begin{tabular}{llllllllll}
+    \toprule
+    Dataset & Model & Epoch & $bs$ & $\lambda$ & $\beta$ & $lr$ & $m$ & $wd$\\
+    \midrule
+    STL10 & ResNet50-Meta & 50 & 128 & $10^{-3}$ & 1 & 0.01 & 0.9 & $1\times10^{-4}$ \\
+    \midrule
+    CIFAR10 & ResNet50-Meta & 50 & 128 & $10^{-3}$ & 1 & 0.01 & 0.9 & $1\times10^{-4}$ \\
+    \bottomrule
+  \end{tabular}
+  \label{table: hyper-transfer}
+\end{table*}
+
+\subsection{Meta-Model Structure}
+The high-level description of the meta-model structure is provided in~\ref{subsec: model}. More specifically, all the linear layers $\vg_{i}$ and $\vg_{c}$ consist of three elements: a fully-connected layer, ReLU activation function, and Max-Pooling. Each $\vg_{i}$ has multiple fully-connected layers, each is followed by a ReLU and a Max-Pooling, each fully-connected layer reduces the input feature dimension to half size, and the output meta-feature of $\vg_{i}$ has the dimension as the class number, e.g., 10 for CIFAR10. The final linear layer $\vg_{c}$ is a single fully-connected layer that takes the concatenation of all the meta-feature and outputs the concentration parameter $\alpha$.
+
+\subsection{Training Time Complexity}
+Our meta-model-based approach is much more efficient than traditional uncertainty quantification approaches due to the simpler structure and faster convergence speed. To quantitatively demonstrate such efficiency, we measure the wall-clock time of training the meta-model in seconds (on a single Titan RTX GPU) as follows. The training time of training VGG16 model on CIFAR10 dataset is 66.5s for five epochs; The training time of training WideResNet model on CIFAR100 dataset is 241.9s for ten epochs. The training time of the meta-model can be negligible compared to those approaches training the entire base model from scratch (usually taking several hours).
+
+
+\subsection{Validation for Uncertainty Learning}
+We use the proposed validation trick discussed in~\ref{sec:validation} to perform early stopping in the training of the meta-model. We randomly pick $\%20$ training data as our validation set. For the OOD detection task, we create the noisy validation set by by applying various kinds of noise and perturbation to the original images, including permuting the pixels, applying Gaussian blurring, and contrast re-scaling. For the misclassification task, we directly use the validation set to evaluate the misclassification detection performance with the correctly classified and miss-classified validation samples.
+
+\subsection{Description of OOD datasets} \label{ood-dataset-appendix}
+For OOD detection task, we use the testing set as in-domain dataset, and make sure the out of domain dataset has the same number of samples (10000 samples) as in-domain dataset. Different dataset input images are resized to 32x32 to ensure they have the same size, and all gray-scale images are converted into three-channel images. We use the following datasets as OOD samples for the OOD detection task:
+\begin{itemize}
+    \item \textbf{Omniglot} contains 1632 hand-written characters taken from 50 different alphabets. We randomly pick 10000 images from its testing set as OOD samples for MNIST.
+    \item \textbf{Fashion-MNIST} is a dataset of Zalando's article images. We use the testing set with 10000 images as OOD samples for both MNIST and CIFAR.
+    \item \textbf{KMNIST} contains handwritten characters from the Japanese Kuzushiji texts. We use the testing set with 10000 images as OOD samples for MNIST.
+    \item \textbf{SVHN} contains images of house numbers taken from Google Street View. We use the testing set with 10000 images as OOD samples for CIFAR.
+    \item \textbf{LSUN} The Large-scale Scene UNderstanding dataset(LSUN) is a dataset of different objects taken from 10 different scene categories. We use the images from the classroom categories and randomly sample 10000 training images as OOD samples for CIFAR.
+    \item \textbf{TIM} TinyImageNet(TIM) is a subset of the ImageNet dataset, and we use the validation set with 10000 images as OOD samples for CIFAR
+    \item \textbf{Corrupted} is an artificial dataset generated by perturbing the original testing image using Gaussian blurring, pixel permutation, and contrast re-scaling.
+\end{itemize}
+
+\section{Additional Experiment Results} \label{results-appendix}
+\subsection{OOD Detection}
+In the following, we compare our proposed method with several SOTA uncertainty quantification methods with traditional settings on the OOD detection task. The results are shown in~Table \ref{table:OOD-appendix}.  our proposed method can still outperform these methods.
+We provide additional OOD detection results in terms of AUPR score as shown in~Table \ref{table: OOD-aupr}.
+\begin{table*}[t]
+  \begin{center}
+  \scriptsize
+  \captionsetup{font=small}
+  \caption{\textbf{OOD Detection AUROC score.} MI, Dent, and Prec stand for different epistemic uncertainty metrics, i.e., Mutual Information, Differential Entropy, and precision. Settings stand for post-hoc or traditional, i.e., training the entire model from scratch. Additional Data stands for if using additional training data or not.}
+%   MI, Dent, and Prec stand for different epistemic uncertainty metrics, i.e., Mutual Information, Differential Entropy, and precision.
+  \vspace{-1.5em}
+  \begin{tabular}{lllllllll}
+    \\
+    \toprule
+    \textbf{ID Data}\ \&\ \textbf{Model} & \textbf{Methods} & \textbf{Settings} & \textbf{Additional Data} & \textbf{Omniglot}& \textbf{FMNIST} & \textbf{KMNIST}& \textbf{CIFAR10} &\textbf{Corrupted} \\
+    \hline
+    MNIST & Base Model(Ent) & Traditional & No & 98.9$\pm$0.5 & 97.8$\pm$0.8 & 95.8$\pm$0.8 & 99.4$\pm$0.2 & 99.5$\pm$0.3  \\
+    LeNet & Base Model(MaxP) & Traditional & No & 98.7$\pm$0.6 & 97.6$\pm$0.8 & 95.6$\pm$0.8 & 99.3$\pm$0.2 & 99.4$\pm$0.4  \\
+              & MCDropout & Traditional & No & 98.2$\pm$0.1 & 98.1$\pm$0.4 & 92.9$\pm$0.3 & 99.3$\pm$0.4 & 98.7$\pm$0.2  \\
+              & BeBayesian & Traditional & No & 99.2$\pm$0.4 & 98.5$\pm$0.5 & 96.1$\pm$0.9 & 99.5$\pm$0.2 & 99.7$\pm$0.2  \\
+              & PostNet & Traditional & No & 99.0$\pm$0.5 & 99.1$\pm$0.5 & 99.3$\pm$0.3 & 99.0$\pm$0.2 & 98.9$\pm$0.7  \\
+              & ALOE & Traditional & Yes & 100.0$\pm$0.1 & 99.0$\pm$0.3 & 96.7$\pm$0.6 & 99.8$\pm$0.1 & 100.0$\pm$0.0  \\
+    \hline
+              & \textbf{Ours(Ent)} & Post-hoc & No & 99.7$\pm$0.1 & 99.5$\pm$0.2 & 98.2$\pm$0.3 &  \textcolor{violet}{\textbf{100.0}$\pm$0.0} & \textcolor{violet}{\textbf{100.0}$\pm$0.0} \\
+              & \textbf{Ours(MaxP)} & Post-hoc & No & 99.3$\pm$0.2 & 99.3$\pm$0.2 & 98.0$\pm$0.2 &  \textcolor{violet}{\textbf{100.0}$\pm$0.0} & \textcolor{violet}{\textbf{100.0}$\pm$0.0} \\
+              & \textbf{Ours(MI)} & Post-hoc & No & \textcolor{violet}{\textbf{99.9}$\pm$0.0} & \textcolor{violet}{\textbf{99.6}$\pm$0.2} &97.7$\pm$0.4 &  \textcolor{violet}{\textbf{100.0}$\pm$0.0} & \textcolor{violet}{\textbf{100.0}$\pm$0.0} \\
+              & \textbf{Ours(Dent)} & Post-hoc & No & 99.8$\pm$0.0 & 99.5$\pm$0.2 & 97.6$\pm$0.4 & \textcolor{violet}{\textbf{100.0}$\pm$0.0} & \textcolor{violet}{\textbf{100.0}$\pm$0.0} \\
+              & \textbf{Ours(Prec)} & Post-hoc & No & \textcolor{violet}{\textbf{99.9}$\pm$0.0} & \textcolor{violet}{\textbf{99.5}$\pm$0.2} &97.7$\pm$0.5 &  \textcolor{violet}{\textbf{100.0}$\pm$0.0} & \textcolor{violet}{\textbf{100.0}$\pm$0.0} \\
+    \toprule
+    \textbf{ID Data}\ \&\ \textbf{Model} & \textbf{Methods} & \textbf{Settings} & \textbf{Additional Data} & \textbf{SVHN}& \textbf{FMNIST} & \textbf{LSUN}& \textbf{TinyImageNet} &\textbf{Corrupted} \\
+    \hline
+    CIFAR10 & Base Model(Ent) & Traditional & No & 86.4$\pm$4.6 & 90.8$\pm$1.3 & 89.0$\pm$0.5 & 87.5$\pm$1.1 & 85.9$\pm$8.2  \\
+    VGG16   & Base Model(MaxP) & Traditional & No & 86.3$\pm$4.4 & 90.4$\pm$1.2 & 88.7$\pm$0.5 & 87.3$\pm$1.1 & 85.7$\pm$8.1   \\
+              & MCDropout & Traditional & No & 75.6$\pm$1.1 & 80.9$\pm$0.5 & 85.1$\pm$1.6 & 80.0$\pm$1.3 & 86.8$\pm$1.1   \\
+              & BeBayesian &Traditional & No & 91.7$\pm$3.9 & 88.3$\pm$0.6 & 83.2$\pm$0.6 & 81.0$\pm$0.6 & 94.6$\pm$4.6   \\
+              & PostNet & Traditional & No & 93.7$\pm$1.2 & 95.8$\pm$2.8 & 93.3$\pm$3.4 & 92.4$\pm$2.9 & 93.4$\pm$2.2  \\
+              & ALOE & Traditional & Yes & 99.9$\pm$1.1 & 98.3 $\pm$ 0.7 & 92.1$\pm$1.3  & 99.9$\pm$0.1  & 96.2$\pm$0.7  \\
+    \hline
+              & \textbf{Ours(Ent)} & Post-hoc & No & 96.3$\pm$3.0 &89.0$\pm$5.2 & 89.6$\pm$3.4 &  89.4$\pm$3.5& 95.9$\pm$4.3 \\
+              & \textbf{Ours(MaxP)} & Post-hoc & No & 95.6$\pm$3.6 & 87.8$\pm$4.4 &89.1$\pm$2.4 &  88.2$\pm$2.6 & 94.0$\pm$7.3 \\
+              & \textbf{Ours(MI)} & Post-hoc & No & \textcolor{violet}{\textbf{100.0$\pm$0.0}} & \textcolor{violet}{\textbf{98.8$\pm$0.5}} & 95.2$\pm$0.9 &  \textcolor{violet}{\textbf{98.1$\pm$0.3}} & \textcolor{violet}{\textbf{100.0$\pm$0.0}} \\
+              & \textbf{Ours(Dent)} & Post-hoc & No & \textcolor{violet}{\textbf{100.0$\pm$0.0}} & 98.4$\pm$0.9 & \textcolor{violet}{\textbf{95.7}$\pm$0.8} &  97.7$\pm$0.5 & \textcolor{violet}{\textbf{100.0$\pm$0.0}} \\
+               & \textbf{Ours(Prec)} & Post-hoc & No & \textcolor{violet}{\textbf{100.0$\pm$0.0}} & \textcolor{violet}{\textbf{98.8$\pm$0.5}} & 95.1$\pm$0.5 &  \textcolor{violet}{\textbf{98.1$\pm$0.3}} & \textcolor{violet}{\textbf{100.0$\pm$0.0}} \\
+    \toprule
+    CIFAR100 & Base Model(Ent) & Traditional & No & 76.2$\pm$5.2 & 77.8$\pm$2.4 & 80.1$\pm$0.5 & 79.7$\pm$0.3 & 65.8$\pm$11.4  \\
+    WideResNet   & Base Model(MaxP) & Traditional & No & 73.9$\pm$4.3 & 76.4$\pm$2.3 & 78.7$\pm$0.5 & 78.0$\pm$0.2 & 63.8$\pm$10.4   \\
+              & MCDropout & Traditional & No & 77.6$\pm$1.9 & 77.1$\pm$0.4 & 77.0$\pm$3.5 & 79.7$\pm$0.4 & 64.4$\pm$8.9   \\
+              & BeBayesian &Traditional & No & 74.9$\pm$8.2 & 81.0$\pm$2.1 & 80.0$\pm$0.7 & 79.6$\pm$0.2 & 63.0$\pm$13.7   \\
+              & PostNet & Traditional & No & 83.4$\pm$1.6 & 83.1$\pm$3.2 & 81.0$\pm$1.3 & 80.1$\pm$1.1 & 87.7$\pm$4.2  \\
+              & ALOE & Traditional & Yes & 93.9$\pm$0.3 & 86.9$\pm$3.7 & 70.2$\pm$1.2 & 85.3$\pm$3.7 & 92.2$\pm$1.5  \\
+    \hline
+              & \textbf{Ours(Ent)} & Post-hoc & No & 92.6$\pm$2.0 & 80.8$\pm$3.0 & 81.1$\pm$1.2 &  84.9$\pm$1.2& 85.6$\pm$3.9 \\
+              & \textbf{Ours(MaxP)} & Post-hoc & No & 88.6$\pm$3.2 & 78.4$\pm$3.0 & 79.7$\pm$0.6 &  82.4$\pm$0.6& 79.3$\pm$4.5 \\
+              & \textbf{Ours} & Post-hoc & No & 94.3$\pm$1.0 & \textcolor{violet}{\textbf{84.4}$\pm$1.8} & 81.9$\pm$4.7 &  85.5$\pm$3.6 & \textcolor{violet}{\textbf{90.8}$\pm$3.3} \\
+              & \textbf{Ours(Dent)} & Post-hoc & No & 93.3$\pm$1.4 & 84.0$\pm$2.3 & 79.5$\pm$3.0 &  84.6$\pm$2.8& 89.8$\pm$2.6 \\
+              & \textbf{Ours(Prec)} & Post-hoc & No & \textcolor{violet}{\textbf{94.4}$\pm$1.0} & \textcolor{violet}{\textbf{84.4}$\pm$1.7} & \textcolor{violet}{\textbf{82.1}$\pm$4.9} &  \textcolor{violet}{\textbf{85.6}$\pm$3.6}&
+              \textcolor{violet}{\textbf{90.8}$\pm$3.4} \\
+    \toprule
+  \end{tabular}
+  \label{table:OOD-appendix}
+  \end{center}
+  \vspace{-1.5em}
+\end{table*}
+
+\begin{comment}
+    
+\begin{table*}[h]
+  \begin{center}
+  \scriptsize
+  \captionsetup{font=small}
+  \caption{\textbf{CIFAR10 OOD Detection AUROC score} }
+%   MI, Dent, and Prec stand for different epistemic uncertainty metrics, i.e., Mutual Information, Differential Entropy, and precision. Settings stand for using additional training data/ if training the base model from scratch.
+  \vspace{-1.5em}
+  \begin{tabular}{lllllllll}
+    \\
+    \toprule
+    \makecell{\textbf{ID Data}\\/\textbf{Model}} & \textbf{Methods} & \textbf{Settings} & \textbf{Additional Data} & \textbf{SVHN}& \textbf{FMNIST} & \textbf{LSUN}& \textbf{TIM} &\textbf{Corrupted} \\
+    \hline
+    CIFAR10 & Base Model(Ent) & Traditional & No & 86.4$\pm$4.6 & 90.8$\pm$1.3 & 89.0$\pm$0.5 & 87.5$\pm$1.1 & 85.9$\pm$8.2  \\
+    VGG16   & Base Model(MaxP) & Traditional & No & 86.3$\pm$4.4 & 90.4$\pm$1.2 & 88.7$\pm$0.5 & 87.3$\pm$1.1 & 85.7$\pm$8.1   \\
+              & MCDropout & Traditional & No & 75.6$\pm$1.1 & 80.9$\pm$0.5 & 85.1$\pm$1.6 & 80.0$\pm$1.3 & 86.8$\pm$1.1   \\
+              & BeBayesian &Traditional & No & 91.7$\pm$3.9 & 88.3$\pm$0.6 & 83.2$\pm$0.6 & 81.0$\pm$0.6 & 94.6$\pm$4.6   \\
+              & PostNet & Traditional & No & 93.7$\pm$1.2 & 95.8$\pm$2.8 & 93.3$\pm$3.4 & 92.4$\pm$2.9 & 93.4$\pm$2.2  \\
+    \hline
+              & \textbf{Ours(Ent)} & Post-hoc & No & 96.3$\pm$3.0 &89.0$\pm$5.2 & 89.6$\pm$3.4 &  89.4$\pm$3.5& 95.9$\pm$4.3 \\
+              & \textbf{Ours(MaxP)} & Post-hoc & No & 95.6$\pm$3.6 & 87.8$\pm$4.4 &89.1$\pm$2.4 &  88.2$\pm$2.6 & 94.0$\pm$7.3 \\
+              & \textbf{Ours(MI)} & Post-hoc & No & 100.0$\pm$0.0 & 98.8$\pm$0.5 & 95.2$\pm$0.9 &  98.1$\pm$0.3 & 100.0$\pm$0.0 \\
+              & \textbf{Ours(Dent)} & Post-hoc & No & \textcolor{violet}{\textbf{100.0}$\pm$0.0} & \textcolor{violet}{\textbf{98.4}$\pm$0.9} & \textcolor{violet}{\textbf{95.7}$\pm$0.8} &  \textcolor{violet}{\textbf{97.7}$\pm$0.5} & \textcolor{violet}{\textbf{100.0}$\pm$0.0} \\
+               & \textbf{Ours(Prec)} & Post-hoc & No & 100.0$\pm$0.0 & 98.8$\pm$0.5 & 95.1$\pm$0.5 &  98.1$\pm$0.3 & 100.0$\pm$0.0 \\
+    \toprule
+  \end{tabular}
+  \label{table:OOD-CIFAR10-appendix}
+  \end{center}
+  \vspace{-1.5em}
+\end{table*}
+
+\begin{table*}[h]
+  \begin{center}
+  \scriptsize
+  \captionsetup{font=small}
+  \caption{\textbf{CIFAR100 OOD Detection AUROC score}}
+  \vspace{-1.5em}
+  \begin{tabular}{lllllllll}
+    \\
+    \toprule
+    \makecell{\textbf{ID Data}\\/\textbf{Model}} & \textbf{Methods} & \textbf{Settings} & \textbf{Additional Data}  & \textbf{SVHN}& \textbf{FMNIST} & \textbf{LSUN}& \textbf{TIM} &\textbf{Corrupted} \\
+    \hline
+    CIFAR100 & Base Model(Ent) & Traditional & No & 76.2$\pm$5.2 & 77.8$\pm$2.4 & 80.1$\pm$0.5 & 79.7$\pm$0.3 & 65.8$\pm$11.4  \\
+    WideResNet   & Base Model(MaxP) & Traditional & No & 73.9$\pm$4.3 & 76.4$\pm$2.3 & 78.7$\pm$0.5 & 78.0$\pm$0.2 & 63.8$\pm$10.4   \\
+              & MCDropout & Traditional & No & 77.6$\pm$1.9 & 77.1$\pm$0.4 & 77.0$\pm$3.5 & 79.7$\pm$0.4 & 64.4$\pm$8.9   \\
+              & BeBayesian &Traditional & No & 74.9$\pm$8.2 & 81.0$\pm$2.1 & 80.0$\pm$0.7 & 79.6$\pm$0.2 & 63.0$\pm$13.7   \\
+              & PostNet & Traditional & No & 83.4$\pm$1.6 & 83.1$\pm$3.2 & 81.0$\pm$1.3 & 80.1$\pm$1.1 & 87.7$\pm$4.2  \\
+    \hline
+              & \textbf{Ours(Ent)} & Post-hoc & No & 92.6$\pm$2.0 & 80.8$\pm$3.0 & 81.1$\pm$1.2 &  84.9$\pm$1.2& 85.6$\pm$3.9 \\
+              & \textbf{Ours(MaxP)} & Post-hoc & No & 88.6$\pm$3.2 & 78.4$\pm$3.0 & 79.7$\pm$0.6 &  82.4$\pm$0.6& 79.3$\pm$4.5 \\
+              & \textbf{Ours} & Post-hoc & No & 94.3$\pm$1.0 & \textcolor{violet}{\textbf{84.4}$\pm$1.8} & 81.9$\pm$4.7 &  85.5$\pm$3.6 & \textcolor{violet}{\textbf{90.8}$\pm$3.3} \\
+              & \textbf{Ours(Dent)} & Post-hoc & No & 93.3$\pm$1.4 & 84.0$\pm$2.3 & 79.5$\pm$3.0 &  84.6$\pm$2.8& 89.8$\pm$2.6 \\
+              & \textbf{Ours(Prec)} & Post-hoc & No & \textcolor{violet}{\textbf{94.4}$\pm$1.0} & \textcolor{violet}{\textbf{84.4}$\pm$1.7} & \textcolor{violet}{\textbf{82.1}$\pm$4.9} &  \textcolor{violet}{\textbf{85.6}$\pm$3.6}&
+              \textcolor{violet}{\textbf{90.8}$\pm$3.4} \\
+    \toprule
+  \end{tabular}
+  \label{table:OOD-CIFAR100-appendix}
+  \end{center}
+  \vspace{-1.5em}
+\end{table*}
+\end{comment}
+
+\begin{table*}[h]
+  \begin{center}
+  \scriptsize
+  \caption{\textbf{OOD Detection AUPR score.}  MI, Dent, and Prec stand for different epistemic uncertainty metrics, i.e., Mutual Information, Differential Entropy, and precision. Settings stand for post-hoc or traditional, i.e., training the entire model from scratch. Additional Data stands for if using additional training data or not.}
+  \vspace{-1.5em}
+  \begin{tabular}{lllllllll}
+    \\
+    \toprule
+    \textbf{ID Data}\ \&\ \textbf{Model} & \textbf{Methods} & \textbf{Settings} & \textbf{Additional Data} & \textbf{Omniglot}& \textbf{FMNIST} & \textbf{KMNIST}& \textbf{CIFAR10} &\textbf{Corrupted}\\
+    \hline
+    MNIST & Base Model(Ent) & Traditional & No & 98.7$\pm$0.6 & 97.6$\pm$0.8 & 95.4$\pm$0.7 & 99.4$\pm$0.2 & 99.5$\pm$0.3  \\
+    LeNet & Base Model(MaxP) & Traditional & No & 98.4$\pm$0.7 & 97.3$\pm$0.9 & 95.1$\pm$0.8 & 99.2$\pm$0.2 & 99.3$\pm$0.4  \\
+              & MCDropout & Traditional & No & 98.1$\pm$0.4 & 97.9$\pm$0.5 & 92.7$\pm$0.8 & 99.3$\pm$0.3 & 98.7$\pm$0.6  \\
+              & BeBayesian &Traditional & No & 99.1$\pm$0.4 & 98.4$\pm$0.5 & 95.8$\pm$0.9 & 99.5$\pm$0.2 & 99.6$\pm$0.2  \\
+              & Whitebox & Post-hoc & Yes & 97.8$\pm$0.3 & 97.2$\pm$0.6 & 95.3$\pm$0.3 & 99.4$\pm$0.2 & 99.4$\pm$0.2  \\
+              & LULA & Post-hoc & Yes & 99.8$\pm$0.0 & 99.5$\pm$0.1 & \textcolor{violet}{\textbf{99.3}$\pm$0.0} & 99.9$\pm$0.0 & 99.9$\pm$0.0  \\
+    \hline
+              & \textbf{Ours(Ent)} & Post-hoc & No & 99.7$\pm$0.1 & 99.4$\pm$0.2 & 97.9$\pm$0.3 &  \textcolor{violet}{\textbf{100.0}$\pm$0.0} & \textcolor{violet}{\textbf{100.0}$\pm$0.0} \\
+              & \textbf{Ours(MaxP)} & Post-hoc & No & 99.2$\pm$0.2 & 99.2$\pm$0.2 &97.6$\pm$0.3 &  \textcolor{violet}{\textbf{100.0}$\pm$0.0} & \textcolor{violet}{\textbf{100.0}$\pm$0.0} \\
+              & \textbf{Ours(MI)} & Post-hoc & No & \textcolor{violet}{\textbf{99.9}$\pm$0.0} & \textcolor{violet}{\textbf{99.6}$\pm$0.2} & 97.5$\pm$0.4 & \textcolor{violet}{\textbf{100.0}$\pm$0.0} & \textcolor{violet}{\textbf{100.0}}$\pm$0.0 \\
+              & \textbf{Ours(Dent)} & Post-hoc & No & 99.7$\pm$0.0 & 99.4$\pm$0.3 & 97.4$\pm$0.4 &  \textcolor{violet}{\textbf{100.0}$\pm$0.0} & \textcolor{violet}{\textbf{100.0}$\pm$0.0} \\
+              & \textbf{Ours(Prec)} & Post-hoc & No & \textcolor{violet}{\textbf{99.9}$\pm$0.0} & \textcolor{violet}{\textbf{99.6}$\pm$0.2} &97.6$\pm$0.5 &  \textcolor{violet}{\textbf{100.0}$\pm$0.0} & \textcolor{violet}{\textbf{100.0}$\pm$0.0} \\
+    \toprule
+    \textbf{ID Data}\ \&\ \textbf{Model} & \textbf{Methods} & \textbf{Settings} & \textbf{Additional Data} & \textbf{SVHN}& \textbf{FMNIST} & \textbf{LSUN}& \textbf{TinyImageNet} &\textbf{Corrupted} \\
+    \hline
+    CIFAR10 & Base Model(Ent) & Traditional & No & 77.1$\pm$7.8 & 87.9$\pm$1.5 & 85.2$\pm$0.6 & 83.1$\pm$1.4 & 76.5$\pm$14.0  \\
+    VGG16   & Base Model(MaxP) & Traditional & No & 77.4$\pm$7.1 & 86.8$\pm$1.5 & 84.3$\pm$0.5 & 82.5$\pm$1.5 & 76.3$\pm$13.7   \\
+              & MCDropout & Traditional & No & 61.5$\pm$1.0 & 70.9$\pm$0.7 & 79.3$\pm$1.9 & 71.9$\pm$1.2 & 78.2$\pm$2.4   \\
+              & BeBayesian & Traditional & No & 86.5$\pm$6.6 & 86.9$\pm$0.7 & 82.3$\pm$0.7 & 80.0$\pm$0.5 & 90.8$\pm$8.5   \\
+              & Whitebox & Post-hoc & Yes & 92.8$\pm$1.8 & 93.4$\pm$2.4 & 85.3$\pm$2.8 & 86.8$\pm$3.0 & 90.5$\pm$2.1   \\
+              & LULA & Post-hoc & Yes & 97.3$\pm$1.4 & 94.8$\pm$0.0 & 93.4$\pm$0.0 & 89.2$\pm$0.0 & 97.7$\pm$1.7   \\
+    \hline
+              & \textbf{OursELBO(Ent)} & Post-hoc & No & 94.0$\pm$5.7 & 87.0$\pm$5.9 & 87.2$\pm$5.0 &  88.6$\pm$4.6 & 92.3$\pm$8.2  \\
+              & \textbf{OursELBO(MaxP)} & Post-hoc & No & 93.6$\pm$5.0 & 86.2$\pm$4.2 & 86.7$\pm$3.5 &  87.5$\pm$3.1 & 90.4$\pm$9.1  \\
+              & \textbf{OursELBO} & Post-hoc & No & 100.0$\pm$0.0 & \textcolor{violet}{\textbf{98.4$\pm$0.8}} & 92.9$\pm$1.8 &  \textcolor{violet}{\textbf{97.9$\pm$0.4}} & \textcolor{violet}{\textbf{100.0$\pm$0.0}}  \\
+              & \textbf{OursELBO(Dent)} & Post-hoc & No & \textcolor{violet}{\textbf{100.0}$\pm$0.0} & 98.1$\pm$0.9 & \textcolor{violet}{\textbf{94.2}$\pm$1.1} &  97.8$\pm$0.4 & \textcolor{violet}{\textbf{100.0}$\pm$0.0} \\
+              & \textbf{OursELBO(Prec)} & Post-hoc & No & 100.0$\pm$0.0 & 98.3$\pm$0.9 & 92.8$\pm$1.9 &  \textcolor{violet}{\textbf{97.9$\pm$0.4}} & \textcolor{violet}{\textbf{100.0$\pm$0.0}}  \\
+    \hline
+    CIFAR100 & Base Model(Ent) & Traditional & No & 70.8$\pm$5.7 & 73.0$\pm$1.9 & 75.2$\pm$1.1 & 76.6$\pm$0.5 & 60.5$\pm$11.9  \\
+    WideResNet   & Base Model(MaxP) & Traditional & No& 67.4$\pm$4.4 & 71.0$\pm$1.9 & 73.3$\pm$0.9 & 73.8$\pm$0.4 & 57.7$\pm$10.1   \\
+              & MCDropout & Traditional & No & 67.9$\pm$2.5 & 70.4$\pm$1.5 & 72.4$\pm$3.3 & 75.6$\pm$0.7 & 55.9$\pm$6.3   \\
+              & BeBayesian & Traditional & No & 67.5$\pm$7.8 & 75.5$\pm$2.6 & 74.4$\pm$1.0 & 74.9$\pm$0.4 & 58.1$\pm$11.7   \\
+              & Whitebox & Post-hoc & Yes & 84.2$\pm$2.0 & 79.5$\pm$0.7 & 74.3$\pm$1.2 & 73.5$\pm$0.5 & 77.1$\pm$4.0   \\
+              & LULA & Post-hoc & Yes & 84.3$\pm$1.1 & 83.8$\pm$0.2 & 79.4$\pm$0.4 & 76.8$\pm$0.2 & 79.2$\pm$1.5   \\
+    \hline
+              & \textbf{OursELBO(Ent)} & Post-hoc & No & 88.0$\pm$3.0 & 75.5$\pm$3.3 & 75.3$\pm$1.7 &  82.0$\pm$1.7& 80.0$\pm$6.3 \\
+              & \textbf{OursELBO(MaxP)} & Post-hoc & No & 83.5$\pm$4.6 & 73.7$\pm$2.9 & 74.2$\pm$1.1 &  79.2$\pm$0.9& 71.8$\pm$6.3 \\
+              & \textbf{OursELBO(MI)} & Post-hoc & No & 90.1$\pm$1.9 & \textcolor{violet}{\textbf{79.4}$\pm$1.9} & 77.1$\pm$3.6 &  83.2$\pm$4.5 & \textcolor{violet}{\textbf{86.4}$\pm$5.2} \\
+              & \textbf{OursELBO(Dent)} & Post-hoc & No & 88.5$\pm$2.2 & 78.6$\pm$2.8 & 74.1$\pm$3.7 &  82.0$\pm$3.6& 85.4$\pm$5.1 \\
+              & \textbf{OursELBO(Prec)} & Post-hoc & No & \textcolor{violet}{\textbf{90.2}$\pm$1.9} & \textcolor{violet}{\textbf{79.4}$\pm$1.8} & \textcolor{violet}{\textbf{77.4}$\pm$4.2} &  \textcolor{violet}{\textbf{83.3}$\pm$4.6}& \textcolor{violet}{\textbf{86.4}$\pm$5.2} \\
+    \toprule
+    
+  \end{tabular}
+  \label{table: OOD-aupr}
+  \end{center}
+  \vspace{-1.5em}
+ \end{table*}
+
+ \begin{comment}
+\begin{table*}[h]
+  \begin{center}
+  \scriptsize
+  \caption{\textbf{CIFAR10 OOD Detection AUPR score.}}
+  \vspace{-1.5em}
+  \begin{tabular}{llllllll}
+    \\
+    \toprule
+    \makecell{\textbf{ID Data}\\/\textbf{Model}} & \textbf{Methods} & \textbf{Settings} & \textbf{SVHN}& \textbf{FMNIST} & \textbf{LSUN}& \textbf{TIM} &\textbf{Corrupted}\\
+    \hline
+    CIFAR10 & Base Model(Ent) & No/No & 77.1$\pm$7.8 & 87.9$\pm$1.5 & 85.2$\pm$0.6 & 83.1$\pm$1.4 & 76.5$\pm$14.0  \\
+    VGG16   & Base Model(MaxP) & No/No& 77.4$\pm$7.1 & 86.8$\pm$1.5 & 84.3$\pm$0.5 & 82.5$\pm$1.5 & 76.3$\pm$13.7   \\
+              & MCDropout & No/Yes & 61.5$\pm$1.0 & 70.9$\pm$0.7 & 79.3$\pm$1.9 & 71.9$\pm$1.2 & 78.2$\pm$2.4   \\
+              & BeBayesian &No/Yes & 86.5$\pm$6.6 & 86.9$\pm$0.7 & 82.3$\pm$0.7 & 80.0$\pm$0.5 & 90.8$\pm$8.5   \\
+              & Whitebox & Yes/No & 92.8$\pm$1.8 & 93.4$\pm$2.4 & 85.3$\pm$2.8 & 86.8$\pm$3.0 & 90.5$\pm$2.1   \\
+              & LULA &Yes/No & 97.3$\pm$1.4 & 94.8$\pm$0.0 & 93.4$\pm$0.0 & 89.2$\pm$0.0 & 97.7$\pm$1.7   \\
+    \hline
+              & \textbf{OursELBO(Ent)} &No/No & 94.0$\pm$5.7 & 87.0$\pm$5.9 & 87.2$\pm$5.0 &  88.6$\pm$4.6 & 92.3$\pm$8.2  \\
+              & \textbf{OursELBO(MaxP)} &No/No & 93.6$\pm$5.0 & 86.2$\pm$4.2 & 86.7$\pm$3.5 &  87.5$\pm$3.1 & 90.4$\pm$9.1  \\
+              & \textbf{OursELBO} &No/No & 100.0$\pm$0.0 & 98.4$\pm$0.8 & 92.9$\pm$1.8 &  97.9$\pm$0.4 & 100.0$\pm$0.0  \\
+              & \textbf{OursELBO(Dent)} &No/No & \textcolor{violet}{\textbf{100.0}$\pm$0.0} & \textcolor{violet}{\textbf{98.1}$\pm$0.9} & \textcolor{violet}{\textbf{94.2}$\pm$1.1} &  \textcolor{violet}{\textbf{97.8}$\pm$0.4} & \textcolor{violet}{\textbf{100.0}$\pm$0.0} \\
+              & \textbf{OursELBO(Prec)} &No/No & 100.0$\pm$0.0 & 98.3$\pm$0.9 & 92.8$\pm$1.9 &  97.9$\pm$0.4 & 100.0$\pm$0.0  \\
+    \toprule
+  \end{tabular}
+  \label{table: OOD-CIFAR10-aupr}
+  \end{center}
+  \vspace{-1.5em}
+\end{table*}
+
+
+\begin{table*}[h]
+  \begin{center}
+  \scriptsize
+   \caption{\textbf{CIFAR100 OOD Detection AUPR score.}}
+   \vspace{-1.5em}
+  \begin{tabular}{llllllll}
+    \\
+    \toprule
+    \makecell{\textbf{ID Data}\\/\textbf{Model}} & \textbf{Methods} & \textbf{Settings} & \textbf{SVHN}& \textbf{FMNIST} & \textbf{LSUN}& \textbf{TIM} &\textbf{Corrupted}\\
+    \hline
+    CIFAR100 & Base Model(Ent) & No/No & 70.8$\pm$5.7 & 73.0$\pm$1.9 & 75.2$\pm$1.1 & 76.6$\pm$0.5 & 60.5$\pm$11.9  \\
+    WideResNet   & Base Model(MaxP) & No/No& 67.4$\pm$4.4 & 71.0$\pm$1.9 & 73.3$\pm$0.9 & 73.8$\pm$0.4 & 57.7$\pm$10.1   \\
+              & MCDropout & No/Yes & 67.9$\pm$2.5 & 70.4$\pm$1.5 & 72.4$\pm$3.3 & 75.6$\pm$0.7 & 55.9$\pm$6.3   \\
+              & BeBayesian &No/Yes & 67.5$\pm$7.8 & 75.5$\pm$2.6 & 74.4$\pm$1.0 & 74.9$\pm$0.4 & 58.1$\pm$11.7   \\
+              & Whitebox & Yes/No & 84.2$\pm$2.0 & 79.5$\pm$0.7 & 74.3$\pm$1.2 & 73.5$\pm$0.5 & 77.1$\pm$4.0   \\
+              & LULA &Yes/No & 84.3$\pm$1.1 & 83.8$\pm$0.2 & 79.4$\pm$0.4 & 76.8$\pm$0.2 & 79.2$\pm$1.5   \\
+    \hline
+              & \textbf{OursELBO(Ent)} &No/No & 88.0$\pm$3.0 & 75.5$\pm$3.3 & 75.3$\pm$1.7 &  82.0$\pm$1.7& 80.0$\pm$6.3 \\
+              & \textbf{OursELBO(MaxP)} &No/No & 83.5$\pm$4.6 & 73.7$\pm$2.9 & 74.2$\pm$1.1 &  79.2$\pm$0.9& 71.8$\pm$6.3 \\
+              & \textbf{OursELBO(MI)} &No/No & 90.1$\pm$1.9 & \textcolor{violet}{\textbf{79.4}$\pm$1.9} & 77.1$\pm$3.6 &  83.2$\pm$4.5 & \textcolor{violet}{\textbf{86.4}$\pm$5.2} \\
+              & \textbf{OursELBO(Dent)} &No/No & 88.5$\pm$2.2 & 78.6$\pm$2.8 & 74.1$\pm$3.7 &  82.0$\pm$3.6& 85.4$\pm$5.1 \\
+              & \textbf{OursELBO(Prec)} &No/No & \textcolor{violet}{\textbf{90.2}$\pm$1.9} & \textcolor{violet}{\textbf{79.4}$\pm$1.8} & \textcolor{violet}{\textbf{77.4}$\pm$4.2} &  \textcolor{violet}{\textbf{83.3}$\pm$4.6}& \textcolor{violet}{\textbf{86.4}$\pm$5.2} \\
+    \toprule
+  \end{tabular}
+  \label{table: OOD-CIFAR100-aupr}
+  \end{center}
+  \vspace{-1.5em}
+\end{table*}
+\end{comment}
+
+
+\subsection{Misclassification Detection}
+In the following, we compare our proposed method with several SOTA uncertainty quantification methods with traditional settings on the misclassfication detection task. The results are shown in~Table \ref{table:miss-class-appendix}.
+
+\begin{table*}[t]
+  \begin{center}
+  \scriptsize
+  \captionsetup{font=small}
+  \caption{\textbf{Misclassification Results.} Ent and MaxP stand for Entropy and Max Probability, respectively. Settings stand for post-hoc or traditional, i.e., training the entire model from scratch.}
+  \vspace{-1.5em}
+  \begin{tabular}{llllllllll}
+    \\
+    \toprule
+    \textbf{Methods} & \textbf{Settings} & \textbf{Metric} & \textbf{MNIST}& \makecell{\textbf{CIFAR 10}} & \makecell{\textbf{CIFAR 100}}& \textbf{Metric} &  \textbf{MNIST}& \makecell{\textbf{CIFAR 10}} & \makecell{\textbf{CIFAR 100}}\\
+    \hline
+    Base Model(Ent)  & Traditional & AUROC & 96.7$\pm$0.9 & 92.1$\pm$0.2 & 87.2$\pm$0.2 & AUPR & 37.4$\pm$4.0 & 47.5$\pm$1.2 & 67.0$\pm$1.2  \\
+    Base Model(MaxP) & Traditional & AUROC & 96.7$\pm$0.9 & 92.1$\pm$0.2 & 86.8$\pm$0.2 & AUPR & 39.4$\pm$3.6 & 46.6$\pm$1.1 & 65.7$\pm$1.0  \\
+    MCDropout & Traditional & AUROC & 95.1$\pm$0.1 & 90.4$\pm$0.6 & 83.7$\pm$0.1 & AUPR & 34.0$\pm$0.5 & 42.1$\pm$2.1 & 60.3$\pm$0.2  \\
+    BeBayesian & Traditional & AUROC & 97.1$\pm$0.5 & 86.6$\pm$0.5 & 85.1$\pm$0.6 & AUPR & 39.4$\pm$4.0 & 47.1$\pm$1.6 & 63.2$\pm$1.3  \\
+    PostNet &  Traditional & AUROC & 97.0$\pm$0.6 & 90.3$\pm$0.3 & 84.1$\pm$0.5 & AUPR & 41.3$\pm$2.7 & 51.3$\pm$2.1 & 66.4$\pm$0.3 \\
+    \hline
+    \textbf{Ours(Ent)} &Post-hoc & AUROC  & 96.9$\pm$0.6 & 91.1$\pm$0.2 & 83.4$\pm$0.1 & AUPR & 35.6$\pm$4.5 & 50.0$\pm$3.1 & 66.3$\pm$0.4  \\
+    \textbf{Ours(MaxP)} &Post-hoc & AUROC  &  \textcolor{violet}{\textbf{97.4$\pm$0.4}} &  \textcolor{violet}{\textbf{92.2$\pm$0.7}} &  \textcolor{violet}{\textbf{85.8$\pm$0.2}} & AUPR & \textcolor{violet}{\textbf{44.5}$\pm$5.1} & \textcolor{violet}{\textbf{54.2}$\pm$3.2} & \textcolor{violet}{\textbf{68.2}$\pm$0.5}  \\
+    \toprule
+  \end{tabular}
+  \label{table:miss-class-appendix}
+  \end{center}
+  \vspace{-1.5em}
+\end{table*}
+
+
+
+
+\subsection{Ablation Study}
+In the following, we show the complete results of ablation study in Table~~\ref{table:ablation-structure-appendix}.
+\begin{table*}[!t]
+  \begin{center}
+  \scriptsize
+  \captionsetup{font=small}
+  \caption{\textbf{Ablation Study of Meta-model (CIFAR10 AUROC score)}}
+  \vspace{-1.5em}
+  \begin{tabular}{llllllll}
+    \\
+    \toprule
+    \textbf{ID Data}\ \&\ \textbf{Model} & \textbf{Methods} & \textbf{SVHN}& \textbf{FMNIST} & \textbf{LSUN}& \textbf{TIM} &\textbf{Corrupted} \\
+    \hline
+    CIFAR10 & Base Model(Ent)  & 86.4$\pm$4.6 & 90.8$\pm$1.3 & 89.0$\pm$0.5 & 87.5$\pm$1.1 & 85.9$\pm$8.2  \\
+    VGG16   & Base Model(MaxP)  & 86.3$\pm$4.4 & 90.4$\pm$1.2 & 88.7$\pm$0.5 & 87.3$\pm$1.1 & 85.7$\pm$8.1   \\
+    \hline
+            & \textbf{Single-layer Meta(Ent)}  & 90.4$\pm$0.7 & 91.3$\pm$0.2 & 91.5$\pm$0.2 & 89.5$\pm$0.2 & 90.4$\pm$0.8 \\
+            & \textbf{Single-layer Meta(MaxP)}  & 90.1$\pm$0.6 & 91.5$\pm$0.1 & 91.4$\pm$0.2 & 89.6$\pm$0.1 & 90.1$\pm$0.6 \\
+            & \textbf{Single-layer Meta(MI)}  & 90.6$\pm$1.2 & 90.1$\pm$0.6 & 91.2$\pm$0.2 & 88.8$\pm$0.3 & 90.5$\pm$1.3 \\
+            & \textbf{Single-layer Meta(Dent)}  & 90.4$\pm$0.9 & 90.7$\pm$0.3 & 91.4$\pm$0.2 & 89.2$\pm$0.2 & 90.3$\pm$1.0 \\
+            & \textbf{Single-layer Meta(Prec)} & 90.6$\pm$1.2 & 90.0$\pm$0.6 & 91.2$\pm$0.2 & 88.8$\pm$0.4 & 90.6$\pm$1.4 \\
+    \hline
+      & \textbf{Cross-Ent Meta(Ent)}  & 94.2$\pm$2.2 & 91.2$\pm$0.7 & 91.2$\pm$0.6 &  90.3$\pm$0.8& 94.7$\pm$2.5 \\
+        & \textbf{Cross-Ent Meta(MaxP)}  & 93.3$\pm$1.6 & 91.1$\pm$0.7 &90.9$\pm$0.4 &  90.0$\pm$0.6 & 94.0$\pm$2.0 \\
+    \hline
+       & \textbf{Base-Model+LastLayer(Ent)}& 93.0$\pm$1.1 & 90.2$\pm$0.3 & 91.9$\pm$0.2 &  89.9$\pm$0.2& 93.1$\pm$1.2 \\
+        &\textbf{Base-Model+LastLayer(MaxP)} & 92.9$\pm$0.9 & 90.5$\pm$0.3 &91.9$\pm$0.2 &  90.1$\pm$0.1 & 93.1$\pm$0.9 \\
+    \hline        
+    & \textbf{$10\%$data(Ent)}  & 90.0$\pm$7.1 &89.1$\pm$4.4 & 88.7$\pm$6.4 &  88.2$\pm$5.2& 90.2$\pm$7.4 \\
+              & \textbf{$10\%$data(MaxP)} & 90.9$\pm$5.5 & 88.1$\pm$3.3 &86.9$\pm$7.0 &  86.5$\pm$4.5 & 91.7$\pm$5.4 \\
+              & \textbf{$10\%$data(MI)}& 99.9$\pm$0.2 & 98.1$\pm$2.2 & 95.4$\pm$1.7 &  97.2$\pm$2.4 & 99.9$\pm$0.1 \\
+              & \textbf{$10\%$data(Dent)}  & 96.7$\pm$3.5 & 97.4$\pm$3.0 & 94.3$\pm$4.1 &  95.7$\pm$4.1 & 96.7$\pm$3.4 \\
+               & \textbf{$10\%$data(Prec)}  & 99.9$\pm$0.1 & 98.0$\pm$2.2 & 95.4$\pm$1.7 &  97.3$\pm$2.3 & 99.9$\pm$0.1 \\
+    \hline
+              & \textbf{Ours(Ent)} & 96.3$\pm$3.0 &89.0$\pm$5.2 & 89.6$\pm$3.4 &  89.4$\pm$3.5& 95.9$\pm$4.3 \\
+              & \textbf{Ours(MaxP)}  & 95.6$\pm$3.6 & 87.8$\pm$4.4 &89.1$\pm$2.4 &  88.2$\pm$2.6 & 94.0$\pm$7.3 \\
+              & \textbf{Ours(MI)}  & \textcolor{violet}{\textbf{100.0$\pm$0.0}} & \textcolor{violet}{\textbf{98.8$\pm$0.5}} & 95.2$\pm$0.9 &  \textcolor{violet}{\textbf{98.1$\pm$0.3}} & \textcolor{violet}{\textbf{100.0$\pm$0.0}} \\
+              & \textbf{Ours(Dent)}  & \textcolor{violet}{\textbf{100.0$\pm$0.0}} & 98.4$\pm$0.9 & \textcolor{violet}{\textbf{95.7}$\pm$0.8} &  97.7$\pm$0.5 & \textcolor{violet}{\textbf{100.0$\pm$0.0}} \\
+               & \textbf{Ours(Prec)} & \textcolor{violet}{\textbf{100.0$\pm$0.0}} & \textcolor{violet}{\textbf{98.8$\pm$0.5}} & 95.1$\pm$0.5 &  \textcolor{violet}{\textbf{98.1$\pm$0.3}} & \textcolor{violet}{\textbf{100.0$\pm$0.0}} \\
+    \toprule
+  \end{tabular}
+  \label{table:ablation-structure-appendix}
+  \end{center}
+  \vspace{-1.5em}
+\end{table*}

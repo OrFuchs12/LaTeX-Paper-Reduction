@@ -1,0 +1,66 @@
+\section{VAE-IW}
+
+Although width-based planning has been shown to be generally very effective for classical planning domains \cite{iworginal,BFSW,ijcai2017-600}, its performance in practice significantly depends on the quality of the features used. Features that better capture meaningful structure in the environment typically translate to better planning results \cite{RLIW}. 
+Here we propose VAE-IW, in which representations extracted by a VAE are used as features for RolloutIW. 
+The main advantages are:
+\begin{itemize}
+    \item Significantly fewer features than B-PROST, leading to faster planning and a smaller memory footprint.
+    \item Autoencoders, in particular VAEs, are a natural approach for learning meaningful, compact representations from data \cite{bengio2013representation,tschannen2018recent,kingma2019introduction}.
+    \item No additional preprocessing is needed, such as background masking~\cite{rolloutiw-orginal}.
+\end{itemize}
+On the planning side, we follow \citet{RLIW} and use RolloutIW($k$) with width $k=1$ to keep planning efficient even with a small time budget.
+% This is sufficient to obtain good results, and at the same time makes it easier to compare our experimental results with the aforementioned paper. 
+In the remainder of this section, we detail the two main components of the proposed method: feature learning and planning.
+
+\paragraph{Unsupervised feature learning.}
+
+For feature learning we use a variational autoencoder with a discrete latent space:
+\begin{equation}
+    \ptheta(\xb) = \sum\nolimits_{\zb} \ptheta(\xb, \zb) = \sum\nolimits_{\zb} \ptheta(\xb \given \zb) p(\zb)
+\label{eq:vaeiw-marginal}
+\end{equation}
+where the prior is a product of independent Bernoulli distributions with a fixed parameter:
+% \begin{equation}
+%     p(\zb) = \prod_{i=1}^K p(z_i) = \prod_{i=1}^K \Bernoulli(\mu) \ .
+% \end{equation}
+    $p(\zb) = \prod_{i=1}^K p(z_i)$, where $ p(z_i) = \Bernoulli(\mu)$.
+Given an image $\xb$, we would like to retrieve the binary latent factors $\zb$ that generated it, and use them as a propositional representation for planning. Since $\ptheta(\xb \given \zb)$ is parameterized by a neural network, and therefore highly nonlinear with respect to the latent variables, inference of the latent variables is intractable (it would require the computation of the sum in~\eqref{eq:vaeiw-marginal}, which has a number of terms exponential in the number of latent variables).
+
+We define an inference model:
+% \begin{align}
+%     \qphi(\zb \given \xb) 
+%     &= \prod_{i=1}^K \qphi(z_i \given \xb) \\
+%     &= \prod_{i=1}^K \Bernoulli((\mu_\phi(\xb))_i)
+% \end{align}
+\begin{align*}
+    \qphi(\zb \given \xb) 
+    &= \prod_{i=1}^K \qphi(z_i \given \xb) 
+    = \prod_{i=1}^K \Bernoulli((\mu_\phi(\xb))_i)
+\end{align*}
+to approximate the true posterior $\ptheta(\zb \given \xb)$.
+The \emph{encoder} $\mu_\phi$ is a deep neural network with parameters $\phi$ that outputs the approximate posterior probabilities of all latent variables given an image $\xb$.
+Using stochastic amortized variational inference, we train the inference and generative models end-to-end by maximizing the ELBO with respect to the parameters of both models.
+We approximate the discrete Bernoulli distribution of $\zb$ with the Gumbel-Softmax relaxation~\cite{jang2016categorical,maddison2016concrete}, which is reparameterizable. This allows us to estimate the gradients of the inference network with the pathwise gradient estimator.
+Alternatively, the approximate posterior could be optimized directly using a score-function estimator~\cite{williams1992simple} with appropriate variance reduction techniques or alternative variational objectives~\cite{Bornschein2014-my,Mnih2016-vr,Le2018-kj,Masrani2019-nq,lievin2020optimal}.
+
+Note that we are not interested in the best generative model---e.g. in terms of marginal log likelihood of the data or visual quality of the generated samples---as much as in representations that are useful for planning.
+Thus, ideally, we would directly optimize $\beta$ for planning performance. In practice, however, we assume that a necessary (but not sufficient) condition for a representation to be useful in our case is that it contains enough information about the entities on the screen.
+Following \citet{burgess2018understanding}, we control the tradeoff between the competing terms in~\eqref{eq:elbo} by using~\eqref{eq:beta_objective_function} and decreasing $\beta$ until good quality reconstructions are obtained.
+
+
+\paragraph{Planning with learned features.}
+
+After training, the inference model $\qphi(\zb \given \xb)$ yields approximate posterior distributions of the latent variables. The binary features for downstream planning can be obtained by sampling from these distributions or by deterministically thresholding their probabilities given a fixed threshold $\lambda \in (0, 1)$.
+% \begin{equation*}
+%     f_i = 
+%         \begin{cases}
+%           1 &\text{if}\ \mu_\phi(\xb)_i \geq \lambda \\
+%           0 &\text{otherwise}\\
+%         \end{cases}
+% \end{equation*}
+% where $\lambda \in (0, 1)$ is the threshold.
+% In this work we choose to deterministically threshold the probabilities, as it empirically yields more stable features for planning.
+In this work we choose the latter approach as it empirically yields more stable features for planning.
+Overall, this provides a way of efficiently computing a compact, binary representation of an image, which can in turn be interpreted as a set of propositional features to be used in symbolic reasoning systems like IW or RolloutIW. 
+
+The planning phase in VAE-IW is based on RolloutIW, but uses the features extracted by the inference network instead of the B-PROST features. Note that while the B-PROST features include temporal information, the VAE features are computed independently for each frame. This should, everything else being equal, give an advantage to planners that rely on B-PROST features.

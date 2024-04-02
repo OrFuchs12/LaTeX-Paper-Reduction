@@ -1,0 +1,98 @@
+\section{Analysis}
+\label{sec: analysis}
+In this section we analyze space and latency trade-off in compressing deep
+models. We compare the inference time and storage space of floating point operations(FLOPs) between our method and Baseline1(sec.\ref{subsec:method_baselines})  on a 1-layer Neural Network(NN) whose forward pass on input X can be represented as:
+\begin{align}\label{eq:7}
+f(X) = \sigma(XW) 
+\end{align}
+where $X \in \mathbb{R}^{1 \times m} \notag $ and $W \in \mathbb{R}^{m \times
+  n}$ and full rank. Our method reduces W into two low rank matrices $W_a$
+and $W_b$ converting (\ref{eq:7}) into two layer NN represented as:
+\begin{align}
+\label{eq:8}
+f(X) = \sigma ((X\times W_a)\times W_b)
+\end{align}
+where $W_a \in \mathbb{R}^{m \times k}$ and $W_b \in \mathbb{R}^{k \times n}$
+are constructed as described in eq.(\ref{eq3}) and eq.(\ref{eq4}) choosing k as
+in eq.(\ref{eq5}).
+%Unlike our spectral projection approach, low precision compression (quantization) 
+Whereas, Baseline1 casts the elements of $W$ to lower
+precision without restructuring the network. Thus, the quantized representation
+of a 1-layer NN is same as eq.(\ref{eq:7}) where $W_i$ is cast to a lower bit
+precision and eq. (\ref{eq:8}) is the corresponding representation in our approach
+where $W_i$ remains in its original precision.
+\subsection{Space Complexity Analysis}
+\label{sec:analysis_space}
+On Baseline1 each weight variable uses less number of bits for
+storage. 
+%Let's assume storing a weight variable in full precision requires $B_S$ bits and in lower precision requires $B_Q$ bits. 
+Quantizing the network weights into
+low precision, we achieve space reduction by a fraction $\frac{B_Q}{B_S}$ where $B_S$ bits are required to store a full precision weight and $B_Q$ bits are needed to store low precision weight. In contrast, our approach described in section \ref{sec:method_svd}, achieves more
+space reduction as long as we choose $k$ (from eq (\ref{eq5})) such that:
+\begin{equation} \label{eq:9}
+p < \frac{B_Q}{B_S}
+\end{equation}
+%In practice, most compression methods use 16-bit or 8-bit quantization which achieves $1/2$ or $1/4$ compression respectively, assuming original precision of 32-bits (which is used in popular toolboxes like tensorflow). Therefore, for our proposed method choosing $k$ such as $p<1/4$ would achieve more size compression than typical quantization methods in the literature.
+\subsection{Time Complexity Analysis}
+\label{sec:analysis_time}
+Total number of FLOPs in multiplying two matrices~\cite{trefethen1997numerical}
+is given by: $FLOP(A \times B) = (2b - 1)ac \sim O(abc) $
+%\begin{align} \label{eq:10} %\end{align}
+where $A \in \mathbb{R}^{a\times b}$, $B \in \mathbb{R}^{b\times c}$ and $AB \in
+\mathbb{R}^{a\times c}$.  Assuming one FLOP in a low precision matrix
+operations takes $T_Q$ time and on a full precision matrix it takes $T_S$
+time,  for the model structure given by eq. (\ref{eq:7}), we have: $a=1, b=m,
+c=n$. Hence, for the forward pass on a single data vector $X \in \mathbb{R}^{1
+  \times m}$ a quantized model uses $F_Q$ flops where:
+\begin{equation}\label{eq:11}
+F_Q = (2m -1)n 
+\end{equation}
+Our algorithm restructures the DNN given in eq. (\ref{eq:7}) into eq. (\ref{eq:8})
+yielding $F_S = F_{S1} + F_{S2}$ flops. where:
+\begin{align}
+\label{eq:11}
+F_{S1} = (2m-1)k, \  F_{S2} = (2k-1)n  \notag \\
+F_S = 2(m+n)k-(n+k)
+\end{align}
+The number of FLOPs in one forward pass our method would be less than that of in
+Baseline1 if $F_Q < F_S$ or equivalently:
+\begin{align}
+\label{eq:13}
+(2m -1)n &> 2(m+n)k -(n+k) \notag \\
+%2mn &> 2(m + n)k - k \notag \\
+k &< \frac{2mn}{2(m+n) - 1}
+\end{align}
+Under the reasonable assumption that $2(m+n) \gg 1$ or equivalently $2(m+n) - 1 \approx 2(m+n)$,
+eq. (\ref{eq:13}) becomes:
+\begin{align}\label{eq:14}
+k &< \frac{mn}{(m+n)}
+\end{align}
+Eq. (\ref{eq:14}) will hold as long as $k$ in our method is chosen according to
+eq.(\ref{eq5}) (since the fraction $p$ is by definition $p<1$)
+However, guaranteeing less FLOPs does not guarantee faster inference since
+quantized model requires less time per FLOP. 
+%Assuming that $T_Q$ is the time per
+%FLOP for the quantized model and $T_S$ for 
+Our method guarantees
+faster inference if the following condition holds:
+\begin{align} \label{eq:15}
+F_Q T_Q &> F_S T_S \notag\\
+(2m -1)n T_Q &> [(2m -1)k + (2k -1)n] T_S \notag \\
+\frac{(2m -1)n}{[(2m -1)k + (2k -1)n]} &> \frac{T_S}{T_Q} 
+\end{align}
+where $T_S$ and $T_Q$ are time taken per FLOP for our method and Baseline1 respectivly.
+Again, we can make the reasonable assumptions that $2m \gg 1$ and $2k \gg 1 $,
+therefore $2m - 1 \approx 2m$ etc. Then eq. (\ref{eq:15}) becomes:
+\begin{align} \label{eq:16}
+\frac{mn}{(m + n) k} &> \frac{T_S}{T_Q}
+\end{align}
+Plugging $k$ from eq.(\ref{eq5}) we have: 
+\begin{align}\label{eq:17}
+p &< \frac{T_Q}{T_S} 
+\end{align}
+If we assume that the time per FLOP is proportional to the number of bits $B$
+for storing a weight variable, e.g., $T_Q \sim B_Q$ and $T_S \sim B_S$ then
+selecting $p$ such that $p < \frac{B_Q}{B_S} $ will ensure that
+eq. (\ref{eq:17}) holds. In most practical scenarios time saving is sublinear
+in space saving which means eq.(\ref{eq:9}) is necessary and sufficient to
+ensure our method has faster inference time than fixed point quantization(Baseline1).

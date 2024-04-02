@@ -1,0 +1,154 @@
+\section{Appendix}
+
+In this appendix we provide implementation details and additional results. 
+We optimize VAEs with Adam~\cite{kingma2014adam} with default parameters and learning rate $10^{-4}$. The $210 \times 160$ images are grayscaled and downsampled to $128 \times 128$. 
+VAE-IW(1) experiments were performed with 4GB of RAM on one core of a Xeon Gold 6126 CPU, and a Tesla V100 GPU.
+In \cref{tab:constant} we summarize the default hyperparameters of our main experiments, and in
+\crefrange{tab:residualblock}{tab:decoder15} we detail the architectures of the VAEs. We used Bernoulli decoders, i.e. the reconstruction loss is the binary cross-entropy. 
+Then, in \crefrange{tab:atari-model-comp}{tab:higher_time_budget_bprost} we report the results of our ablation studies on a subset of 47 games. While the main VAE-IW results (also reported in \cref{tab:atari-lookahead-0.5}) are averages of 10 runs, all other results in this appendix are averages of 5 runs. 
+In \cref{tab:atari-piiw-rainbow} we compare our main results from \cref{tab:atari-lookahead-0.5} with $\pi$-IW \cite{RLIW} and Rainbow \cite{rainbow}, which is a DQN-based deep reinforcement learning algorithm. These comparisons are useful to get a sense of how VAE-IW stands against existing approaches for Atari, but should be taken with a grain of salt as these methods (especially Rainbow) differ significantly from VAE-IW.
+Finally, Figures~\ref{fig:mean_expanded_nodes} and~\ref{fig:mean_depth_nodes} show additional statistics on the width-based search in terms of number of expanded nodes and their depth.
+
+\vspace{5pt}
+\begin{table}[ht]
+    \centering
+    \begin{tabular}{l l}
+        \toprule
+        \textbf{Parameter} & \textbf{Value} \\
+        \midrule
+        Batch size & 64\\
+        Learning rate & $10^{-4}$\\
+        Latent space size & $15 \times 15 \times 20 = 4500$ \\
+        $\tau$ & 0.5\\
+        $\beta$ & $10^{-4}$\\
+        $\mu$ & $0.5$\\
+        $\alpha$ & 50000\\
+        $\gamma$ & 0.99 \\
+        $\lambda$ & 0.9 \\
+        Frame skip & 15\\
+        Planning budget & 0.5s\\
+        \bottomrule
+    \end{tabular}
+    \caption{Default hyperparameters for VAE-IW experiments.}
+    \label{tab:constant}
+\end{table}
+\begin{table}[ht]
+    \centering % \small
+    \begin{tabular}{l}
+        \toprule
+        \textbf{Residual block}\\
+        \midrule
+        BatchNorm\\
+        LeakyReLU(0.01)\\
+        Conv $3 \times 3$, 64 channels, padding=1\\
+        Dropout(0.2)\\
+        BatchNorm\\
+        LeakyReLU(0.01)\\
+        Conv $3 \times 3$, 64 channels, padding=1\\
+        Dropout(0.2)\\
+        Add to block input \\
+        LeakyReLU(0.01)\\
+        \bottomrule
+    \end{tabular}
+    \caption{Architecture of a residual block.}
+    \label{tab:residualblock}
+\end{table}
+\begin{table}[ht]
+    \centering %\small
+    \begin{tabular}{l}
+        \toprule
+        \textbf{Encoder $4 \times 4$}\\
+        \midrule
+        Conv $3 \times 3$, 64 channels, stride=2\\
+        Residual block\\
+        Conv $3 \times 3$, 64 channels, stride=2\\
+        Residual block\\
+        Conv $3 \times 3$, 64 channels, stride=2\\
+        Residual block\\
+        Conv $3 \times 3$, 64 channels, stride=2\\
+        Residual block\\
+        Conv $3 \times 3$, $200$ channels, stride=2, padding=1\\
+        \bottomrule
+    \end{tabular}
+    \caption{Encoder with output of spatial size $4\times 4$.}
+    \label{tab:encoder4}
+\end{table}
+\begin{table}[ht]
+    \centering % \small
+    \begin{tabular}{l}
+        \toprule
+        \textbf{Decoder $4 \times 4$}\\
+        \midrule
+        ConvT $3 \times 3$, 64 channels, stride=2\\
+        Residual block\\
+        ConvT $3 \times 3$, 64 channels, stride=2\\
+        Residual block\\
+        ConvT $3 \times 3$, 64 channels, stride=2\\
+        Residual block\\
+        ConvT $3 \times 3$, 64 channels, stride=2\\
+        Residual block\\
+        ConvT $3 \times 3$, 1 channel, stride=2\\
+        Crop $128 \times 128$ \\
+        Sigmoid\\
+        \bottomrule
+    \end{tabular}
+    \caption{Decoder with input of spatial size $4\times 4$. ConvT denotes transposed convolutional layers.}
+    \label{tab:decoder4}
+\end{table}
+\begin{table}[ht]
+    \centering % \small
+    \begin{tabular}{l}
+        \toprule
+        \textbf{Encoder $15 \times 15$}\\
+        \midrule
+        Conv $4 \times 4$, 64 channels, stride=2\\
+        Residual block\\
+        Conv $4 \times 4$, 64 channels, stride=2\\
+        Residual block\\
+        Conv $3 \times 3$, $20$ channels, stride=2, padding=1\\
+        \bottomrule
+    \end{tabular}
+    \caption{Encoder with output of spatial size $15\times 15$.}
+    \label{tab:encoder15}
+\end{table}
+\begin{table}[ht]
+    \centering % \small
+    \begin{tabular}{l}
+        \toprule
+        \textbf{Decoder $15 \times 15$}\\
+        \midrule
+        ConvT $3 \times 3$, 64 channels, stride=2\\
+        Residual block\\
+        ConvT $4 \times 4$, 64 channels, stride=2\\
+        Residual block\\
+        ConvT $4 \times 4$, 1 channel, stride=2\\
+        Crop $128 \times 128$ \\
+        Sigmoid\\
+        \bottomrule
+    \end{tabular}
+    \caption{Decoder with input of spatial size $15\times 15$. ConvT denotes transposed convolutional layers.}
+    \label{tab:decoder15}
+\end{table}
+
+
+\input{tables/model_comp}
+\input{tables/continuous}
+\input{tables/beta}
+\input{tables/ra_and_no_ra}
+
+\input{tables/no_ra}
+\input{tables/increase_budget}
+\input{tables/pi-iw_rainbow}
+
+\begin{figure*}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{Pictures/means_nodes_for_32_and_0_5.png}
+    \caption{Mean number of expanded nodes during one planning phase for each domain (one run per domain). The comparison is between the 0.5 second RA VAE-IW and 32 second RA VAE-IW.}
+    \label{fig:mean_expanded_nodes}
+\end{figure*}
+\begin{figure*}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{Pictures/means_depth_for_32_and_0_5.png}
+    \caption{Mean of the maximum rollout length for each domain (one run per domain). The comparison is between the 0.5 second RA VAE-IW and 32 second RA VAE-IW.}
+    \label{fig:mean_depth_nodes}
+\end{figure*}

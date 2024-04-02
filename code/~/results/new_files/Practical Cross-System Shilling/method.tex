@@ -1,0 +1,229 @@
+
+
+\section{Our Framework \ours}
+\label{sec:method}
+\subsection{Motivation and Overview of \ours}
+
+
+Existing works on cross-domain and cross-system recommendations~\citep{ZhaoPXZLY13,ZhuWCLOW18} have verified that the knowledge learned from a source domain/system can help improve recommendation results in a target domain/system, i.e., the RS knowledge is \emph{transferable}.
+This has inspired us in designing \ours.
+We believe it is possible to have an attack model that captures RS knowledge from the source data and can be transferred to attack the victim RS.
+Fig.~\ref{fig:framework} provides an overview of \ours:
+
+\begin{enumerate}
+\item Firstly, we construct a bipartite user-item graph on the source data where each user-item edge indicates the existence of the corresponding user-item interaction.
+\item After that, \ours trains a graph structure encoder (GS-Encoder) to capture the structural patterns of the source data in a self-supervised manner.
+\item Then, \ours feeds a small portion of the public target data (e.g., a popular item and some people who bought it) into GS-Encoder and fine-tunes to get simulated representations after a successful attack.
+\item Finally, based on the simulated representations, \ours searches for possible co-visit items of the target item that affect the possibility of recommending the target item and fills them in fake user profiles. Fake user profiles are injected into the victim RS to start the attack.
+\end{enumerate}
+
+\ours does not assume that the entity-correspondences across different domains/systems exist (i.e., a user or an item exists in both source and target data) even if they indeed exist.
+This way, \ours does not require additional prior knowledge.
+Therefore, in step 2, \ours is designed to only capture the structural patterns of the source data without knowing real identities of each node.
+To endow \ours with the attack power, when constructing fake user profiles in step 4, we adopt the idea that items that can affect whether the target item is recommended are likely to have been interacted by some users together with the target item. 
+This idea is called as \emph{co-visitation attack} and has been verified in existing shilling attack methods~\citep{YangGC17}.
+Compared to existing methods, \ours requires \emph{much less} information.
+It only needs a subgraph of a popular item, numbers of users/items in the target data and users who  interacted with the target item before.
+
+
+\subsection{Learn from Graph Topology in the Source}
+
+Without the knowledge of explicit entity-correspondences between the source data and the target data, we can not directly leverage historical records in the source data to encode users and items into representations that can be later used in attacking the target data.
+Nevertheless, previous studies have shown that topologies of user-item bipartite graphs from different RS data share some common properties~\citep{HuangZ11}.
+We can construct a user-item bipartite graph from the source data and train a graph structure encoder (GS-Encoder) to capture graph topological properties that are shared among different RS domains/systems.
+
+
+Graph Neural Network (GNN) is the prevalent neural network used for modeling graph data. 
+We use GNN as the backbone of GS-Encoder to capture the intrinsic and transferable properties from interaction data in the bipartite graph.
+However, most feedback provided by users is implicit (e.g., clicks and views) rather than explicit (e.g., ratings).
+Hence, the observed interactions often contain noise that may not indicate real user preferences. 
+Neighborhood aggregation schemes in GNN may amplify the influence of interactions on representation learning, making learning more susceptible to interaction noise.
+
+To alleviate the negative effect of noise, we introduce \emph{contrastive learning}, a type of self-supervised learning (SSL)~\citep{LiuZGNWZT21}, into GS-Encoder.
+SSL constructs supervision signals from the correlation within the input data, avoiding requiring implicit labels.
+Through contrasting samples, GS-Encoder learns to move similar sample pairs to stay close to each other while dissimilar ones are far apart.
+We adopt the idea of \emph{multi-view learning}~\citep{abs-2103-00111} when designing the self-supervised contrastive learning task.
+We model the node neighborhood as both a subgraph and a sequence, which helps GS-Encoder better capture the topological properties. 
+
+
+\subsubsection{Multi-view Data Augmentation}
+To model node neighborhoods, we first sample paths by random walks and expand a single node $j$ in the user-item bipartite graph into its local structure as the \emph{subgraph view} $g_j$.
+We use the random walk with a restart process~\citep{TongFP06}: (1) a random walk starts from a node $j$ in the bipartite graph, and (2) it randomly transmits to a neighbor with a probability $\alpha$ or returns to $j$ with a probability $1- \alpha$ in each step.
+Note that we re-construct subgraph views in each training epoch.
+
+
+For each node, its 1-hop neighbors describe \emph{user-item interaction patterns}. 
+The 2-hop neighbors exhibit \emph{co-visitation patterns} (i.e., users who have interacted with the same item or items which have been interacted by the same user), which are important in shilling attacks~\citep{YangGC17}.
+We propose to construct the \emph{sequence view} to capture the above two types of patterns better.
+With the node $j$ as the center, we sort by the ID of its 1-hop nodes and its 2-hop nodes in turn to construct the sequence view $s_j$ of $j$.
+The difference between the sequence view and the subgraph view is that the sequence view directly separates two data patterns while the subgraph view mixes two patterns up. Using the sequence view emphasizes learning two patterns individually while using the subgraph view learns them as a whole.
+
+
+\subsubsection{Multi-View Contrastive Learning}  
+Contrastive learning aims to maximize the similarity between positive samples while minimizing the similarity between negative samples.  
+A suitable contrast task will facilitate capturing topological properties from the source data. 
+Unlike most contrastive learning methods that only focus on contrasting positive and negative samples in one view, we deploy a multi-view contrast mechanism when designing GS-Encoder so that GS-Encoder can benefit from more supervision signals.
+
+The subgraph view of each node is passed to a GNN encoder in GS-Encoder. 
+We adopt GIN~\citep{XuHLJ19} as the GNN encoder, though other GNNs can be adopted.
+The GNN encoder updates node representations as follows:
+\begin{equation}
+	\begin{aligned}
+		\mathbf{h}_v^{(b)} = \text{MLP}^{(b)}\big((1 + \epsilon^{(b)}) \cdot \mathbf{h}_v^{(b-1)} 
+			+ \Sigma_{u \in \mathcal{N}(v)}\mathbf{h}_u^{(b-1)}\big),
+	\end{aligned}
+\end{equation}
+where $\mathbf{h}_v^{(b)}$ is the representation of node $v$ at the $b$-th GNN layer,  $\mathcal{N}(v)$ is the set of 1-hop nodes to $v$ and $\text{MLP}(\cdot)$ indicates multi-layer perceptron. 
+We use eigenvectors of the normalized graph Laplacian of the subgraph to initialize $\mathbf{h}^{(0)}$ of each node in the subgraph~\citep{QiuCDZYDWT20}.
+For a node $j$, its representation $\mathbf{h}_j^g$, from the subgraph view, is the concatenation of the aggregation of its neighborhood's representations generated in all GNN layers: 
+\begin{equation}
+	\begin{aligned}
+		\mathbf{h}_j^g = \text{Concat}\big(\text{Readout}(\{\mathbf{h}_v^{(b)}|v \in \mathcal{V}_j \})\,|\,b=0,1,...,\hat{b}\big),
+	\end{aligned}
+\end{equation}
+where $\text{Concat}(\cdot)$ denotes the concatenate operation, the $\text{Readout}(\cdot)$ function aggregates representations of nodes in the subgraph of $j$ from each iteration, and $\hat{b}$ is the number of GIN layers.
+
+The sequence view of each node $j$ is passed to a LSTM and we use the last hidden state $\mathbf{h}^{s}_j$ as the representation from the sequence view.
+
+$\mathbf{h}^g$ and $\mathbf{h}^s$ are further fed to a fully connected feedforward neural network to map them to the same latent space:
+\begin{equation}
+	\label{eq:mapping}
+	\begin{aligned}
+		\hat{\mathbf{h}}_j^g = \textbf{W}_2 \cdot \sigma(\textbf{W}_1 \mathbf{h}_j^g + \textbf{b}_1) + \textbf{b}_2, \\
+		\hat{\mathbf{h}}_j^{s} = \textbf{W}_2 \cdot \sigma(\textbf{W}_1 \mathbf{h}_j^{s} + \textbf{b}_1) + \textbf{b}_2,
+	\end{aligned}
+\end{equation}
+where {$\textbf{W}_1, \textbf{W}_2, \textbf{b}_1, \textbf{b}_2$} are learnable weights, and $\sigma(\cdot)$ indicates the sigmoid function.
+
+In contrastive learning, we need to define positive and negative samples.  
+For each node $j$, we define its positive sample $\mathit{pos}_j$ and negative samples $\mathit{neg}_j$ as the subgraph obtained by random walks starting from $j$ and its corresponding sequence view, and the subgraphs obtained by random walks starting from other nodes and their corresponding sequence views, respectively.
+Note that, to improve efficiency and avoid processing too many negative subgraphs/sequences, we use subgraph/sequence views of other nodes in the same batch as negative samples. 
+
+
+The contrastive loss under the subgraph view is:
+\begin{equation}
+	\begin{aligned}
+		\mathcal{L}_j^{g} = -log 
+		\frac{exp\big(sim(\hat{\mathbf{h}}_j^g, \hat{\mathbf{h}}_{\mathit{pos}_j}^{s})/\tau\big)}
+		{\Sigma_{l \in \mathit{neg}_j}exp\big(sim(\hat{\mathbf{h}}_j^g, \hat{\mathbf{h}}_l^{s})/\tau\big)},
+	\end{aligned}
+\end{equation}
+where $\text{sim}(\cdot)$ denotes the cosine similarity and $\tau$ denotes a temperature parameter. 
+The contrastive loss under the sequence view is defined similarly:
+ \begin{equation}
+	\begin{aligned}
+		\mathcal{L}_j^{s} = -log 
+		\frac{exp\big(sim(\hat{\mathbf{h}}_j^{s}, \hat{\mathbf{h}}_{\mathit{pos}_j}^{g})/\tau\big)}
+		{\Sigma_{l \in \mathit{neg}_j}exp\big(sim(\hat{\mathbf{h}}_j^{s}, \hat{\mathbf{h}}_l^{g})/\tau\big)}.
+	\end{aligned}
+\end{equation}
+
+The overall multi-view contrastive objective of GS-Encoder is as follows:
+\begin{equation}
+	\begin{aligned}
+		\mathcal{L}_{ssl} = \frac{1}{n} \Sigma_{j \in \mathcal{I}}
+		(\lambda_g \cdot \mathcal{L}_j^{g} + \lambda_{s} \cdot \mathcal{L}_j^{s}),
+	\end{aligned}
+\end{equation}
+where $\lambda_g$ and $\lambda_{s}$ are hyper-parameters to balance two views, $\mathcal{I}$ is the item set, and $n$ is the number of items.
+
+\subsection{Craft Fake User Profiles in the Victim RS}
+
+After pre-training the GS-Encoder, the next step is to construct a few fake user profiles and inject them into the victim RS to pollute the target data.
+Our construction method of fake users is based on three design principles from the literature:
+\begin{itemize}
+\item \textbf{Principle 1:} Item-based RS is designed to recommend items similar to past items in the target user's profile~\citep{SarwarKKR01}.  
+
+\item \textbf{Principle 2:} User-based RS is designed to recommend items interacted by similar users of the target user~\citep{HerlockerKR00}.  
+
+\item \textbf{Principle 3:} According to the idea of co-visitation attack~\citep{YangGC17}, the co-visit items of the target item (i.e., the 2-hop neighbors of the target item in the bipartite graph) can affect whether the target item can be recommended.  
+\end{itemize}
+
+
+Based on the above principles, the goals of our construction method are:
+\begin{itemize}
+\item \textbf{Goal 1:} Based on Principle 1, our goal is to affect the victim RS so that the representation of target item is as similar as possible to representations of the rest of the items. This way, the possibility of recommending the target item can increase. We hope that our attack can achieve the following objective: for any item $i$, $sim(\mathbf{h}^{item}_i, \mathbf{h}^{item}_t)>sim(\mathbf{h}^{item}_i, \mathbf{h}^{item}_j)$, where $t$ is the target item, $j$ denotes any other item, and $sim(\cdot)$ denotes a measure of similarity between items (e.g., cosine similarity), and $\mathbf{h}^{item}_i$ is the representation of item $i$ in the victim RS.
+
+\item \textbf{Goal 2:} Based on Principle 2, our goal is to affect the victim RS so that representations of users who have interacted with the target item are as similar as possible to representations of other users. This way, the possibility of recommending the target item can increase. We hope that, for any user $u$, $sim(\mathbf{h}^{user}_u, \mathbf{h}^{user}_r)>sim(\mathbf{h}^{user}_u, \mathbf{h}^{user}_e)$, where $r \in \mathcal{N}(t)$ denotes the user who has interacted with the target item $t$, $e \notin \mathcal{N}(t)$ is any other user, and $\mathbf{h}^{user}_u$ is the representation of user $u$ in the victim RS.
+
+\item \textbf{Goal 3:} Based on Principle 3, our goal is to find possible co-visit items of the target item after a successful attack and fill them in the fake user profiles.
+\end{itemize}
+
+However, the above goals are challenging without knowing the details of the victim RS and the target data, i.e., we do not know $\mathbf{h}^{item}$ and $\mathbf{h}^{user}$ in the victim RS. 
+GS-Encoder, which captures the transferable knowledge from the more informative source data, can help us accomplish this task:
+\begin{itemize}
+\item \textbf{Step 1:} Use the pre-trained GS-Encoder to generate node representations based on topological information of the incomplete target data. 
+
+\item \textbf{Step 2:} Fine-tune and get \emph{simulated} representations \emph{after the successful attack} (Goal 1 and Goal 2). 
+
+\item \textbf{Step 3:}  Based on the simulated, after-attack representations, we search for possible co-visit items of the target items and craft the fake user profiles (Goal 3).
+\end{itemize}
+
+Considering that we cannot access the complete target data, we collect a very small portion of the target data that can be publicly accessed.
+One example is the popular item in the victim RS, some normal users who have bought them and the 2-hop items to the popular item. 
+Such information is typically available.
+For instance, Amazon provides ``Popular Items This Season'' and Newsegg provides ``Popular Products'' on their homepages, as shown in Fig.~\ref{fig:examples}, 
+and information of their buyers can be found by clicking the popular item.
+The buyer's homepage may provide information of some items that he/she bought before.
+Therefore, starting from one popular item, we collect users/items in its 2-hop subgraph via random walks without restart. 
+But we limit the total number of nodes to be lower than $p$ percentage of the target data to keep a low level of knowledge.
+In addition to the collected subgraph of a popular item, we collect a user set $\mathcal{M}(t)$ containing users who have interacted with the target item $t$.
+
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=1\columnwidth]{Example.pdf}
+\caption{Popular items of Amazon and Newegg.}
+\label{fig:examples}
+\end{figure}
+
+Based on the collected data from the target data, we construct a small subgraph centering on the popular item, and feed it into the pre-trained GS-Encoder to generate initial representations of users/items in the subgraph:
+\begin{equation}
+	\begin{aligned}
+		\mathbf{h}_j = \eta_g \cdot \hat{\mathbf{h}}_j^g + \eta_s \cdot \hat{\mathbf{h}}_j^{s},
+	\end{aligned}
+\end{equation}
+where $\eta_g$ and $\eta_s$ are hyper-parameters that balance the effects of the two views, $\mathbf{h}_j$ is the fused representation of node $j$, and $\hat{\mathbf{h}}_j^g$ and $\hat{\mathbf{h}}_j^s$ are subgraph-view representation and sequence-view representation of node $j$ generated by the pre-trained GS-Encoder as shown in Eq.~\ref{eq:mapping}, respectively.
+
+
+For most users and items in the target data that are not collected, we assume that we know the numbers of users ($m$) and items ($n$) in the victim RS, and initialize their representations from a normal distribution $\mathcal{N}(0,0.1)$.
+This is a reasonable assumption as many RS websites reveal exact numbers or the order of magnitude of users/items.
+Including users and items that are not in the collected small subgraph makes it possible to generate fake user profiles with items not in the collected subgraph.
+
+We continue to fine-tune over the above collected data with the following objective for Goal 1 to simulate representations after a successful attack:
+\begin{equation}
+	\begin{aligned}
+		\mathcal{L}^{item} = -log \Sigma_{i=1}^{n} 
+		\frac{sim(\mathbf{h}_i^{item}, \mathbf{h}_t^{item})}{\Sigma_{j\neq t} sim(\mathbf{h}_i^{item}, \mathbf{h}_j^{item})}. 
+	\end{aligned}
+\end{equation}
+
+Similarly, for Goal 2, we fine-tune with the following objective to simulate representations after a successful attack:
+\begin{equation}
+	\begin{aligned}
+		\mathcal{L}^{user} = -log \Sigma_{u=1}^{m} 
+		\frac{\Sigma_{g\in \mathcal{M}(t)} sim(\mathbf{h}^{user}_u, \mathbf{h}^{user}_g)}
+		{\Sigma_{j \notin \mathcal{M}(t)} sim(\mathbf{h}^{user}_u, \mathbf{h}^{user}_j)}. 
+	\end{aligned}
+\end{equation}
+
+The overall objective is as follows:
+\begin{equation}
+	\begin{aligned}
+		\mathcal{L}_{fine-tune}  =\mu_{item}\cdot \mathcal{L}^{item} + \mu_{user}\cdot \mathcal{L}^{user},
+	\end{aligned}
+\end{equation}
+where $\mu_{item}$ and $\mu_{user}$ are hyper-parameters that balance the effects of the two loss functions.
+
+
+After fine-tuning, we have new representations of users and items that simulate the representations in the victim RS after a successful attack. 
+Then, we search for possible co-visit items of the target item based on the simulated representations.
+Similar to other shilling attack methods~\citep{LinC0XLY20,abs-2206-11433}, the fake user profile in \ours contains three parts: selected items, filler items and the target item.
+We estimate the potential interest of all users in the target item $t$ after the attack by the inner product of representations, and sample $z$ users according to the probability:
+\begin{equation}
+Pro(u|t) = \frac{\mathbf{h}^{item}_t \cdot \mathbf{h}^{user}_u}{\Sigma_{j=1}^{m} \mathbf{h}^{item}_t \cdot \mathbf{h}^{user}_j}.
+\end{equation}
+Common items existing in these $z$ profiles are chosen as the selected items.
+Because popular items are always more accessible than others and appear in many normal users' profiles, we randomly sample $y$ popular items from the collected subgraph according to their degrees as filler items to enhance the invisibility of \ours.
+For each fake profile, the above crafting process is conducted independently.
+

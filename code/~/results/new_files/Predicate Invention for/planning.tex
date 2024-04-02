@@ -1,0 +1,23 @@
+To use the components of an abstraction --- predicates $\Psi$, operators $\operators$, and samplers $\samplers$ --- for efficient planning, we build on \emph{bilevel} planning techniques~\cite{srivastava2014combined,garrett2021integrated}. We conduct an outer search over \emph{abstract plans} using the predicates and operators, and an inner search over refinements of an abstract plan into a task solution $\pi$ using the predicates and samplers.
+
+\begin{defn}[Abstract plan]
+An \emph{abstract plan} $\hat{\pi}$ for a task $\langle \O, x_0, g \rangle$ is a sequence of ground operators $(\ground{\operator}_1, \ldots, \ground{\operator}_n)$ such that applying the abstract transition model $s_i = F(s_{i-1}, \ground{\operator}_i)$ successively starting from $s_0 = \textsc{Abstract}(x_0, \Psi)$ results in a sequence of abstract states $(s_0, \ldots, s_n)$ that achieves the goal, i.e., $g \subseteq s_n$. This $(s_0, \ldots, s_n)$ is called the \emph{expected abstract state sequence}.
+\end{defn}
+
+Because downward refinability does not hold in our setting, an abstract plan $\hat{\pi}$ is \emph{not} guaranteed to be refinable into a solution $\pi$ for the task, which necessitates bilevel planning. We now describe the planning algorithm in detail.
+
+The overall structure of the planner is outlined in \algref{alg:plan}. For the outer search that finds abstract plans $\hat{\pi}$, denoted \textsc{GenAbstractPlan} (\algrefshort{alg:plan}, Line 2), we leverage the STRIPS-style operators and predicates~\cite{fikes1971strips} to automatically derive a domain-independent heuristic popularized by the AI planning community, such as LMCut~\cite{helmert2009landmarks}. We use this heuristic to run an A$^*$ search over the abstract state space $\S_\Psi$ and abstract action space $\ground{\operators}$.
+This A$^*$ search is used as a generator (hence the name \textsc{GenAbstractPlan}) of abstract plans $\hat{\pi}$, outputting one at a time\footnote{This usage of A$^*$ search as a generator is related to top-$k$ planning~\cite{katz-etal-icaps18,ren2021extended}. We experimented with off-the-shelf top-$k$ planners, but chose A$^*$ because it was faster in our domains. Note that the abstract plan generator is used heavily in learning (\secref{sec:learning}).}.
+Parameter $n_{\text{abstract}}$ governs the maximum number of abstract plans that can be generated before the planner terminates with failure.
+
+\input{planning_pseudocode}
+
+For each abstract plan $\hat{\pi}$, we conduct an inner search that attempts to \textsc{Refine} (\algrefshort{alg:plan}, Line 3) it into a solution $\pi$ (a plan that achieves the goal under the transition model $f$). While various implementations of \textsc{Refine} are possible~\cite{chitnis2016guided}, we follow \citet{srivastava2014combined} and perform a backtracking search over the abstract actions $\ground{\operator}_i \in \hat{\pi}$. 
+Recall that each $\ground{\operator}_i$ induces a partially specified controller $C_i((o_1, \dots, o_v)_i, \Theta_i)$ and has an associated ground sampler $\ground{\sampler}_i$.
+To begin the search, we initialize an indexing variable $i$ to 1.
+On each step of search, we sample continuous parameters $\theta_i \sim \ground{\sampler}_i(x_{i-1})$, which fully specify an action $a_i = C_i((o_1, \dots, o_v)_i, \theta_i)$. We then check whether $x_i = f(x_{i-1}, a_i)$ obeys the expected abstract state sequence, i.e., whether $s_i = \textsc{Abstract}(x_i, \Psi)$. If so, we continue on to $i \gets i + 1$. Otherwise, we repeat this step, sampling a new $\theta_i \sim \ground{\sampler}_i(x_{i-1})$. Parameter $n_{\text{samples}}$ governs the maximum number of times we invoke the sampler for a single value of $i$ before backtracking to $i \gets i - 1$. \textsc{Refine} succeeds if the goal $g$ holds when $i = |\hat{\pi}|$, and fails when $i$ backtracks to 0.
+
+If \textsc{Refine} succeeds given a candidate $\hat{\pi}$, the planner terminates with success (\algrefshort{alg:plan}, Line 4) and returns the plan $\pi = (a_1, \ldots, a_{|\hat{\pi}|})$. Crucially, if \textsc{Refine} fails, we continue with \textsc{GenAbstractPlan} to generate the next candidate $\hat{\pi}$.
+In the taxonomy of task and motion planners (TAMP), this approach is in the ``search-then-sample'' category~\cite{srivastava2014combined,dantam2016incremental,garrett2021integrated}.
+As we have described it, this planner is \emph{not} probabilistically complete, because abstract plans are not revisited.
+Extensions to ensure completeness are straightforward~\cite{chitnis2016guided}, but are not our focus in this work.

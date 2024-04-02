@@ -1,0 +1,132 @@
+\section{Introduction}\label{intro}
+%% background %% 
+%In the past decade deep neural nets have achieved state of the art performance on a range of speech, vision and NLP tasks. 
+
+Deep learning has achieved great success in various NLP tasks such as sequence tagging~\cite{chung_rnn},~\cite{ma_hovy_2016} and sentence classification~\cite{liu_multi_timescale,conv_text_kim}.
+%% The NLP literature applies and combines common
+%% neural models including LSTMs~\cite{hochreiter_lstm}, CNNs~\cite{lecun98},
+%% DANs~\cite{iyyer2015deep} etc.
+While traditional machine learning approaches
+extract hand-designed and task-specific features, which are fed into a shallow
+model, neural models pass the input through several feedforward, recurrent or
+convolutional layers of feature extraction that are trained to learn
+automatic feature representations. However, deep neural models often have
+large memory-footprint and this poses significant deployment challenges for
+real-time systems that typically have memory and computing power constraints. For
+example, mobile devices tend to be limited by their CPU speed, memory and
+battery life, which poses significant size constraints for models embedded on
+such devices. Similarly, models deployed on servers need to serve millions of
+requests per day, therefore compressing them would result in memory and
+inference cost savings. 
+
+For NLP specific tasks, the word embedding matrix often
+accounts for most of the network size. The embedding matrix is typically
+initialized with pretrained word embeddings like Word2Vec, ~\cite{mikolov2013a}
+FastText~\cite{bojanowski2016enriching} or Glove ~\cite{pennington2014glove} and then fine-tuned on the
+downstream tasks, including tagging, classification and others. Typically, word
+embedding vectors are 300-dimensional and vocabulary sizes for practical
+applications could be up to 1 million tokens. This corresponds to up to 2Gbs of
+memory and could be prohibitively expensive depending on the application. For
+example, to represent a vocabulary of 100K words using 300 dimensional Glove
+embeddings the embedding matrix would have to hold 60M parameters. Even for a
+simple sentiment analysis model the embedding parameters are 98.8\% of the total
+network~\cite{shu2017compressing}.  \\
+In this work, we address neural model compression in the context of text
+classification by applying low rank matrix factorization on the word embedding layer and then re-training the model in an online fashion. There has been relatively less work in compressing word embedding matrices of deepNLP models. Most of the prior work compress the embedding matrix offline outside the training loop either through hashing or quantization based approaches \cite{joulin2016fasttext,shu2017compressing,raunak2017effective}.
+%Those include works by~\citeauthor{shu2017compressing}, who do hashing on the embeddings and more recently~\citeauthor{joulin2016fasttext}, who used product quantization for compression.
+%This is different from
+%other related works on word embedding size reduction like ~\cite{raunak2017effective,joulin2016fasttext}, which compress the embedding matrix offline outside the training loop. 
+Our approach includes starting from a model initialized with large embedding space, performing a low rank projection of the embedding layer using Singular Value Decomposition (SVD) and continuing training to regain any lost accuracy. This enables us to compress a deep NLP model by an arbitrary compression fraction ($p$), which can be
+pre-decided based on the downstream application constraints and accuracy-memory
+trade-offs. Standard quantization techniques do not offer this flexibility, as
+they typically allow compression fractions of $1/2$ or $1/4$ (corresponding to
+16-bit or 8-bit quantization from 32-bits typically). \\
+We evaluate our method on text classification tasks, both on the benchmark SST2 dataset and on a proprietary dataset from a commercial artificial agent. We show that our method significantly reduces the model size (up to 90\%) with minimal accuracy impact (less than 2\% relative), and outperforms popular compression techniques including quantization~\cite{hubara2016quantized} and offline word embedding size reduction~\cite{raunak2017effective}.\\
+A second contribution of this paper is the introduction of a novel learning rate schedule,we call Cyclically Annealed Learning Rate (CALR), which extends previous works on cyclic learning rate~\cite{smith2017cyclical} and random hyperparameter search~\cite{bergstra2012random}. Our experiments on SST2 demonstrate that for both DAN~\cite{iyyer2015deep} and LSTM~\cite{hochreiter_lstm} models CALR outperforms the current state-of-the-art results that are typically trained using popular adaptive learning like AdaGrad. \\
+% schedule ourperforms popular adaptive learning rate algorithms like Adagrad on the SST2 benchmark dataset.
+Overall, our contributions are: %\vspace{-3.7 pt}
+\begin{itemize}[noitemsep, topsep=0pt ]
+%\item We propose a method to compress deep NLP models that can reduce the memory footprint through spectrally projecting embedding space into a low dimensional space during training.
+\item We propose a compression method for deep NLP models that reduces the memory
+footprint through low rank matrix factorization of the embedding layer and regains accuracy through further finetuning.
+\item We empirically show that our method outperforms popular baselines like fixed-point quantization and offline embedding compression for sentence classification.
+\item We provide an analysis of inference time for our method, showing that we can compress models by an arbitrary configurable ratio, without introducing additional latency compared to quantization methods.
+\item We introduce CALR, a novel learning rate scheduling algorithm for gradient descent based optimization and show that it outperforms other popular adaptive learning rate algorithms on sentence classification.
+\end{itemize}
+
+
+
+%% In practice, being able to decide an arbitrary compression fraction $p$ is an
+%% attractive property of our algorithm, since it allows us to choose compression
+%% rates based on the accuracy-memory trade-offs of a downstream
+%% application.
+
+%% Our proposal is to cyclically
+%% change the learning rate with exponentially decaying window and as the training
+%% process slows down change the temperature that helps the optimizer to jump out
+%% of non-optimal local minima or saddle points and try and look for better local
+%% minima around the current solution. This has similar effects as random
+%% hyperparameter search~\cite{bergstra2012random} but is intuitively less
+%% aggressive.
+
+
+
+
+%Our proposed method spectrally projects the embedding matrix into a lower dimensional parameter space and continues training to regain lost accuracy. With emperical results and theoretical analysis we show that our model outperforms popular compression techniques including quantization \cite{hubara2016quantized} and offline word embedding size reduction \cite{raunak2017effective}.
+
+
+%Recent literature suggests that often DNN based models are over-complete, which makes the model robust by transforming local minima to saddle points ~\cite{dauphin2014identifying}. This indicates that significant model compression is often possible without severe accuracy regression. Related work has explored compression either by compressing an already trained model or by developing compression aware training techniques.
+%However these models tend to be large which makes their runtime deployment problematic for practical production systems. For example, mobile devices tend to be limited by their CPU speed, memory and battery life, which poses significant size constraints on models embedded on such devices. Also, models deployed on servers need to serve millions of requests per day, therefore compressing them would lead to saving in memory and inference costs. %For vision tasks, the convolutional layers account for most of the size of the network and most of the inference time. 
+
+%% Related Work  %% 
+%Recent literature suggests that often DNN based models are over-complete, which makes the model robust by transforming local minima to saddle points ~\cite{dauphin2014identifying}.
+
+%by projecting the embedding matrix into a lower dimensional parameter space and continues training to regain lost accuracy. 
+%\item We propose a neural compression method that can reduce the memory footprint by an arbitrary proportion through 
+%low rank projection of embedding layer during training in an online fashion
+%\item We propose a neural compression method based on low rank matrix factorization that can reduce the memory footprint by an arbitrary proportion
+
+%\item Through emperical results and theoretical analysis we establish that online embedding compression is likely to work much better in practice and undergoes much less information loss than offline embedding compression. 
+%achieves up to 90\% compression with less than 1\% relative accuracy loss on various text classification tasks, outperforming comparable  compression baselines like fixed-point-quantization and offline embedding compression.
+
+
+%Though LMF has been widely used for dimesnonality reduction on traditional machine learning models, there has been very limited work on applying LMF to DNNs. ~\cite{sainath2013low} used low rank matrix factorization for neural speech models. They proposed that since any matrix can be represented as a produt of two low rank matrices splitting weight layers into low rank layers is mathematically equivalent to the initial model but significantly reduces the dimension of model parameter space leading to space saving. They trained both networks in parallel and achieved similar accuracy on speech models. \cite{lu2016learning} used SVD to extend this work and restructure the network and showed similar promising results for speaker adoptation model. 
+
+%Extending this intuition, we use low rank matrix factorization techniques for compressing large weight matrices in deep models, focusing on the word embedding matrix which is the size bottleneck for many NLP tasks. Our method enables compressing a trained model by an arbitrary amount, that can be pre-decided based on the downstream application constraints and accuracy-memory trade-offs. After compression, the model is retrained in order to recover the accuracy prior to compression. We evaluate our method on sentence classification tasks both on benchmark datasets and on proprietary data from a commercial artificial agent. 
+
+%We show that we can compress up to 90\% of model size with minimal accuracy loss (around 1\% rel. degradation vs uncompressed model) when using two common neural architectures, namely LSTM and DAN. 
+
+
+
+%This enables compressing a model by an arbitrary amount, that can be pre-decided based on the downstream application constraints and accuracy-memory trade-offs. After compression, the model is retrained in order to recover the accuracy prior to compression. We evaluate our method on sentence classification tasks both on benchmark datasets and on proprietary data from a commercial artificial agent. We show that we can compress 90\% of model size with minimal accuracy loss (around 1\% rel. degradation vs uncompressed model) when using two common neural architectures, namely LSTM and DAN. Our method also outperforms popular compression techniques including quantization~\cite{hubara2016quantized} and offline word embedding size reduction~\cite{raunak2017effective}.
+
+%Though LMF has been widely used for dimesnonality reduction on traditional machine learning models, there has been very limited work on applying LMF to DNNs. ~\cite{sainath2013low} used low rank matrix factorization for neural speech models. They proposed that since any matrix can be represented as a produt of two low rank matrices splitting weight layers into low rank layers is mathematically equivalent to the initial model but significantly reduces the dimension of model parameter space leading to space saving. They trained both networks in parallel and achieved similar accuracy on speech models. \cite{lu2016learning} used SVD to extend this work and restructure the network and showed similar promising results for speaker adoptation model. 
+
+
+%There has been relatively less work in compressing word embeddings specifically for NLP. ~\cite{shu2017compressing} do hashing on the embeddings.
+%%%%%%%%%% 
+%Our method enables compressing a trained model by an arbitrary amount, that can be pre-decided based on the downstream application constraints and accuracy-memory trade-offs. After compression, the model is retrained in order to recover the accuracy.
+
+%Low-rank matrix factorization (LMF)\cite{mnih2008probabilistic,sainath2013low,lu2016learning}) has also been widely used in traditional machine learning models as a method for dimensionality reduction. ~\cite{sainath2013low} used low rank matrix factorization for neural speech models. ~\cite{denton2014exploiting}  and more recently ~\cite{kossaifi2017tensor} used similar ideas on contracting tensor layers in CNN.
+%Our work builds upon these spectral projection based compression works on and proposes similar matrix compression techniques for NLP tasks, focusing on compressing the input word embedding matrices and re-training them for downstream tasks. 
+
+%In this work, we propose low rank matrix factorization techniques for compressing large weight matrices in deep models, focusing on the word embedding matrix which is the size bottleneck for many NLP tasks. Our method enables compressing a trained model by an arbitrary amount, that can be pre-decided based on the downstream application constraints and accuracy-memory trade-offs. After compression, the model is retrained in order to recover the accuracy prior to compression. We evaluate our method on sentence classification tasks both on benchmark datasets and on proprietary data from a commercial artificial agent. We show that we can compress up to 90\% of model size with minimal accuracy loss (around 1\% rel. degradation vs uncompressed model) when using two common neural architectures, namely LSTM and DAN. Our method also outperforms popular compression techniques including quantization~\cite{hubara2016quantized} and offline word embedding size reduction~\cite{raunak2017effective}. Overall, our contributions are:
+%\begin{itemize}
+%\item We propose a neural compression method based on low rank matrix factorization that can reduce the memory footprint by an arbitrary proportion
+%\item We empirically show that our method achieves compression up to 90\% with minimal accuracy impact on various text classification tasks, outperforming common compression baselines.
+%\item We empirically and theoretically show that our compression technique achieves faster inference times compared to standard model quantization.
+%\end{itemize}
+%In an overcomplete basis, the number of basis vectors is greater than the dimensionality of the input, and the representation of an input is not a unique combination of basis vectors. Overcomplete representations have been advocated because they have greater robustness in the presence of noise, can be sparser, and can have greater flexibility in matching structure in the data.
+%Neural networks are typically overparamterized \cite{denil2013predicting}. While the debate is still going on whether large models are necessary for good accuracy , there is an extremely active area of work on compressing neural architectures \cite{chen2015compressing,kim2015compression}. A standing hypothesis for why overcomplete representations are necessary is that they make learning possible by transforming local minima into saddle points (Dauphin et al., 2014) or to discover robust solutions, which do not rely on precise weight values %(Hochreiter & Schmidhuber, 1997; Keskar et al., 2016) Related literature has tried to address such size problems for deep learning models using techniques like quantization~\cite{hubara2016quantized}, hashing~\cite{chen2015compressing}, or re-training the word embeddings from scratch to directly be in smaller dimension. 
+
+
+%In this work, we propose low rank matrix factorization techniques for compressing large weight matrices in deep models, focusing on the word embedding matrix which is the size bottleneck for many NLP tasks. Our method enables compressing a trained model by an arbitrary amount, that can be pre-decided based on the downstream application constraints and accuracy-memory trade-offs. After compression, the model is retrained in order to recover the accuracy prior to compression. We evaluate our method on sentence classification tasks both on benchmark datasets and on proprietary data from a commercial artificial agent. We show that we can compress up to 90\% of model size with minimal accuracy loss (around 1\% rel. degradation vs uncompressed model) when using two common neural architectures, namely LSTM and DAN. Our method also outperforms popular compression techniques including quantization~\cite{hubara2016quantized} and offline word embedding size reduction~\cite{raunak2017effective}. Overall, our contributions are:
+%\begin{itemize}
+%\item We propose a neural compression method based on low rank matrix factorization that can reduce the memory footprint by an arbitrary proportion
+%\item We empirically show that our method achieves compression up to 90\% with minimal accuracy impact on various text classification tasks, outperforming common compression baselines.
+%\item We empirically and theoretically show that our compression technique achieves faster inference times compared to standard model quantization.
+%\end{itemize}
+
+%Through experiments we show that spectral compression can act as regularization often outperforming the original trained model while compressing it
+
+

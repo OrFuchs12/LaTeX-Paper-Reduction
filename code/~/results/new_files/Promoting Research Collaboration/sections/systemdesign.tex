@@ -1,0 +1,200 @@
+\section{System Design}
+In this section, we describe the general architecture of our system and its most important components.
+
+\subsection{Metrics} \label{subsec:metrics}
+A challenge in team recommendation scenarios is how to adapt to a group as a whole, given individual preferences of each member within a group~\cite{boratto2010groups}. Literature on team collaboration emphasizes that teams be organized to ensure diversity of team members~\cite{he2022expertise} %~\cite{pociask2017does}. 
+Additionally, when it comes to the relationship between collaboration and scientific impact, team size also matters. %~\cite{lariviere2015team}. 
+While equally dependent on the number of requirements and time constraints set forth by an RFP, evidence also suggests that shorter teams also yield quick outputs, %~\cite{petersen2009comparison}, 
+as they allow for higher accountability, autonomy, and flexibility amongst team members~\cite{trope2023small}. 
+
+In traditional literature on recommendation, there are  metrics to measure the position of a (single correct) result (e.g., mean reciprocal rank (MRR) and top-\textit{k} for ranking). However, our focus is on metrics that reflect the goodness of \textit{multiple} good results (i.e., team recommendations). Still, positional metrics are important since they  reflect users’ acceptance of the results. We have implicitly incorporated them by displaying teaming results in descending order of the team goodness score. Therefore, by incorporating both considerations (team quality and user acceptance), for each candidate team $t_i$, we measure its effectiveness towards $c_i$ using a goodness score $g_i$. The score denotes the chances of success for a team to fulfill the requirements of $c_i$, and is computed by taking the weighted mean of four configurable metrics: \textit{redundancy, set size, coverage,} and \textit{k-robustness.} We now explain the metrics used, along with how goodness is calculated for a team.
+% We first explain the terminology: (1)~demand, the set of skills $S_i$ desired by an RFP $c_i$, and (2)~supply, resources that an institution has at their disposal (i.e., group of researchers, along with their respective research interests and profiles) to satisfy the demand.  
+% We now explain the metrics used, along with how goodness is calculated for a team.
+
+\subsubsection{Redundancy.} This is defined as the percentage of demanded skills that are commonly shared amongst multiple researchers. A trade-off that arises with skill redundancy is team robustness versus diversity. While an increased redundancy ensures expert competence within a group of skills, it also risks limiting the amount of skill diversity that a team has.
+
+\subsubsection{Set Size.} This metric is defined as the size of the candidate team. A trade-off present here is skill coverage and robustness versus funding amount split per researcher. A smaller team size runs the risk of not being able to accomplish the necessary goals of the proposal call (e.g., due to unavailability of any team members, longer efforts needed to complete a task), whereas a larger one mitigates that risk but lowers the amount of funding that each researcher receives. In addition, large teams lead to other disadvantages such as unequal participation amongst members, longer time needed to make decisions (e.g., due to intrinsic conflicts or lack of timely communication), whereas a smaller team fosters for accountability, individuality, and flexibility in ideas and schedules~\cite{mcleod1996ethnic}.
+
+\subsubsection{Coverage.} This metric represents the percentage of proposal-required skills that are satisfied by the candidate team as a whole. A candidate member's skills are defined from those listed within their personal webpages and extracted from other research profiles such as Google Scholar. We devise this metric by borrowing the idea that diverse expertise often invites individuals with different perspectives but also may lack common shared experience~\cite{he2022expertise}. A mix of team members with diverse knowledge, skill sets, and abilities have also been thought to bring forth their unique skills to the team and provide it with the broadest possible skill set. %~\cite{pociask2017does}. 
+
+\subsubsection{\textit{k}-Robustness.} We borrow this metric from~\cite{okimoto2015form}, where each team needs to be able to equally satisfy the teaming constraints even after the removal or unavailability of \textit{k} researchers. Such a team is defined as \textit{k}-robust. 
+
+\subsubsection{Goodness Score.} We first normalize the aforementioned metrics to make their values query-independent. Next, we assign each of the metrics a predefined weight by default. Given our use cases, the weights are defined by the intuition to yield the maximum profit (i.e., project completion) and credibility (i.e., project quality) a team can achieve. A high coverage and robustness are therefore more desired for overall project success, whereas high redundancy and set size are less prioritized. As a result, for each candidate team $t_i$, we penalize the latter two metrics and reward the former. The penalized metrics are set to a negative weight of $-1$, whereas the desired ones are set to a positive weight of $+1$. Finally, the goodness score for a team is calculated using the weighted mean from all four metrics. The diversity of metrics increases the potential to provide strength and resilience to the overall model. For additional reference, we make our metrics tool publicly available on GitHub~\footnote{Metrics tool: https://github.com/ai4society/Ultra-Metric}.
+
+\subsection{Methods}
+\subsubsection{M0: Random Team Formation.}
+\begin{algorithm} 
+	\caption{{\it M0:} Random Team Formation} 
+ {\small
+ \begin{flushleft}
+        \hspace*{\algorithmicindent} \textbf{Input:} Calls $C=\{c_1, \ldots, c_M\}$, Researchers $R=\{r_1, \ldots, r_N\}$\\
+        \hspace*{\algorithmicindent} \textbf{Output:} Teams $T=\{t_1, \ldots, t_\beta\}$, good. scores
+        $G=\{g_1, \ldots, g_\beta\}$
+ \end{flushleft}
+ \label{algo:m0}
+	\begin{algorithmic}[1]
+		\For {$c_i \in C$}
+            \State $T$ = \{\}, $G$ = \{\}     
+                \For {$j=1,2,\ldots,\beta$}
+            	\State Let $t_j$ be a \textit{k} random sampling of $N$ researchers.
+            \State $T$ = $T \bigcup \{t_j\}$ 
+			%\State Let $T_j$ be a \textit{k} random sampling of $N$ researchers.    
+            \State Compute goodness score $g_j$ for team $t_j$. 
+            \State $G$ = $G \bigcup \{g_j\}$ 
+		      \EndFor
+		\EndFor
+	\end{algorithmic} 
+ }
+\end{algorithm}
+
+We consider random team selection as our baseline, where candidate teams are formed in a randomized manner, without any adherence to the skills in demand, and matched to an arbitrary proposal, regardless of relevance. Given any $c_i$, we select a random number of individuals from a pool of $N$ available researchers to form teams $T$. Using our goodness function, we next evaluate each team $t_j$ by extracting the skills $S_i$ required by the proposal $c_i$ and checking how many are solvable by the team at hand. Algorithm~\ref{algo:m0} provides pseudocode for {\it M0}.
+
+\subsubsection{M1: Team Formation Using String Matching.}
+Given a call for proposal $c_i$, we extract the technical skills required from it using its title and synopsis as inputs. We remove stop words and delimiters and use keyword extraction to gather only the relevant skills needed in $S_i$. Similarly, we gather the research interests each available researcher $r_j$ has listed on their personal webpage and demonstrated with their Google Scholar history. We denote this as $\sigma(r_j)$. We then check if there are any common interests between $\sigma(r_j)$ and $S_i$. 
+
+\begin{algorithm} 
+	\caption{{\it M1:} Team Formation Using String Matching} 
+ {\small
+ \begin{flushleft}
+        \hspace*{\algorithmicindent} 
+        \textbf{Input:} Calls $C=\{c_1, \ldots, c_M\}$, Researchers $R=\{r_1, \ldots, r_N\}$, string matching threshold $th_{M1}$\\
+        %\textbf{Input:} Available calls for proposals, $C=\{c_1, c_2, \ldots, c_M\}$, available researchers, $R=\{r_1, r_2, \ldots, r_N\}$, and string matching threshold $th_{M1}$. \\
+        \hspace*{\algorithmicindent} 
+        \textbf{Output:} Teams $T=\{t_1, \ldots, t_\beta\}$, good. scores
+        $G=\{g_1, \ldots, g_\beta\}$
+        %\textbf{Output:} List of teams $T=\{t_1, t_2, \ldots, t_\beta\}$, each evaluated with a goodness score \textit{$G_i$.}
+ \end{flushleft}
+ \label{algo:m1}
+	\begin{algorithmic}[1]
+		\For {$c_i \in C$}
+              \State $T$ = \{\}, $G$ = \{\}  
+                \State Extract technical skills $S_i=\{s_1, s_2, \ldots, s_\alpha\}$ for each $c_i$.
+                \State Initialize $candidate\_researchers=[]$.
+                \For {$s \in S$}
+                    \For {$j=1,2,\ldots,N$}
+                        \If {$s$ is in $\sigma(r_j)$ by satisfying $th_{M1}$}
+                      \State Add $r_j$ to $candidate\_researchers~[]$. 
+                      \EndIf
+                    \EndFor
+                \EndFor
+            \State Using $candidate\_researchers~[]$, form each team $t_k$, prioritizing members with highest string matches.
+            \State $T$ = $T \bigcup  \{t_k\}$ 
+            \State Compute goodness score $g_k$ for each team $t_k$. 
+            \State $G$ = $G \bigcup  \{g_k\}$ 
+
+		      \EndFor
+	\end{algorithmic} 
+ }
+\end{algorithm}
+\begin{algorithm} 
+	\caption{{\it M2:} Team Formation Using Taxonomical Matching} 
+ {\small
+ 
+ \begin{flushleft}
+        \hspace*{\algorithmicindent} 
+        \textbf{Input:} Calls $C=\{c_1, \ldots, c_M\}$, Researchers $R=\{r_1, \ldots, r_N\}$, string matching threshold $th_{M2}$\\
+        %\textbf{Input:} Available calls for proposals, $C=\{c_1, c_2, \ldots, c_M\}$, candidate researchers, $R=\{r_1, r_2, \ldots, r_N\}$, and string matching threshold $th_{M2}$. \\
+        \hspace*{\algorithmicindent} 
+        \textbf{Output:} Teams $T=\{t_1, \ldots, t_\beta\}$, good. scores
+        $G=\{g_1, \ldots, g_\beta\}$ 
+        %\textbf{Output:} List of teams $T=\{t_1, t_2, \ldots, t_\beta\}$, each evaluated with a goodness score \textit{$G_i$.}
+ \end{flushleft}
+ \label{algo:m2}
+	\begin{algorithmic}[1]
+		\For {$c_i \in C$}
+                \State $T$ = \{\}, $G$ = \{\}     
+                \State Extract technical skills $S_i=\{s_1, s_2, \ldots, s_\alpha\}$ for each $c_i$.
+                \State Calculate \textit{n-grams} from $c_i$, and add to $S_i$.
+                \State {Using $th_{M2}$, map each $s \in S_i$ with relevant classification codes from ACM-CCS, i.e., $\delta(S_i)$.}
+                \State Initialize $candidate\_researchers=[]$.
+                \For {$j=1,2,\ldots,N$}
+                    \State {Using the same $th_{M2}$, calculate $\delta(\sigma(r_j)$.}
+                    \If {$\delta(S_i) \bigcap \delta(\sigma(r_j) != \emptyset$}
+                        \State Add $r_j$ to $candidate\_researchers~[]$.
+                    \EndIf
+                \EndFor
+            %\State Using $candidate\_researchers~[]$, form teams $T$, prioritizing members with highest taxonomical matches.
+            %\State Compute goodness score $G_i$ for each team $T_i$. 
+
+            \State Using $candidate\_researchers~[]$ and for each $r_j$, form each team $t_k$, prioritizing members with highest taxonomical matches.
+            \State $T$ = $T \bigcup  \{t_k\}$ 
+            \State Compute goodness scores $g_k$ for each team $t_k$. 
+            \State $G$ = $G \bigcup  \{g_k\}$ 
+        \EndFor
+    \end{algorithmic} 
+    }
+\end{algorithm}
+Given a pattern string of length \textit{x} and a target string of length \textit{y}, we determine if there is any overlap between those two using a string-match threshold $th_{M1}$. Algorithm~\ref{algo:m1} provides pseudocode for {\it M1}.
+%\vspace{-0.1in}
+
+
+\subsubsection{M2: Team Formation Using Taxonomical Matching.}
+We further improve the accuracy and precision of the previous methods, {\it M0} and {\it M1}, by considering query-based \textit{semantic matching}, combined with the use of a \textit{taxonomy}. We use a poly-hierarchical, subject-based ontology, provided by the \textit{ACM Computing Classification System (CCS)}~\cite{acm2012acm}. There are over two thousand topics listed that broadly reflect the research areas pursued in the computing discipline. These are further organized into categories and concepts, with up to four branches of structure. We use this ontology to determine if two research skills may be matched semantically rather than only string-wise. For instance, if two researchers, $r_a$ and $r_b$, each had the respective skills, \textit{``natural language processing"} and \textit{``knowledge representation"}, the method {\it M1} will return an extremely low string-match score and deny any association between the terms. However, using ACM-CCS, {\it M2} will categorize these two interests under \textit{``artificial intelligence"} and consider the possibility that $r_a$ and $r_b$ may belong within the same team for a call $c_i$. 
+
+Given a call for proposal $c_i$, we extract the relevant skills needed, $S_i$. For each skill in $S_i$, we then use \textit{n-grams} to compare each sequence of words with the concepts in ACM-CCS using a string match threshold $th_{M2}$. We denote this step with $\delta(S_i)$. Each concept is mapped to a specific code, and we use those codes to search for candidate researchers. For each available researcher $r_j$, we first extract their research interests $\sigma(r_j)$. For each interest, we similarly calculate $\delta(\sigma(r_j))$ to get the relevant codes from ACM-CCS. Finally, we form teams and calculate goodness based on a match between the codes. Algorithm~\ref{algo:m2} provides pseudocode for {\it M2}.
+
+\subsubsection{M3: Team Formation Using Boosted Bandit.}
+%\biplav{Siwen or Sriraam - to add.}
+According to requirements of proposals and expertise of researchers, the previous three methods apply manually-crafted rules to matching researchers to teams. However, {\it M3} extracts rules automatically from data. With more facts and data provided, this method is able to learn more complex rules automatically. We consider the strategy taken by \cite{kakadiya2021relational}, and formulate the problem as team recommendation using contextual bandits. The key idea is that given the skills required by proposals and the research interests/expertise (denoted as $\mathbf{x}$), 
+\begin{algorithm} 
+\caption{{\it M3:} Team Formation Using Boosted Bandit} 
+{\small
+ \begin{flushleft}
+        \hspace*{\algorithmicindent} 
+        \textbf{Input:} Calls $C=\{c_1, \ldots, c_M\}$, Researchers $R=\{r_1, \ldots, r_N\}$\\
+        \hspace*{\algorithmicindent} 
+        \textbf{Output:} Teams $T=\{t_1, \ldots, t_\beta\}$, good. scores
+        $G=\{g_1, \ldots, g_\beta\}$
+ \end{flushleft}
+ \label{algo:m3}
+	\begin{algorithmic}[1]
+        \Function{BoostedTrees}{$predicates$}
+            \For {$p \in predicates$}
+            \State Let $I$ be a pre-set number of iterations.
+                \For {$i=1,2,\ldots,I$}
+                \State Generate examples for the
+regression-tree learner: \Call{GenerateEx}{$p, predicates, F^p_{i-1}$}
+                \State Get new regression tree, which approximates functional gradient $\triangle_i(p)$, and update current model $F^p_i$.
+                \EndFor
+            \State Get final potential: $\psi_I=\psi_0+\triangle_1(p)+\ldots+\triangle_I(p)$
+            \EndFor
+        \State \Return
+        
+        \EndFunction
+            \Function{GenerateEx}{$p, predicates, F$}
+                \State Initialize examples $E=\emptyset$.
+                \For {$j=1,2,\ldots,X_p$} 
+                    \State Calculate probability of predicate $p$ being true.
+                    \State Compute gradient and update regression examples.
+                    \State Compute regression values based on the groundings of current example.
+                \EndFor
+            \State \Return regression examples $E$.
+            \EndFunction
+		\For {$c_i \in C$}
+                \State $T$ = \{\}, $G$ = \{\}     
+                \State Extract technical skills $S_i=\{s_1, s_2, \ldots, s_\alpha\}$ for each $c_i$.
+                \State Initialize $candidate\_researchers=[]$.
+                \State Initialize $predicates[]$.
+                \State Show associations between ($c_i$, $S_i$), and ($r_j$, $\sigma(r_j)$) as $predicates[]$.
+            \State Get candidate researchers from \Call{BoostedTrees}{$predicates$} and add to $candidate\_researchers~[]$. Form each team $t_k$, prioritizing members with highest probability matches.
+            \State $T$ = $T \bigcup  \{t_k\}$ 
+            \State Compute goodness score $g_k$ for each team $t_k$. 
+            \State $G$ = $G \bigcup  \{g_k\}$ 
+        \EndFor
+    \end{algorithmic} 
+    }
+\end{algorithm}  the goal is to learn $P(y\mid\mathbf{x})$ where $y$ is whether a researcher is a potential candidate for the proposal. This is to say that $y$ is a two-argument predicate $candidate(r_j,c_i)$, which states that the researcher $r_j$ is a candidate for the proposal $c_i$. The key idea in boosted bandit is to represent this as a sigmoid, $P(y\mid\mathbf{x}) = \frac{e^{ \psi(y\mid\mathbf{x})}}{\sum_{y' }e^{ \psi(y'\mid\mathbf{x})}}$ and boost this using the machinery of gradient-boosting~\cite{friedman2000additive,dietterich2004training}. Since our data is naturally relational, we adapt the relational boosted bandits for this case~\cite{kakadiya2021relational}.
+
+%The training data is prepared by creating targets as whether a researcher is a potential candidate for a proposal (positive example) or not (negative example). The features (called facts in inductive logic programming terminology) that can be used to compose rules, include skills required by proposals and research interests/expertise possessed by researchers. This setting can subsume the method {\it M2} by incorporating the hierarchies of research topics/skills into facts. The information of the history of teams formed for proposals can also be leveraged, by transferring them into the positive and negative examples. Corresponding rules will be learned by the algorithm in a data-driven manner. 
+We have $m$ regression trees for each predicate $p$, where $m$ is the number of time steps or iterations. Each iteration approximates the corresponding gradient for $p$, and each of the trees serve as individual components for the final potential function~$\psi$. The algorithm \Call{BoostedTrees}{$predicates$} then loops across all predicates and learns the potentials for each. The set of regression trees for each predicate then forms the structure of the conditional probability distribution and the set of leaves of each tree form the parameters of the conditional distribution. 
+
+Algorithm~\ref{algo:m3} provides the pseudocode for {\it M3}. We first represent all data in the form of predicates. There are three types of relationships: (1)~every call for proposal $c_i$ mapped to a skill set $S_i$, (2)~every researcher $r_j$ mapped to their research interests $\sigma(r_j)$, and (3)~every call for proposal $c_i$ teamed with a group of researchers $R$ according to the demand and supply. For each predicate $p$ (shown in \Call{BoostedTrees}{$predicates$}), we generate multiple examples $E$ for our regression-tree learner to get new regression trees and update the current model $F^p_i$ at every iteration $i$. The function \Call{GenerateEx}{$p, predicates, F^p_{i-1}$} iterates over all the examples $E$ and computes probability and gradient for each. These probabilities are later used to form teams using a greedy policy, where candidate members with highest probabilities are prioritized first when forming teams.
+
+
+\subsection{ULTRA System and Survey Deployment}
+We built a UI for our system and deployed it using the three use cases detailed in the previous section. %in Section~\ref{subsec:usecases}. %and Figure~\ref{fig:ultra_system_usecases}. 
+ULTRA consists of a three-layered architecture: (1)~data storage and retrieval, (2)~team matching, and (3)~analysis of results. (1)~The data we used to perform our experiments is publicly available: (a)~calls for proposals from NSF archives, and (b)~faculty directories at our university. These are retrieved and stored in a separate database, where they are periodically refreshed to get the latest information. (2)~We use the input data and a matching method to view teaming results, along with their respective goodness scores. (3)~We evaluate the results both computationally and empirically. % (see Section~\ref{sec:evaluation}).
+
+We measure the quality of teaming suggestions, and user satisfaction by conducting a user study for ULTRA
+%\footnote{The full demo tool has been deployed at http://casy.cse.sc.edu/ultra/teaming/.} 
+over a span of 28~days. We invited researchers from a college within our university to explore the tool and assess its functionality and satisfaction using a feedback survey for every result. The survey includes two 5-point Likert Scale questions: (1) \textit{How relevant is the output given the input?}, and (2) \textit{How useful is the output?}. We also provide a freeform section for additional comments, if any. %The responses possible for the first question were: \textit{\{Very relevant, Somewhat relevant, Neutral, Somewhat irrelevant, Irrelevant\}}. Similarly for the second, the possible responses were: \textit{\{Very useful, Somewhat useful, Neutral, Not very useful, Will not be using it\}}.

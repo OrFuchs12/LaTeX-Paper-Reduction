@@ -1,0 +1,73 @@
+%\som{Circle and plus markers use the same samples and fresh samples for retraining which lead to the same performance.}
+
+\section{Problem Setup}\label{sec:setup}
+%$\Fb_s$ be the operator that returns the first $s$ entries of a vector and 
+Let us fix the notation. Let $[p]=\{1,2,\dots,p\}$. Given $\bt\in \R^p$, let $\Tb_s(\bt)$ be the pruning operator that sets the smallest $p-s$ entries in absolute value of $\bt$ to zero. Let $\Ic(\bt)\subset[p]$ return the index of the nonzero entries of $\bt$. $\Iden_n$ denotes the $n\times n$ identity matrix and $\Nn(\bmu,\bSi)$ denotes the normal distribution with mean $\bmu$ and covariance $\bSi$. $\X^\dagger$ denotes the pseudoinverse of matrix $\X$. %Throughout, we will assume that the covariance matrices are diagonal. \dots
+%\distas\Dc
+%et $\Dc$ be a data distribution over $\R^d\times \R$ and l
+
+\vp
+\noindent \textbf{Data:} Let $(\ab_i,y_i)_{i=1}^n\subset \R^d\times \R$ with i.i.d.~input-label pairs. Let $\phi(\cdot):\R^d\rightarrow\R^p$ be a (nonlinear) feature map. We generate $\x_i=\phi(\ab_i)$ and work with the dataset $\Sc=(\x_i,y_i)_{i=1}^n$ coming i.i.d. from some distribution $\Dc$. As an example, of special interest to the rest of the paper, consider random feature regression, where $\x_i=\psi(\Rb\ab_i)$ for a nonlinear activation function $\psi$ that acts entry-wise and a random matrix $\Rb\in \R^{p\times d}$ with i.i.d.~$\Nn(0,1)$ entries; see Fig.~\ref{figRF}. In matrix notation, we let $\y=[y_1~\dots~y_n]^T\in\R^n$ and $\X=[\x_1~\dots~\x_n]^T\in\R^{n\times p}$ denote the vector of labels and the feature matrix, respectively.
+%Gather the labels $\y=[y_1~\dots~y_n]^T\in\R^n$ and features $\X=[\x_1~\dots~\x_n]^T\in\R^{n\times p}$ in matrix notation. 
+Throughout, we focus on regression tasks, in which the training and the test risks of a model $\bt$ are defined as% on the feature map 
+\begin{align}
+&\text{Population risk:}~~~\Lc(\bt)=\E_{\Dc}[(y-\x^T\bt)^2].\label{test formula}\\
+&\text{Empirical risk:}~~~~\Lch(\bt)=\frac{1}{n}\tn{\y-\X\bt}^2.\label{erm}
+\end{align}
+ %As illustrated in Fig.~\ref{figRF}, a specific feature map we shall consider is the random feature regression where $\x_i=\psi(\Rb\ab_i)$ for some nonlinear activation $\psi$ which applies entrywise and a random matrix $\Rb\in \R^{p\times d}$ with i.i.d.~$\Nn(0,1)$ entries. 
+ \cmt{Let $\phi(\cdot):\R^d\rightarrow \R^k$ be a nonlinear map for feature extraction. $\phi$ will be important for random feature analysis.} 
+% For regression tasks using feature map $\phi$, the training and test risks of a model $\bt$ is defined as% on the feature map 
+%\begin{align}
+%&\text{Population risk:}~~~~~\Lc(\bt)=\E_{\Dc}[(y-\x^T\bt)^2].\label{test formula}\\
+%&\text{Empirical risk:}~\Lch(\bt)=\frac{1}{n}\sum_{i=1}^n\tn{\y-\X\bt}^2.\label{erm}
+%\end{align}
+During training, we will solve the empirical risk minimization (ERM) problem over a set of selected features $\Delta\subset[p]$, from which we obtain the least-squares solution
+\begin{align}
+\label{eq:ERM}
+\bth(\Delta)=\arg\min_{\bt\,:\,\Ic(\bt)=\Delta} \Lch(\bt).
+\end{align}
+For example, regular ERM corresponds to $\Delta=[p]$, and we simply use $\bth=\bth([p])$ to denote its solution above. Let $\bSi=\E[\x\x^T]$ be the covariance matrix and $\bb=\E[y\x]$ be the cross-covariance. The parameter minimizing the test error is given by $\bt^\st=\bSi^{-1}\bb$. We are interested in training a model over the training set $\Sc$ that not only achieves small test error, but also, it is sparse. We do this as follows. First, we run stochastic gradient descent (SGD) to minimize the empirical risk (starting from zero initialization). It is common knowledge that SGD on least-squares converges to the minimum $\ell_2$ norm solution given by $\bth=\X^\dagger \y$.  Next, we describe our pruning strategies to compress the model.
+
+\vp
+\noindent \textbf{Pruning strategies:} Given dataset $\Sc$ and target sparsity level $s$, a pruning function $P$ takes a model $\bt$ as input and outputs an $s$-sparse model $\bt^P_s$. Two popular pruning functions are magnitude-based (MP) and Hessian-based (HP) (a.k.a.~optimal brain damage) pruning \cite{lecun1990optimal}. The latter uses a diagonal approximation of the covariance via $\hat{\bSi}=\text{diag}(\X^T\X)/n$ to capture \emph{saliency} (see \eqref{saliency eq}). Formally, we have the following definitions:
+%\cite{dobriban2018high}
+\begin{itemize}
+\item {\em{Magnitude-based pruning:}} $\bt^M_s=\Tb_s(\bt)$.
+\item {\em{Hessian-based pruning:}} $\bt^H_s=\hat{\bSi}^{-1/2}\Tb_s(\hat{\bSi}^{1/2}\bt)$.
+\item {\em{Oracle pruning:}} Let $\Delta^\st\subset[p]$ be the optimal $s$ indices so that $\bth(\Delta^\st)$ achieves the minimum population risk (in expectation over $\Sc$) among all $\bth(\Delta)$ and any subset $\Delta$ in \eqref{eq:ERM}.  When $\bSi$ is diagonal and $s<n$, using rather classical results, it can be shown that (see Lemma 7 in the Supplementary Material (SM)) these {\em{oracle indices}} are the ones with the top-$s$ saliency score given by %\vspace*{-20pt}.
+\begin{align}
+\text{Saliency score}=\bSi_{i,i}{\bt^\st_i}^2.\label{saliency eq}
+\end{align} Oracle pruning {employs these latent saliency scores and} returns $\bt^O_s$ by pruning the weights of $\bt$ outside of $\Delta^\st$.
+\end{itemize}
+%A good baseline for pruning is training a small model by solving ERM with $s$ features. 
+We remark that our distributional characterization might allow us to study more complex pruning strategies, such as optimal brain surgeon \cite{hassibi1994optimal}. However, we restrict our attention to the three aforementioned core strategies to keep the discussion focused. 
+
+\noindent\textbf{Pruning algorithm:} To shed light on contemporary pruning practices, we will study the following three-stage {\em{train$\rightarrow$prune$\rightarrow$retrain}} algorithms.
+\begin{enumerate}
+\item Find the empirical risk minimizer $\bth=\X^\dagger \y$.
+\item Prune $\bth$ with strategy $P$ to obtain $\bth^P_s$.
+\item {\em{Retraining:}} Obtain $\bth^{RT}_s=\bth(\Ic(\bth^P_s))$.
+\end{enumerate}
+The last step obtains a new $s$-sparse model by solving ERM in \eqref{eq:ERM} with the features $\Delta=\Ic(\bth^P_s)$ identified by pruning. Figures \ref{figNN} and \ref{figRF} illustrate the performance of this procedure for ResNet-20~on the CIFAR-10 dataset and for a random feature regression on a synthetic problem, respectively . Our analytic formulas for RF, as seen in Fig.~\ref{figRF}, very closely match the empirical observations (see Sec.~\ref{sec mot}~for further explanations). Interestingly, the arguably simpler RF model already captures key behaviors (double-descent, better performance in the overparameterized regime, performance of sparse model comparable to large model) in ResNet.
+%Both figures exhibit similar behavior as a function of growing model sizes. 
+\cmt{I think it is nice to add a sentence here pointing out the similarities between Fig. 1 and 2. In particular noting that the arguably simpler RF model already captures key behavior (double-descent, better performance in deep overparameterized regime, performance of sparse model comparable to large model) in ResNet. And then say: we have analytic formulas for the latter which as seen in Fig. 1 very closely match the empirical observations.}
+
+ %we found that for the RFR problem in Figure \ref{figRF} 
+\cmt{We remark that this does not necessarily hold in general (see~supplementary material (SM)).}
+
+
+
+%For our theory, as well as, our experiments, the following linear problems with Gaussian design will be useful.
+%\begin{definition}[Linear Gaussian Problem (LGP)] \label{def LGP}Given latent vector $\bt^\st\in\R^d$, covariance $\bSi$ and noise level $\sigma$, assume that each example in $\Sc$ is generated independently as $y_i=\x_i^T\bt^\st+ \sigma z_i$ where $z_i\sim\Nn(0,1)$ and $\x_i\sim\Nn(0,\bSi)$. Additionally, the map $\phi(\cdot)$ is identity and $p=d$.
+%\end{definition}
+
+
+% with  (i.e.~the optimal set $\Delta$ with cardinality $s$) to solve ERM to achieve smallest population risk. While this problem is  It can be shown that, in the regime $s<n$, 
+
+%A natural question in pruning is what are the $s$ optimal features to use 
+
+
+\cmt{The next section provides our results on distributional characterization of $\bth$ and provable guarantees on $\bth^P_s$. We will then explore when and how retraining stage is critical for the pruning performance.}
+Sections \ref{sec mot} and \ref{sec intu} present numerical experiments on pruning that verify our analytical predictions, as well as, our insights on the fundamental principles behind the roles of overparameterization and retraining. Sec \ref{sec main} establishes our theory on the DC of $\bth$ and provable guarantees on pruning. All proofs are deferred to the Supplementary Material (SM).%of all our results 
+%We will then explore when and how retraining stage is critical for the pruning performance. 
+

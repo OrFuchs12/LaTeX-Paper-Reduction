@@ -1,0 +1,437 @@
+
+
+
+
+
+
+\section{Adaptability-aware Sample Generation}
+Recent generative data-free quantization (DFQ) methods \cite{xu2020generative,choi2021qimera,zhu2021autorecon} aim to reconstruct the original training dataset with a generator (G) by exploiting the distribution from a pre-trained full-precision network (P), which is further exploited to recover the performance of quantized network (Q) via the calibration operation.
+However, we observe that Q is independent of the generation process by the existing arts and whether the generated sample is beneficial or adversarial,  namely \emph{sample adaptability}, over the calibration process of Q,  is crucial to the DFQ process.
+Motivated by the above, we focus primarily on the sample adaptability to Q. Building on this, the DFQ process is formulated as a dynamic maximization-vs-minimization game process governed by the sample adaptability, as illustrated in Fig.\ref{expand_shrink}. Naturally, one crucial question is how to measure the sample adaptability to Q, which will be discussed in the next section.
+
+
+
+
+
+\begin{figure}[t]
+\centering
+%\setlength{\abovecaptionskip}{0.02cm}
+\setlength{\belowcaptionskip}{-0.35cm}
+\includegraphics[width=0.9\columnwidth]{real_data_dist.pdf}
+
+\caption{Given the 6000 real images from ImageNet as the input to both P and Q upon ResNet-18,  the disagreement between P and Q varies greatly for varied Q with (a) 3-bit and (b) 5-bit precision.
+}
+\label{dis_diff}
+\end{figure}
+
+
+
+
+
+
+\subsection{How to Measure the Sample Adaptability to Q?}
+%It is well-known that the performance degradation of quantized network originates from the \emph{disagreement} between the predictions of P and Q incurred by the quantization error.
+To measure the sample adaptability to Q, we primarily focus on two crucial issues: 1) the \emph{dependence} of generated sample on Q, and 2) the \emph{disagreement} between the predictions of P and Q, in that for Q with different bit widths (\emph{e.g.}, 3 or 5 bit), the disagreement varies greatly when delivering the same sample (take real data as an example) to both P and Q; see Fig.\ref{dis_diff}.
+We define the generated sample that depends on Q, namely disagreement sample, below:
+
+\noindent \textbf{Definition 1} (Disagreement Sample). \emph{Given a random noise vector $z\sim N(0,1)$ and an arbitrary one-hot label $y$, a generator $G$ generates a sample $x=G(z|y)$. Then the logit outputs of pre-trained full-precision model $P$ and quantized model $Q$ are given as $z_p=P(x)$ and $z_q=Q(x)$, respectively. Suppose that the generated sample $x$ can be correctly predicted by P, i.e., $arg max(z_p)=arg max(y)$. We say $x$ is the disagreement sample if $arg max(z_p)\neq arg max(z_q)$.}
+
+\noindent Thus  the probability vector encoding the disagreement between P and Q, is formulated as
+\begin{equation}
+\begin{aligned}
+&p_{ds}=softmax(z_p- z_q) \in \mathbb{R}^C,
+\end{aligned}
+\label{dist_disagree}
+\end{equation}
+where $p_{ds}(c)=\frac{exp(z_p(c)-z_q(c))}{\sum_{j=1}^{C} exp(z_p(j)-z_q(j))}$ ($c\in\{1,2,...,C\}$) represents the $c$-th entry of the vector $p_{ds}$ as the probability that $x$ is labeled as the disagreement sample of the $c$-th class; $C$ denotes the number of class. Together with the sample dependence to Q, the disagreement sample can viewed as the one with large adaptability to Q.
+%According to Definition 1, Q with 3-bit precision may prefer agreement sample (smaller disagreement), while Q with 5-bit precision may prefer disagreement sample (larger disagreement), hence the cooperation between them may produce the generated sample with large adaptability to Q with varied bit widths (discussed later).
+
+Another key problem is how to model the disagreement between P and Q, which can be exploited to measure the sample adaptability. Eq.(\ref{dist_disagree}) shows that the disagreement reaches the maximum provided $p_{ds}(c)$ approaches to 1 while with other elements to be 0, which corresponds to the minimum entropy of $p_{ds}$; while the disagreement reaches the minimum if each element in $p_{ds}$ is equal, indicating the maximum entropy of $p_{ds}$. Hence, the disagreement can be computed via the information entropy function $\mathcal{H}_{info}(\cdot)$, and formulated as
+\begin{small}
+\begin{equation}
+\mathcal{H}_{info}(p_{ds})=\sum^{C}_{c=1} p_{ds}(c)log\frac{1}{p_{ds}(c)}.
+\label{metric}
+\end{equation}
+\end{small}
+For different datasets, $C$ varies greatly, we further normalize $\mathcal{H}_{info}(p_{ds})$ as
+\begin{small}
+\begin{equation}
+\begin{aligned}
+\mathcal{H}&=1-\mathcal{H}^{'}_{info}(p_{ds}) \in [0,1),
+\end{aligned}
+\label{measure_r}
+\end{equation}
+\end{small}
+where $\mathcal{H}^{'}_{info}(p_{ds})=\frac{\mathcal{H}_{info}(p_{ds})-min(\mathcal{H}_{info}(p_{ds}))}{max(\mathcal{H}_{info}(p_{ds}))-min(\mathcal{H}_{info}(p_{ds}))}$. The constant $max(\mathcal{H}_{info}(p_{ds}))=-\sum^{C}_{c=1}\frac{1}{C}log\frac{1}{C}$ represents the maximum value of $\mathcal{H}_{info}(p_{ds})$, in the case that each element in $p_{ds}$ has the same class probability $\frac{1}{C}$, where Q perfectly aligns with P (\emph{i.e.}, $z_p=z_q$); while $min(\cdot)$ is utilized to obtain the minimum of $\mathcal{H}_{info}(p_{ds})$ within a batch. Thus, the sample adaptability is closely related to $\mathcal{H}$ --- the more $\mathcal{H}$, the larger the disagreement over the sample to both P and Q, to yield the samples with large adaptability.
+%The reason is that, if $\mathcal{H}$ is 0 such that the disagreement disappears, the sample adaptability will be lowest. Therefore, the sample adaptability can be measured by $\mathcal{H}$ within a certain range.
+
+As per Eq.(\ref{dist_disagree})(\ref{measure_r}), $p_{ds}$ distributes in a $C$-dimensional vector space, while $\mathcal{H}$ is a real value.
+We hence map that to a $C$-dimensional space $\mathbb{R}^{C}$ while characterizing $\mathcal{H}$, which is achieved via the unit vector $\frac{p_{ds}}{||p_{ds}||}$ ($||\cdot||$ denotes $\ell_2$ norm), then $\mathcal{H}$ is reformulated as
+\begin{small}
+\begin{equation}
+\mathcal{H}_C= \frac{p_{ds}}{||p_{ds}||}\mathcal{H}=\frac{p_{ds}}{||p_{ds}||} (1-\mathcal{H}^{'}_{info}(p_{ds})) \in \mathbb{R}^{C},
+\label{h_c}
+\end{equation}
+\end{small}
+where the category information (\emph{i.e.}, $\frac{p_{ds}}{||p_{ds}||}$) of the generated sample apart from the disagreement (\emph{i.e.}, $\mathcal{H}$) is exploited to well measure the sample adaptability.
+
+The measurement of sample adaptability inspires us to revisit the DFQ process based on $\mathcal{H}$: the goal of G is to generate the sample with \emph{large} adaptability to Q,  \emph{i.e.}, \emph{increasing} the sample adaptability, by \emph{maximizing} $\mathcal{H}$ (the gain of $\mathcal{H}$ is \emph{positive}, serving as the reward for G),  to benefit Q; while for the calibration process, Q is optimized to recover itself with the generated sample. It infers that such sample adaptability will not be large to Q, while the sample can no longer benefit Q after Q is refined;  in other words, such process of benefiting Q by learning from P results in \emph{decreasing} the sample adaptability, which is achieved by \emph{minimizing} $\mathcal{H}$ (the gain of $\mathcal{H}$ is \emph{negative}, serving as the loss for Q), \emph{adversarial} to maximizing $\mathcal{H}$, which encourages the loss for Q to cancel out the reward for G, such that the sum of reward and loss tends to be zero. Such fact makes the overall changing (summation) of the disagreement ($\mathcal{H}$) \textit{close} to 0 (see Fig.\ref{expand_shrink} for the intuition), which is in line with the principle of zero-sum game  \cite{shoham2008multiagent,v1928theorie},  as discussed in the next section. 
+
+%Such process is naturally an adversarial game governed by the sample adaptability between G and Q, hence we formulate DFQ as a zero-sum game (an adversarial game process where one player's reward is the other's loss and their sum is zero), which will be discussed in the next section.
+
+
+
+
+
+\subsection{Zero-Sum Game: Adversarial Game for Data-Free Quantization}
+\label{dfq_game}
+We formally revisit the DFQ process from a game theory perspective \cite{li2022policy,zhang2022no}, and formulate the DFQ as a zero-sum game between two players --- a generator and a quantized network, which is an expansion of Eq.(\ref{min_max_s_intro}), as follows:
+\begin{small}
+\begin{equation}
+\mathop{min}_{\theta_q\in \Theta_q} \mathop{max}_{\theta_g\in \Theta_g} \  \mathcal{R}(\theta_g,\theta_q)=\mathop{min}_{\theta_q\in \Theta_q} \mathop{max}_{\theta_g\in \Theta_g} \ \mathbb{E}_{z,y}[1-\mathcal{H}^{'}_{info}(p_{ds})],
+\label{max_min}
+\end{equation}
+\end{small}
+where G and Q are parameterized by $\theta_g\in \Theta_g$ and $\theta_q\in \Theta_q$, respectively. In particular, Eq.(\ref{max_min}) is iteratively optimized via gradient descent during the training process, where each iteration consists of two steps: on one hand, $\theta_q$ is fixed, $\mathcal{R}(\theta_g,\theta_q)$ in Eq.(\ref{max_min}) is \emph{maximized} to update $\theta_g$, which is equivalent to generating the sample with \emph{large} adaptability,  \emph{i.e.}, \emph{increasing} the sample adaptability; on the other hand, $\theta_g$ is fixed,  $\mathcal{R}(\theta_g,\theta_q)$ in Eq.(\ref{max_min}) is \emph{minimized} to update $\theta_q$, which is equivalent to calibrating Q with the generated sample, benefiting from \emph{decreasing} the sample adaptability. During the zero-sum game, the overall changing (summation) of the sample adaptability to Q incurred by maximum and minimum optimization is close to zero. 
+One critical question is how to converge Eq.(\ref{max_min}) to achieve the equilibrium (\emph{i.e.}, the sample adaptability no longer changes) for the zero-sum game.  Thanks to the classical Nash equilibrium \cite{cardoso2019competing} defined as a state, where no player can improve its individual gain during the zero-sum game, the optimization process will reach an equilibrium $(\theta_g^*,\theta_q^*)$ when (1) for the fixed $\theta_q^*$, G fails to maximize $\mathcal{R}(\theta_g,\theta_q^*)$ to obtain a $\theta_g\in \Theta_g$, yielding $\mathcal{R}(\theta_g,\theta_q^*) > \mathcal{R}(\theta_g^*,\theta_q^*)$; (2) for the fixed $\theta_g^*$, Q can no longer improve itself by minimizing $\mathcal{R}(\theta_g^*,\theta_q)$ to obtain a $\theta_q\in \Theta_q$, yielding $\mathcal{R}(\theta_g^*,\theta_q) < \mathcal{R}(\theta_g^*,\theta_q^*)$. Based on that, for all $\theta_g\in \Theta_g$ and $\theta_q\in \Theta_q$, $(\theta_g^*,\theta_q^*)$ satisfies the following inequality:
+\begin{equation}
+\mathcal{R}(\theta_g,\theta_q^*) \le \mathcal{R}(\theta_g^*,\theta_q^*) \le \mathcal{R}(\theta_g^*,\theta_q),
+\label{}
+\end{equation}
+where $\theta_g^*$ and $\theta_q^*$ are the parameters of G and Q under an equilibrium state, respectively.
+%Nevertheless, a \emph{mismatch} between the real-value $\mathcal{R}(\cdot,\cdot)$ and the generated sample distributing in a $C$-dimensional space turns our focus to DFQ game over a high-dimensional space.
+
+
+
+\begin{figure}[t]
+\centering
+%\setlength{\abovecaptionskip}{0.12cm}
+\setlength{\belowcaptionskip}{-0.35cm}
+\includegraphics[width=1.0\columnwidth]{expand_shrink.pdf}
+\caption{Illustration of data-free quantization process as a zero-sum game between generator G (\textcolor[RGB]{0,112,192}{player 1}) and quantized network Q (\textcolor[RGB]{255,0,0}{player 2}). G generates the sample with large adaptability by maximizing $\mathcal{R}(\cdot,\cdot)$ during the maximization process, such sample adaptability is further reduced by minimizing $\mathcal{R}(\cdot,\cdot)$ during the minimization process when calibrating Q.
+}
+\label{expand_shrink}
+\end{figure}
+
+
+
+
+We remark that maximizing $\mathcal{R}(\cdot,\cdot)$ in Eq.(\ref{max_min}) is equivalent to generating the sample with largest adaptability, which may incur too large disagreement (\emph{i.e.}, too small $\mathcal{H}^{'}_{info}(p_{ds})$) between P and Q, while Q (especially for Q with low bit width) has no sufficient ability to learn informative knowledge from P, which, in turn, encourages G to generate the sample with lowest adaptability by alternatively maximizing $\mathcal{R}(\cdot,\cdot)$ in Eq.(\ref{max_min}). However, encouraging the sample with lowest adaptability may incur too large agreement (\emph{i.e.}, too large $\mathcal{H}^{'}_{info}(p_{ds})$) between P and Q, where the generated sample may not be informative to calibrate Q (especially for Q with high bit width). 
+%Under such cases, the generated sample with low adaptability fails to benefit Q via minimizing $\mathcal{R}(\cdot,\cdot)$ in Eq.(\ref{max_min}). 
+The above facts indicate that the sample with either largest or lowest adaptability generated by maximizing $\mathcal{R}(\cdot,\cdot)$ in Eq.(\ref{max_min}) is not necessarily the best.
+To address the issues, we further refine the maximization objective of Eq.(\ref{max_min}) during the zero-sum game by the cooperation between the disagreement and agreement sample along with the bound constraints on sample adaptability, which will be elaborated in the next.
+
+
+
+
+
+
+
+
+
+
+
+%\subsection{Maximization-vs-Minimization Game over Sample Adaptability to Q}
+%%\textbf{Hypersphere space mapping.}
+%
+%\noindent Based on that, we propose an \textbf{Ada}ptability-aware \textbf{S}ample \textbf{G}eneration (AdaSG) method. Specifically, AdaSG works based on Eq.(\ref{max_min}), and further views DFQ game as a dynamic maximization-vs-minimization game process over the sample adaptability,
+%which consists of a maximization process for generating the samples with large adaptability and a minimization process to decrease the sample adaptability, which will be elaborated in the next.
+
+
+
+
+
+
+
+\begin{figure*}[t]
+\centering
+%\setlength{\abovecaptionskip}{0.12cm}
+\setlength{\belowcaptionskip}{-0.35cm}
+\includegraphics[width=0.9\textwidth]{s_ada.pdf}
+
+\caption{Illustration of AdaSG on achieving the stationarity of the zero-sum game via the balance gap (BG). When BG $>0$ (BG $<0$), the generated sample leads to a large disagreement (agreement) between P and Q, owing to the weak (strong) learning ability of Q, \emph{e.g.}, Q with low-bit (high-bit) precision, resulting into too large (small) sample adaptability.  When BG = 0, the DFQ game process is stationary, revealing that the sample adaptability increased by the maximization process can be fully exploited by the minimization process to maximally benefit Q with varied bit widths.
+  }
+\label{s_ada}
+\end{figure*}
+
+
+
+
+
+
+
+
+
+\subsection{Maximization Process: Generating Samples with Desirable Adaptability}
+\label{expanding_stage}
+%The goal of the maximization process is to generate the sample with large adaptability by maximizing $\mathcal{R}(\cdot,\cdot)$ in Eq.(\ref{max_min}).
+According to Definition 1, the category (label) information is crucial to establish the dependence of generated sample on Q.  Hence, to generate the disagreement sample with large adaptability and further maximize $\mathcal{R}(\cdot,\cdot)$ in Eq.(\ref{max_min}), we exploit the category (label) information to generate the sample. To achieve it, given the label $y$, the generated sample should be classified as disagreement sample with the same label $y$. Thereby, we present the following Cross-Entropy loss $\mathcal{H}_{CE}(.,.)$ to match $p_{ds}$ and $y$, formulated as
+\begin{equation}
+\mathcal{L}_{ds}=\mathbb{E}_{z,y}[\mathcal{H}_{CE}(p_{ds},y)].
+\label{ds_ce}
+\end{equation}
+We aim to minimize Eq.(\ref{ds_ce}) to encourage G to generate the disagreement sample that P can predict correctly but Q fails, which, however, may incur too large disagreement (\emph{i.e.}, too small $\mathcal{H}^{'}_{info}(p_{ds})$) between P and Q, thus fail to yield the desirable sample adaptability. To remedy such issue, complementary to the disagreement sample, we further define the agreement sample below:
+%which, however, may harm the sample adaptability as $\mathcal{R}$ increases beyond a certain value. Hence, to slow down the progress of $\mathcal{R}$, we define another type of generated sample that depends on Q, \emph{i.e.}, agreement sample, below:
+
+\noindent \textbf{Definition 2} (Agreement Sample). \emph{ Based on Definition 1, we say the generated sample $x$ is the agreement sample if $arg max(z_p)=arg max(z_q)$.}
+
+\noindent Thus, similar in spirit to $p_{ds}$, the probability vector that describes the agreement between P and Q, is formulated as
+\begin{equation}
+p_{as}=softmax(z_p+z_q) \in \mathbb{R}^C,
+%\label{}
+\end{equation}
+where $p_{as}(c)=\frac{exp(z_p(c)+z_q(c))}{\sum_{j=1}^{C} exp(z_p(j)+z_q(j))}$ is the $c$-th entry of the vector $p_{as}$ as the probability that $x$ is the agreement sample of the $c$-th class.
+Following Eq(\ref{ds_ce}), the loss function for generating agreement sample is given as
+\begin{equation}
+\mathcal{L}_{as}=\mathbb{E}_{z,y}[\mathcal{H}_{CE}(p_{as},y)],
+\label{las}
+\end{equation}
+which is minimized to encourage to generate the agreement sample that both P and Q can correctly predict to possess larger $\mathcal{H}^{'}_{info}(p_{ds})$.
+
+\subsubsection{Cooperation for desirable sample adaptability}
+Based on the above, let $\mathcal{L}_{ds}$ and $\mathcal{L}_{as}$ cooperate with each other to maximize $\mathcal{R}(\cdot,\cdot)$ in Eq.(\ref{max_min}), the sample with desirable adaptability can be generated. Hence, the sample generation loss is given as
+\begin{equation}
+\mathcal{L}_{s}=\mathcal{L}_{ds} + \mathcal{L}_{as}.
+\label{L_G}
+\end{equation}
+%It is apparent that $\mathcal{L}_{ds}$ aims to enlarge the disagreement between P and Q, while $\mathcal{L}_{as}$ reduces it.
+With $\mathcal{L}_{s}$, when a large disagreement incurs, $\mathcal{L}_{as}$ dominates to generate agreement sample, to reduce the gap between P and Q, so as to enlarge $\mathcal{H}^{'}_{info}(p_{ds})$ for disagreement sample; to be analogous, $\mathcal{L}_{ds}$ dominates to reduce $\mathcal{H}^{'}_{info}(p_{ds})$ for agreement sample; see Fig.\ref{s_ada}.
+Nevertheless, in some cases, there still exist the samples with either too small or large $\mathcal{H}^{'}_{info}(p_{ds})$ beyond the cooperation ability. 
+
+%Nevertheless, in some cases, $\mathcal{L}_{ds}$ ($\mathcal{L}_{as}$) may suffer from too large disagreement or agreement (\emph{i.e.}, too small or large $\mathcal{H}^{'}_{info}(p_{ds})$), the sample with low adaptability will be generated.
+
+
+
+
+
+
+
+
+\subsubsection{Bound constraint on sample adaptability}
+\label{boundary_constraint}
+%In some extreme situations, such as high or ultra-low bit widths, $\mathcal{L}_{ds}$ and $\mathcal{L}_{as}$ tend to push the generation of disagreement samples with either too small $\mathcal{H}_{info}(p_{ds})$ or large $\mathcal{H}_{info}(p_{ds})$. For the former, quantized network has difficulty aligning the full-precision network due to hard samples; for the latter, the synthetic samples contain limited useful information for calibration process.
+To address the above problem, we further impose the bound constraints for $\mathcal{H}^{'}_{info}(p_{ds})$ via the hinge loss \cite{lim2017geometric} below:
+%\begin{scriptsize}
+\begin{small}
+\begin{equation}
+\begin{aligned}
+\mathcal{L}_b=&\mathbb{E}_{z,y}[max\big(\lambda_l-\mathcal{H}_{info}^{'}(p_{ds}),0\big)] \\
+&+ \mathbb{E}_{z,y}[max\big(\mathcal{H}_{info}^{'}(p_{ds})-\lambda_u,0\big)],
+\label{boundary_loss}
+\end{aligned}
+\end{equation}
+\end{small}
+%\end{scriptsize}
+where $\lambda_l$ and $\lambda_u$ denote the lower and upper bound of $\mathcal{H}^{'}_{info}(p_{ds})$, such that $0 \le \lambda_l < \lambda_u \le 1$. 
+Specifically, $\lambda_l$ serves to prevent G from generating the sample with too large adaptability (\emph{i.e.}, too small $\mathcal{H}^{'}_{info}(p_{ds})$) via maximizing Eq.(\ref{max_min}), while $\lambda_u$ aims to avoid the sample with too small adaptability (\emph{i.e.}, too large $\mathcal{H}^{'}_{info}(p_{ds})$), which, in turn, offer the guarantee for the cooperation between $\mathcal{L}_{ds}$ and $\mathcal{L}_{as}$. 
+%Not only that, $\lambda_l$ and $\lambda_u$ promote uniform distribution of synthetic samples between the lower and upper bound, which are beneficial to the diversity of synthetic samples.
+\subsubsection{BNS information}
+The above fact discusses the adaptability of single sample to Q, while calibrating Q requires the generated samples within a batch, motivating us to exploit the distribution information of the training data.
+We consider the batch normalization statistics (BNS) information \cite{xu2020generative,choi2021qimera} about the training data contained in P, which is learned by
+\begin{small}
+\begin{equation}
+\mathcal{L}_{BNS}=\sum^M_{m=1}( ||\mu^g_m-\mu_m||^2_2 + ||\sigma^g_m-\sigma_m||^2_2 ),
+\label{bns}
+\end{equation}
+\end{small}
+where $\mu^g_m / \sigma^g_m$ are the mean/variance of the generated sample's distribution at the $m$-th BN layer of the total $M$ layers; and $\mu_m / \sigma_m$ are the corresponding mean/variance parameters stored in the $m$-th BN layer of P.
+
+\subsubsection{Overall loss}
+To this end, we finalize the loss function for the maximization (sample generation) process as
+\begin{equation}
+\mathcal{L}_G=  \alpha (\mathcal{L}_{ds}+ \mathcal{L}_{as}) + \beta \mathcal{L}_b+ \gamma \mathcal{L}_{BNS},
+\label{generator_loss}
+\end{equation}
+where $\alpha$, $\beta$ and $\gamma$ are the balance hyperparameters.
+%The last term $\mathcal{L}_{BNS}$ is adopted to extract the data information from full-precision model by aligning the batch-normalization statistics of the generated samples with those stored in BN layers of full-precision model, .
+Throughout minimizing $\mathcal{L}_G$, which is equivalent to maximizing $\mathcal{R}(\cdot,\cdot)$ in Eq.(\ref{max_min}), the sample with desirable adaptability can be generated, such sample is exploited by calibrating Q during the minimization process according to Eq.(\ref{max_min}).
+
+
+
+
+
+
+
+\subsection{Minimization Process: Calibrating Q by Reducing Sample Adaptability}
+\label{shrinking_stage}
+With the above generated sample, the goal of the minimization process is to calibrate Q for the performance recovery by minimizing $\mathcal{R}(\cdot,\cdot)$ in Eq.(\ref{max_min}), which indicates that the disagreement between P and Q is decreased to reach the agreement.
+In particular, we further introduce a temperature parameter $\tau$ to soften the output, thus the loss function for the minimization (calibration) process is formulated as 
+\begin{small}
+\begin{equation}
+\mathcal{L}_Q=\mathbb{E}_{z,y}[1-\mathcal{H}_{info}^{'}(p_{ds}^{\tau})],
+\label{calibration_loss}
+\end{equation}
+\end{small}
+where $p_{ds}^{\tau}=softmax((z_p-z_q)/\tau)$. 
+By alternatively optimizing Eq.(\ref{generator_loss}) and (\ref{calibration_loss}) during a zero-sum game, the samples with desirable adaptability can be generated by G to maximally recover the performance of Q until reaching a Nash equilibrium.  
+
+
+
+
+
+
+\subsection{Theoretical Analysis: a Balance Gap for Sample Adaptability}
+One may wonder whether the above maximization-vs-minimization process can keep stationary during the optimization process over Eq.(\ref{max_min}), which is critical for sample generation with desirable adaptability and quantized network recovery.  We confirm that by our theoretical analysis based on the balance gap (BG) over sample adaptability, which is defined as:
+
+\noindent \textbf{Definition 3} (Balance Gap). \emph{Considering the objective $\mathcal{R}(\cdot,\cdot)$ for the DFQ game process. Assume that, after one iteration, the  parameters $(\theta_g^1,\theta_q^1)$ of the game are updated to $(\theta^2_g,\theta_q^2)$ via the gradient descent. Then, the balance gap (BG) is defined as}
+\begin{equation}
+\text{\emph{BG}} =\mathcal{R}(\theta^2_g,\theta^2_q)-\mathcal{R}(\theta_g^1,\theta_q^1),
+\label{}
+\end{equation}
+which encodes the deviation for the value of $\mathcal{R}(\cdot,\cdot)$ before and after each iteration. When BG $>0$ or BG $<0$, the generated sample leads to a large disagreement or agreement  between P and Q, owing to the weak or strong learning ability of Q, where the  sample with too large or small adaptability fails to benefit Q during the calibration process.
+We remark that BG is well bounded to avoid the large deviation, which facilitates generating the samples with desirable adaptability.
+Such fact is validated via the following proposition:
+
+
+
+\noindent \textbf{Proposition 1.} \emph{Considering the stationarity of DFQ game process. Then, the balance gap (BG) is bounded below: }
+\begin{small}
+\begin{equation}
+\begin{aligned}
+|\text{\emph{BG}}|=|\mathcal{R}(\theta^2_g,\theta^2_q)-\mathcal{R}(\theta_g^1,\theta_q^1)| \le L||[\theta^2_g;\theta^2_q]-[\theta_g^1;\theta_q^1]||
+\end{aligned}
+\label{bg_upper}
+\end{equation}
+\end{small}
+\emph{where $L$ is the Lipschitz constant.}
+
+%\noindent \emph{\textbf{Proof.} Deferred to the supplementary material.}
+\noindent \emph{\textbf{Proof.} }
+\emph{Considering the Lipschitz continuity of the objective function $\mathcal{R}(\cdot,\cdot)$, we divide the proof into two parts: }
+
+
+\noindent \emph{\textbf{Part 1.} Lipschitz Continuity}
+
+\noindent \emph{We say a function f(x,y) is L-Lipschitz continuous with respect to a norm $||.||$ if }
+\begin{small}
+\begin{equation}
+|f(x_2,y_2)-f(x_1,y_1)| \le L||[x_2;y_2] - [x_1;y_1]||
+\label{}
+\end{equation}
+\end{small}
+\emph{for any $x_1,x_2\in X$ and any $y_1,y_2\in Y$. The previous inequality holds if and
+only if}
+\begin{small}
+\begin{equation}
+||[\nabla_x f(x,y);\nabla_y f(x,y)]|| \le L
+\label{}
+\end{equation}
+\end{small}
+\emph{for any $x\in X$ and any $y\in Y$. L is the Lipschitz constant.}
+
+
+\noindent \emph{\textbf{Part 2.}}
+\noindent \emph{According to the \textbf{first-order Taylor expansion} and \textbf{Cauchy inequality}, we have:}
+\begin{equation}
+\begin{small}
+\begin{aligned}
+|\text{\emph{BG}}|&=|\mathcal{R}(\theta^2_g,\theta^2_q)-\mathcal{R}(\theta_g^1,\theta_q^1)| \\
+&= || [\nabla_{\theta_g} \mathcal{R}(\theta_g,\theta_q);\nabla_{\theta_q} \mathcal{R}(\theta_g,\theta_q)]^T \  [\theta^2_g-\theta_g^1;\theta^2_q-\theta_q^1] || \\
+&\le || [\nabla_{\theta_g} \mathcal{R}(\theta_g,\theta_q);\nabla_{\theta_q} \mathcal{R}(\theta_g,\theta_q)]^T|| \  ||[\theta^2_g;\theta^2_q]-[\theta_g^1;\theta_q^1]||,
+\end{aligned}
+\end{small}
+\label{}
+\end{equation}
+ \emph{then Eq.(\ref{bg_upper}) holds if and only if $\nabla_{\theta_g} \mathcal{R}(\theta_g,\theta_q)$ and $\nabla_{\theta_q} \mathcal{R}(\theta_g,\theta_q)$ are upper bounded. }
+\noindent \emph{First, we note that }
+\begin{equation}
+\begin{small}
+\begin{aligned}
+\mathcal{R}(\theta_g,\theta_q)=\mathbb{E}_{z,y}[1-\mathcal{H}^{'}_{info}(p_{ds})],
+\end{aligned}
+\end{small}
+\label{}
+\end{equation}
+\noindent \emph{where $\mathcal{H}^{'}_{info}(p_{ds})$ is obtained by normalizing $\mathcal{H}_{info}(p_{ds})=\sum^{C}_{c=1} p_{ds}(c)log\frac{1}{p_{ds}(c)}$, and $p_{ds}=softmax(z_p- z_q)$; }
+\noindent \emph{and the corresponding gradients are computed by }
+\begin{equation}
+\begin{small}
+\begin{aligned}
+& \nabla_{\theta_g} \mathcal{R}(\theta_g,\theta_q)=\frac{\partial \mathcal{R}(\theta_g,\theta_q)}{\partial p_{ds}}   \frac{\partial p_{ds}}{\partial x} \frac{\partial x}{\partial \theta_g},  \\
+& \nabla_{\theta_q} \mathcal{R}(\theta_g,\theta_q)=\frac{\partial \mathcal{R}(\theta_g,\theta_q)}{\partial p_{ds}}   \frac{\partial p_{ds}}{\partial z_q} \frac{\partial z_q}{\partial \theta_q},
+\end{aligned}
+\end{small}
+\label{}
+\end{equation}
+%\begin{equation}
+%\begin{small}
+%\begin{aligned}
+%\nabla_{\theta_q} \mathcal{R}(\theta_g,\theta_q)&=\frac{\partial \mathcal{R}(\theta_g,\theta_q)}{\partial p_{ds}}   \frac{\partial p_{ds}}{\partial z_q} \frac{\partial z_q}{\partial \theta_q},
+%\end{aligned}
+%\end{small}
+%\label{}
+%\end{equation}
+\noindent \emph{where $\frac{\partial x}{\partial \theta_g}$ and $\frac{\partial z_q}{\partial \theta_q}$ are the gradients produced by the generator and quantized network, respectively. }
+%\noindent 
+\emph{It is apparent that the gradients of the information entropy function $\mathcal{H}_{info}(\cdot)$, the softmax function and the activation function ({e.g.}, Sigmod, Relu) in deep neural network are \textbf{all bounded}. Therefore, $\forall L \in \mathbb{R}$, make $|| [\nabla_{\theta_g} \mathcal{R}(\theta_g,\theta_q);\nabla_{\theta_q} \mathcal{R}(\theta_g,\theta_q)]^T|| $ be upper bounded.   }
+\noindent \emph{To sum up, the balance gap (BG) is bounded by Eq.(\ref{bg_upper}). }
+
+ \hfill $\square$
+% \\ \hspace*{\fill} \\
+
+%\noindent 
+The proposition provides an upper and lower bound for BG, to well avoid the sample generation encoding too large or small adaptability, in line with the intuition of $\mathcal{L}_b$, which offers a guarantee for the stationarity of DFQ game, we further achieve the stationarity via the following proposition:
+
+\noindent \textbf{Proposition 2.} \emph{During each iteration, the DFQ game is stationary, that is, the sample adaptability increased by the maximization process can be fully exploited by the minimization process to maximally benefit Q, when BG = 0. }
+
+
+%\noindent \emph{\textbf{Proof.} Deferred to the supplementary material.}
+%\noindent \emph{\textbf{Proof.} }
+%\noindent \emph{First, to achieve the goal of maximizing $\mathcal{R}(\theta_g,\theta_q)$ in Eq.(6) of the main body, the maximization process devotes itself to generate the sample with large adaptability; while the minimization process aims to calibrate Q for the performance recovery by minimizing $\mathcal{R}(\theta_g,\theta_q)$. }
+%\\ \hspace*{\fill} \\
+%\noindent \emph{
+%Based on that, each iteration of maximization-vs-minimization game process consists of two steps: on one hand, $\theta_q$ is fixed, $\mathcal{R}(\theta_g,\theta_q)$ is \emph{maximized} to update $\theta_g$ for the optimal $\theta_g^{'}$ , which is equivalent to generating the sample with \emph{large} adaptability; on the other hand, $\theta_g^{'}$ is fixed,  $\mathcal{R}(\theta_g^{'},\theta_q)$ is \emph{minimized} to update $\theta_q$ for the optimal $\theta_q^{'}$, which is equivalent to calibrating Q with the generated sample, benefiting from \emph{decreasing} the sample adaptability.   Then we have:}
+\noindent \emph{\textbf{Proof.} }
+\noindent \emph{As aforementioned, each iteration contains the maximization and minimization process, then we have:}
+\noindent \emph{
+\begin{equation}
+\begin{small}
+\begin{aligned}
+\text{{BG}}&=\mathcal{R}(\theta^2_g,\theta^2_q)-\mathcal{R}(\theta_g^1,\theta_q^1) \\
+&=\big(\mathcal{R}(\theta^2_g,\theta_q^1) - \mathcal{R}(\theta_g^1,\theta_q^1)\big) - \big(\mathcal{R}(\theta^2_g,\theta_q^1) - \mathcal{R}(\theta^2_g,\theta^2_q)\big)  \\
+&=\Delta_g-\Delta_q,
+\end{aligned}
+\end{small}
+\label{}
+\end{equation}
+where $\Delta_g$ and $\Delta_q$ denote the \textbf{deviation} for the value of $\mathcal{R}(.,.)$ during the \textbf{maximization} and \textbf{minimization} process, respectively.
+}
+ \emph{
+Thus, if \bm{$\Delta_g >\Delta_q$} (i.e., $\text{{BG}}>0$), the generated sample leads to a large disagreement between P and Q, owing to the weak learning ability of Q; if \bm{$\Delta_g <\Delta_q$} (i.e., $\text{{BG}}<0$), the generated sample leads to a large agreement between P and Q, owing to the strong learning ability of Q. Under such cases, the sample with too large or small adaptability fails to benefit Q during the calibration process. 
+}
+\noindent \emph{
+To sum up, if and only if \bm{$\Delta_g =\Delta_q$} (i.e., $\text{{BG}}=0$), the DFQ game is stationary, that is, the sample adaptability increased by the maximization process can be fully exploited by the minimization process to maximally benefit Q by minimizing $L_Q$, which is equivalent to minimizing  $\mathcal{R}(\cdot,\cdot)$  in Eq.(\ref{max_min}).
+}   
+
+
+\hfill $\square$
+%\\ \hspace*{\fill} \\
+
+%\noindent 
+The proposition discloses the effectiveness of the coordination between $\mathcal{L}_{ds}$ and $\mathcal{L}_{as}$ during the maximization process. Specifically, when BG $>0$ ($< 0$), the sample adaptability is too large or small; therefore, for next iteration, $\mathcal{L}_{as}$ ($\mathcal{L}_{ds}$) will dominate to generate the sample with desirable adaptability by minimizing $L_G$ (equivalent to maximizing $\mathcal{R}(\cdot,\cdot)$  in Eq.(\ref{max_min})), to achieve the stationarity of the DFQ game, \emph{i.e.}, BG $=0$; see Fig.\ref{s_ada}.
+
+
+%If BG = 0,  the sample with large adaptability can be fully exploited to benefit Q by minimizing $L_Q$, which is equivalent to minimizing  $\mathcal{R}(\cdot,\cdot)$  in Eq.(\ref{max_min}), such fact discloses the effectiveness of the coordination between $\mathcal{L}_{ds}$ and $\mathcal{L}_{as}$ in the maximization process, where the sample generation loss $L_G$ succeeds in maximizing $\mathcal{R}(\cdot,\cdot)$  in Eq.(\ref{max_min}). Specifically, if BG $>0$ ($< 0$), such that the sample adaptability is not large; therefore, for next iteration, $\mathcal{L}_{as}$ ($\mathcal{L}_{ds}$) will dominate to generate the sample with larger adaptability, to achieve the stationarity of DFQ game; see Fig.\ref{s_ada}.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

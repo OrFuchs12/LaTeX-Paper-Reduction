@@ -1,0 +1,756 @@
+%!TEX root = paper.tex
+
+\section{Module Extraction via Datalog Reasoning} \label{sec:module-settings}
+
+ 
+In this section, we present our approach to module extraction
+by reduction into a reasoning problem in datalog. 
+Our approach builds on recent techniques
+that exploit datalog engines for 
+ontology reasoning 
+\cite{DBLP:conf/ijcai/KontchakovLTWZ11,stefanoni2013introducing,DBLP:conf/aaai/ZhouNGH14}.
+In what follows, we fix an arbitrary
+TBox $\T$ and signature $\S\subseteq\sig{\T}$. Unless otherwise stated,
+our definitions and theorems are parameterised
+by such $\T$ and $\S$. We assume
+w.l.o.g.\ that rules in $\T$ do not
+share existentially quantified variables.
+For simplicity, we also 
+assume that $\T$ contains no constants 
+(all our results can be
+seamlessly extended). 
+
+%%
+\subsection{Overview and Main Intuitions}\label{sec:overview}
+%%
+
+Our overall strategy to
+extract a module $\M$  of $\T$ 
+for an inseparability relation $\equiv^z_{\S}$,
+with $z \in \set{\mathsf{m},\mathsf{q},\mathsf{f},\mathsf{i}}$, 
+can be summarised by the following steps:
+% 
+\begin{enumerate}
+  \item Pick a substitution $\theta$ mapping all existentially 
+  quantified variables in $\T$ to 
+  constants, and transform $\T$ into a datalog program $\prog$ by 
+  \begin{inparaenum}[\it(i)] 
+  \item Skolemising 
+all rules in $\T$ using $\theta$ and
+\item turning disjunctions into conjunctions while splitting them into different rules,
+thus replacing each function-free disjunctive rule of the form 
+$\fml(\x) \rightarrow \bigvee_{i=1}^n\fmm_i(\x)$
+with datalog rules 
+$\fml(\x) \rightarrow \fmm_1(\x), \dots, \fml(\x) \rightarrow \fmm_n(\x)$.
+  \end{inparaenum}
+
+ \item Pick a $\Sigma$-ABox 
+$\abox_0$ and materialise
+$\prog \cup \abox_0$.
+ \item Pick a set $\arel$ of ``relevant facts'' in the materialisation
+ and compute the supporting rules in $\prog$ for
+ each such fact.
+\item 
+The module $\M$ consists of all rules in $\T$ that
+yield some supporting rule in $\prog$. In this way,
+$\M$ is fully determined
+by the substitution $\theta$ and the ABoxes $\abox_0$ and $\arel$.
+\end{enumerate}
+%
+The main intuition behind our module extraction approach is that we
+can pick $\theta$, $\abox_0$ and $\arel$ (and hence $\M$) such 
+that each proof $\rho$ of a $\S$-consequence $\varphi$ of $\T$ to
+be preserved can be embedded in a forward chaining proof $\rho'$
+in $\prog \cup \abox_0$
+of a relevant fact in $\arel$.
+Such an embedding satisfies the key property that, for each rule $r$
+involved in $\rho$, at least one corresponding datalog rule in $\prog$
+is involved in $\rho'$. In this way we ensure that $\M$ contains the
+necessary rules to entail $\varphi$.
+%
+This approach, however, does not
+ensure minimality of $\M$: since 
+$\prog$ is a strengthening of $\T$ there may be
+proofs of a relevant fact in $\prog \cup \abox_0$ that do not
+correspond to a $\S$-consequence of $\T$, which may lead to
+unnecessary rules in~$\M$.
+
+\begin{figure}
+\[
+{\small
+\begin{array}{rl|r@{\:\sby\:}l}
+(\ax_1) 	& \A(x) \rightarrow \exists y_1. [\roleR(x,y_1) \wedge \B(y_1)] 		& \A&\exists \roleR. \B \\
+(\ax_2) 	& \A(x) \rightarrow \exists y_2. [\roleR(x,y_2) \wedge \C(y_2)] 		& \A&\exists \roleR. \C \\
+(\ax_3) 	& \B(x)\wedge\C(x) \rightarrow \D(x) 											& \B\sqcap\C&\D \\
+(\ax_4) 	& \D(x) \rightarrow \exists y_3. [\roleS(x,y_3) \wedge \E(y_3)] 		& \D&\exists \roleS. \E \\
+(\ax_5) 	& \D(x) \wedge \roleS(x,y) \rightarrow \F(y) 									& \D&\forall \roleS. \F \\
+(\ax_6) 	& \roleS(x,y) \wedge \E(y) \wedge \F(y) \rightarrow \G(x) 				& \exists \roleS. (\E\sqcap\F)&\G \\
+(\ax_7) 	& \G(x) \wedge \H(x) \rightarrow \bot		& \G \sqcap \H& \bot 
+\end{array}}\]
+\caption{Example TBox $\Tex$ with DL translation}
+\label{fig:exampleTBox}
+\end{figure}
+
+\input{trees}
+
+
+To illustrate how our strategy might work in practice, 
+suppose that $\T$ is $\Tex$
+in Fig.\ \ref{fig:exampleTBox}, 
+$\S =\set{\B,\C,\D,\G}$, and that
+we want a module $\M$  that
+is $\S$-implication inseparable from $\Tex$. This is a
+ simple case 
+since $\varphi=\D(x)\to\G(x)$ is
+the only non-trivial $\S$-implication
+entailed
+by $\Tex$; thus, for $\M$ to be a module
+we only require that $\M \models \varphi$.
+
+Proving $\Tex \models \varphi$ 
+amounts to proving $\Tex \cup \{\D(a)\} \models \G(a)$ (with $a$ a fresh constant).
+Figure~\ref{fig:proof-trees}(a) depicts a hyper-resolution tree 
+$\rho$ showing how $\G(a)$ can be derived
+from the clauses corresponding to $\ax_4$--$\ax_6$ and $\D(a)$, with
+rule $\ax_4$ transformed into clauses
+%
+\begin{align*}
+\ax_4' = \D(x) \to \roleS(x,f(x_3)) & &  \ax_4'' = \D(x) \to \E(f(x_3))
+\end{align*}
+%
+Hence $\M = \{\ax_4$--$\ax_6\}$ is a $\S$-implication 
+inseparable module of $\Tex$, and as 
+$\G(a)$ cannot be derived
+from any subset of $\{\ax_4$--$\ax_6\}$, $\M$ is also minimal.
+
+In our approach, we pick
+$\abox_0$ to contain the initial fact $\D(a)$, $\arel$ to contain
+the fact to be proved $\G(a)$, and we make $\theta$
+map variable $y_3$ in $\ax_4$
+to a fresh constant $c$, in which case rule
+$\ax_4$ corresponds to the following datalog rules in $\prog$:
+%
+\begin{align*}
+\D(x) \to \roleS(x,c) && \D(x) \to \E(c)
+\end{align*}
+%
+Figure~\ref{fig:proof-trees}(b) depicts a forward chaining
+proof $\rho'$ of $\G(a)$ in 
+$\prog \cup \{\D(a)\}$.
+As shown in the figure, $\rho$ can be embedded in $\rho'$ via $\theta$ by
+mapping functional terms over $f$ 
+to the fresh constant $c$. In this way, the rules
+involved in $\rho$ are mapped to the datalog rules involved in $\rho'$
+via $\theta$. Consequently, we will extract the (minimal) module $\M = \{\ax_4$--$\ax_6\}$. 
+
+%%%%
+\subsection{The Notion of Module Setting}
+%%%%
+
+The substitution $\theta$ and the ABoxes $\abox_0$
+and $\arel$, which determine the extracted module, can be chosen
+in different ways to ensure the preservation of different kinds of $\Sigma$-consequences.
+The following notion of
+a \bla{} captures in a declarative way the main elements of
+our approach.
+
+
+\begin{definition}
+\label{def:bla}
+A \emph{\bla} for $\T$ and $\S$ is a tuple 
+$\upchi = \langle \theta, \abox_0, \arel \rangle$ 
+with
+$\theta$ a substitution from existentially quantified
+variables in $\T$ to constants,
+$\abox_0$ a $\Sigma$-ABox,
+$\arel$ a \hbox{$\sig{\T}$}-ABox, and s.t.\
+no constant in $\upchi$ occurs in $\T$.
+
+ 
+The \emph{program} of $\upchi$ is the smallest datalog program
+$\prog^{\chi}$ containing, for each
+$\ax=\fml(\x)\to\exists\y.[\bigvee_{i=1}^n\fmm_i(\x,\y)]$ in $\T$, the
+rule $\fml \rightarrow \bot$ if $n = 0$ and all rules $\fml \to
+\fct\theta$ for each $1 \leq i \leq n$ and each atom $\fct$ in
+$\psi_i$.  The \emph{support} of $\upchi$ is the set of rules $r \in
+\prog^{\chi}$ that support a fact from $\arel$ in $\prog^{\chi} \cup
+\abox_0$.  The \emph{module} $\M^{\chi}$ of $\upchi$ is the set of
+rules in $\T$ that have a corresponding datalog rule in the support of
+$\upchi$.
+\end{definition}
+
+%%%%
+\subsection{Modules for each Inseparability Relation}\label{sec:all-modules}
+%%%%
+
+We next consider each
+inseparability relation  $\equiv^z_{\S}$, where
+$z \in \set{\mathsf{m},\mathsf{q},\mathsf{f},\mathsf{i}}$, and
+formulate a specific setting $\upchi_z$
+which provably yields
+a $\equiv^z_{\S}$-module of $\T$. 
+%In 
+%Section \ref{sec:module-containment} we show that some of these settings
+%are \emph{optimal}, in the sense that no other ``reasonable'' choice of
+%the parameters $\theta$, $\abox_0$, and $\arel$ leads to smaller $\equiv^z_{\S}$-modules.
+
+%%%%
+\subsubsection{Implication Inseparability}
+
+%%%%%
+ 
+The example in Section~\ref{sec:overview}
+suggests a natural setting $\upchiimp=\langle \theta, \abox_0, \arel \rangle$ 
+that guarantees implication inseparability. 
+As in our example, we pick 
+$\theta$ to be as ``general'' as possible by
+Skolemising each existentially quantified variable to 
+a fresh constant.
+For $\A$ and $\B$ predicates of the same arity $n$,
+proving that $\T$ entails a $\S$-implication 
+$\varphi=\A(x_1, \ldots, x_n)\to\B(x_1, \ldots, x_n)$, 
+amounts
+to showing that $\T \cup \{\A(a_1, \ldots, a_n)\} \models \B(a_1, \ldots, a_n)$
+for fresh constants $a_1, \ldots, a_n$. Thus, following the ideas of our example,
+we 
+initialise $\abox_0$ with 
+a fact  $\A(c_{\A}^1, \ldots, c_{\A}^n)$ for each
+$n$-ary predicate $\A \in \S$, and $\arel$ with
+a fact 
+$\B(c_{\A}^1, \ldots, c_{\A}^n)$
+for each pair of $n$-ary predicates $\{\B,\A\} \subseteq \S$ with 
+$\B \neq \A$.
+% In this way we can ensure
+% that all proofs of $\varphi$ in $\T$ can 
+% be embedded in a proof of a relevant fact
+% in $\prog^{\chiimp} \cup \{\A(\vec{c_{\A}})\} $, 
+% and hence $\M^{\chiimp}$ entails the same
+% $\S$-implications as $\T$.
+
+\begin{definition} \label{def:chiimp} %
+For each existentially quantified variable $y_j$ in $\T$, let $c_{y_j}$
+be a fresh constant. Furthermore, 
+for each $\A\in\S$ of arity $n$, let $c_{\A}^1, \ldots, c_{\A}^n$ be 
+also fresh constants.  The setting
+  $\upchiimp=\langle \theta^{\mathsf{i}}, \abox_0^{\mathsf{i}}, \arel^{\mathsf{i}} \rangle$  is defined as follows:
+  \begin{itemize}
+  \item $\theta^{\mathsf{i}}=\mset{y_j\mapsto c_{y_j}}{y_j \text{ existentially quantified in }
+      \T}$,
+  \item $\abox_0^{\mathsf{i}}=\{\A(c_{\A}^1, \ldots, c_{\A}^n) \mid \A \text{~$n$-ary predicate in } \S\}$, and
+  \item $\arel^{\mathsf{i}}\,{=}\,\{\B(c_{\A}^1, \ldots, c_{\A}^n)\,{\mid}\,
+    \A \neq \B\, \text{~$n$-ary predicates in } \S \}$.\qedhere 
+  \end{itemize}  
+\end{definition}
+%
+%\noindent
+%
+The setting
+$\upchiimp$ is reminiscent of the datalog encodings 
+typically used  to check whether a
+concept  $A$ is subsumed by concept $B$
+w.r.t.\  a  ``lightweight'' 
+ontology $\T$ \cite{DBLP:conf/semweb/KrotzschRH08,stefanoni2013introducing}.
+There, variables in rules are Skolemised as
+fresh constants to produce a datalog program $\prog$
+and it is then checked whether $\prog \cup \{A(a)\} \models B(a)$.
+% The following theorem shows that, as expected, $\upchiimp$ 
+% yields a $\eqi_{\S}$-module.
+ 
+\begin{restatable}{theorem}{datalogAtomicSubsumptionModules}
+\label{thm:datalogAtomicSubsumptionModules}
+$\M^{\chiimp}\eqi_{\S} \T$.  
+\end{restatable} 
+ 
+
+%%%%
+\subsubsection{Fact Inseparability}
+%%%%
+
+The setting $\upchiimp$ in
+Def.~\ref{def:chiimp} cannot be used to ensure fact inseparability.
+Consider again $\Tex$ and $\S = \set{\B,\C, \D,\G}$, for which
+$\M^{\chiimp} = \{\ax_4, \ax_5, \ax_6\}$. For $\abox =
+\set{\B(a),\C(a)}$ we have $\Tex \cup \abox \models \G(a)$ but
+$\M^{\chiimp} \cup \abox \not\models \G(a)$, and hence $\M^{\chiimp}$
+is not fact inseparable from $\Tex$.
+
+More generally, 
+$\M^{\chiimp}$ is only guaranteed to preserve
+$\S$-fact entailments \mbox{$\T\cup\abox\models\fct$} where 
+$\abox$ is a singleton. However, for a module to be fact inseparable
+from $\T$ it must preserve all $\S$-facts when coupled with
+\emph{any} $\S$-ABox.   
+ We achieve this by choosing 
+ $\abox_0$ to be the \emph{critical ABox}
+for~$\S$, which consists of all facts that can be
+constructed using $\S$ and a single fresh constant
+\cite{DBLP:conf/pods/Marnette09}. Every $\S$-ABox
+can be homomorphically mapped into the critical
+$\S$-ABox. 
+In this way, we can show
+that all proofs of a $\S$-fact in $\T \cup \abox$ can 
+be embedded in a proof of a relevant fact in $\prog^{\chi} \cup \abox_0$.
+
+
+
+\begin{definition} \label{def:chidd} %
+  Let constants $c_{y_i}$ be as in Def.\ \ref{def:chiimp},
+  and let $*$ be a fresh constant. The setting
+  $\upchidd=\langle \theta^{\mathsf{f}}, \abox_0^{\mathsf{f}}, \arel^{\mathsf{f}} \rangle$ is defined as follows:
+  \begin{inparaenum}[\it (i)]
+  \item $\theta^{\mathsf{f}} = \theta^{\mathsf{i}}$,
+  % \item $\abox_0^{\mathsf{f}}$ consists of all facts $\A(\ast, \ldots, \ast)$
+  % with $\A$ an $n$-ary $\S$-predicate, and
+  \item $\abox_0^{\mathsf{f}} = \mset{\A(\ast,\ldots,\ast)}{\A\in\S}$, and
+  \item $\arel^{\mathsf{f}} = \abox_0^{\mathsf{f}}$\qedhere
+  \end{inparaenum}
+\end{definition}
+%
+The datalog programs for $\upchiimp$ and  $\upchidd$ coincide
+and hence the only difference between the two settings is in the definition of
+%the initial ABox.
+their corresponding ABoxes.  In our example, both
+$\abox_0^{\mathsf{f}}$ and $\arel^{\mathsf{f}}$ contain facts
+$\B(\ast)$, $\C(\ast)$, $\D(\ast)$, and $\G(\ast)$. Clearly,
+$\prog^{\chidd} \cup \abox_0 \models \G(\ast)$ and the 
+proof additionally involves rule $\ax_3$. Thus $\M^{\chidd} = \set{\ax_3,\ax_4,\ax_5,\ax_6}$.
+%  The following theorem establishes that
+% $\M^{\chidd}$ is indeed a $\eqf_{\S}$-module of $\T$.
+
+\begin{restatable}{theorem}{disjDatalogModules}
+\label{thm:disjDatalogModules}
+$\M^{\chidd}\eqf_{\S}\T$.
+\end{restatable}
+%
+
+%%%
+\subsubsection{Query Inseparability}
+%%%
+Positive existential queries constitute a much richer query 
+language than facts as they
+allow for existentially quantified variables. 
+Thus, the
+query inseparability requirement  invariably 
+leads to larger modules.
+
+For instance, let $\T=\Tex$ and
+$\S=\set{\A,\B}$. Given the $\S$-ABox
+$\abox = \{\A(a)\}$ and $\S$-query $q = \exists y.\B(y)$ we have that
+$\Tex \cup \abox \models q$ (due to rule $\ax_1$). 
+The module
+$\M^{\chidd}$ is, however, empty. Indeed, the materialisation 
+of $\prog^{\chidd} \cup \{\A(\ast)\}$ consists of the additional facts
+$\roleR(\ast,c_{y_1})$ and $\B(c_{y_1})$ and hence it does not
+contain any relevant fact mentioning only $\ast$.
+Thus, 
+$\M^{\chidd} \cup \abox \not\models q$ and $\M^{\chidd}$ is not
+query inseparable from $\Tex$.
+
+Our example suggests that, although the critical ABox
+is constrained enough to embed every $\S$-ABox,  we may need
+to consider additional relevant facts to capture all
+proofs of a $\S$-query. 
+In particular, rule $\ax_1$ implies that $\B$ contains an 
+instance
+whenever $\A$ does: a dependency that is then checked by $q$.
+This can be captured by considering fact $\B(c_{y_1})$
+as relevant, in which case rule $\ax_1$ would be in the module.
+
+More generally, we consider a module setting $\upchi$ 
+that differs from $\upchidd$
+only in that all $\S$-facts (and not just those over 
+$\ast$) are considered
+as relevant. 
+%
+\begin{definition} \label{def:chicq} %
+  Let constants $c_{y_i}$ and $\ast$ be as in Def.~\ref{def:chidd}. 
+  The setting $\upchicq=\langle \theta^{\mathsf{q}}, \abox_0^{\mathsf{q}}, \arel^{\mathsf{q}} \rangle$ is 
+  as follows:
+  \begin{inparaenum}[\it (i)]
+  \item $\theta^{\mathsf{q}}= \theta^{\mathsf{f}}$,
+  \item $\abox_0^{\mathsf{q}} = \abox_0^{\mathsf{f}}$, and 
+  \item $\arel^{\mathsf{q}}$ consists of all $\S$-facts $\A(a_1, \ldots, a_n)$
+  with each $a_j$ either a constant $c_{y_i}$ or $\ast$.\qedhere
+  \end{inparaenum}
+\end{definition}
+%
+Correctness is established by the following theorem:
+
+
+\begin{restatable}{theorem}{datalogCQModules} \label{thm:datalogCQModules}
+  $\M^{\chicq}\eqq_{\S}\T$.
+\end{restatable}
+ 
+%% 
+\subsubsection{Model Inseparability}
+\label{sec:semantic-modules}
+
+The modules generated by $\chicq$ may not be model inseparable from
+$\T$. To see this, let $\T=\Tex$ and $\S = \{\A,\D,\roleR\}$, in which case
+$\M^{\chicq}=\set{\ax_1,\ax_2}$. The interpretation 
+$\calI$ where 
+$\Delta^{\calI} = \{a,b\}$, $\A^{\calI} = \{a\}$,
+$\B^{\calI} = \C^{\calI} = \{b\}$, $\D^{\calI} = \emptyset$
+and $R^{\calI} = \{ (a,b)\}$ is a model of
+$\M^{\chicq}$. This interpretation, however, 
+cannot be extended to a model of $\ax_3$ (and hence of $\T$) without reinterpreting
+$\A$, $\roleR$ or $\D$. 
+
+%
+The main insight behind locality and reachability
+modules
+%\cite{GrauHKS08JAIR,DBLP:conf/lpar/NortjeBM13},
+is to ensure that each model of the module can be extended
+to a model of $\T$ in a uniform way. 
+Specifically,
+each model of a $\top\!\bot\!^*$-locality or
+$\top\!\bot\!^*$-reachability module can be
+extended to a model of $\T$ by interpreting all other
+predicates $\A$ as either $\emptyset$ or
+$(\Delta^{\calI})^{n}$ with $n$ the arity of $\A$.
+Thus, $\M = \{\ax_1,\ax_2,\ax_3\}$ is
+a $\eqm_{\S}$-module of $\Tex$ since all its models
+can be extended
+by interpreting $\E$, $\F$ and $\G$ as
+the domain, $\H$ as empty, and $\roleS$ as the Cartesian 
+product of the domain.
+We can capture this idea in our framework by means of the following setting.
+%
+\begin{definition} \label{def:chistar}
+  The setting $\upchistar=\langle \theta^{\mathsf{m}}, \abox_0^{\mathsf{m}}, \arel^{\mathsf{m}} \rangle$ is
+  as follows:
+  $\theta^{\mathsf{m}}$ maps  each existentially quantified variable  to the fresh constant
+  $\ast$ and
+  $\abox_0^\mathsf{m} = \arel^\mathsf{m} = \abox_0^{\mathsf{f}}$. %\mset{\A(\ast, \ldots, \ast)}{\A\in\S}$.
+\end{definition}
+%
+In our example, 
+$\prog^{\chistar}\cup\abox_0^{\mathsf{m}}$ entails the
+relevant facts
+$\A(\ast)$, $\roleR(\ast,\ast)$ and $\D(\ast)$, and hence  
+$\M^{\chistar} = \{\ax_1,\ax_2,\ax_3\}$.
+
+To show that $\M^{\chistar}$
+is a $\eqm_{\S}$-module we prove that
+all models $\calI$ of $\M^{\chistar}$
+can be extended to a model of $\T$
+as follows:
+% 
+\begin{inparaenum}[\it(i)]
+\item predicates not occurring in the materialisation
+of $\prog^{\chistar} \cup \abox_0^{\mathsf{m}}$ are interpreted as empty;
+\item predicates in the support
+of $\upchistar$ (and hence occurring in $\M^{\chistar}$)
+are interpreted as in $\calI$; and
+\item all other predicates $\A$ are interpreted as $(\Delta^{\calI})^{n}$ with $n$ the arity of $\A$. 
+\end{inparaenum}
+%Thus, we obtain the following theorem.
+%
+\begin{restatable}{theorem}{datalogSemModules} \label{thm:datalogSemModules}
+  $\M^{\chistar}\eqm_{\S}\T$. 
+\end{restatable}
+
+
+
+%%%%%
+\subsection{Modules for Ontology Classification}\label{sec:modules-class}
+
+Module extraction has been 
+exploited for 
+optimising ontology classification~\cite{DBLP:conf/semweb/RomeroGH12,DBLP:conf/ore/TsarkovP12,DBLP:journals/jar/GrauHKS10}.
+In this case, it is not only required that 
+modules are implication inseparable from $\T$, but also that they
+preserve all implications  $\A(\x) \to \B(\x)$ with 
+$\A\in \S$ but $\B \notin \S$. This requirement
+can be captured as given next.
+
+\begin{definition}
+  TBoxes $\T$ and $\T'$ are \emph{$\S$-classification inseparable}
+  ($\T\eqc_{\S}\T'$) if for each $\fml$ of the form $\A(\x)\to\B(\x)$
+  %or $\A(\x)\to$ 
+  with $\A\in\S, $ and
+  $\B\in\sig{\T\cup\T'}$ we have $\T\models\fml$ iff $\T'\models\fml$.
+ \end{definition}
+% 
+Classification inseparability is a stronger requirement
+than implication inseparability. For
+$\T = \{ \A(x) \to \B(x)\}$ and $\S = \{ \A \}$,
+$\M = \emptyset$ is implication inseparable from $\T$, whereas
+classification inseparability requires that $\M = \T$. 
+
+Modular reasoners such as MORe and Chainsaw rely on
+locality $\bot$-modules, which satisfy this requirement.
+Each model of a $\bot$-module $\M$ can be extended
+to a model of $\T$ by interpreting all additional predicates as empty, which
+is not possible if $\A \in \S$ and $\T$ entails $\A(x) \to \B(x)$ but $\M$ does not.
+We can cast $\bot$-modules in our framework with
+the following setting, which extends $\upchistar$
+in Def.~\ref{def:chistar} by also considering
+as relevant facts involving predicates not in $\S$.
+%
+\begin{definition} \label{def:chibot}
+  The setting $\upchibot=\langle \theta^{\mathsf{b}}, \abox_0^{\mathsf{b}}, \arel^{\mathsf{b}} \rangle$ is as
+  follows: $\theta^{\mathsf{b}} = \theta^{\mathsf{m}}$, 
+  $\abox_0^{\mathsf{b}} = \abox_0^{\mathsf{m}}$, and 
+  $\arel$ consists of all facts $\A(\ast, \ldots, \ast)$ where
+  $\A\in\sig{\T}$.\qedhere
+\end{definition}
+%
+The use of $\bot$-modules is, however, 
+stricter than is needed for ontology classification.
+For instance, if we consider
+$\T = \Tex$ and $\S = \{\A\}$ we have
+that $\M^{\chibot}$ contains all rules
+$\ax_1$--$\ax_6$, but since $\A$ does not
+have any subsumers in $\Tex$ the empty TBox
+is already classification inseparable from $\Tex$.
+
+The following module setting extends
+$\upchiimp$ in Def.\ \ref{def:chiimp}
+to ensure classification inseparability.
+As in the case of $\chibot$ in Def.~\ref{def:chibot}
+the only required modification is to
+also consider as relevant facts 
+involving predicates outside $\S$.
+
+ 
+\begin{definition} \label{def:chicls}
+ Setting $\upchicls= (\theta^{\mathsf{c}}, \abox_0^{\mathsf{c}}, \arel^{\mathsf{c}})$
+  is as follows:
+  $\theta^{\mathsf{c}} = \theta^{\mathsf{i}}$,
+  $\abox_0^{\mathsf{c}} = \abox_0^{\mathsf{i}}$,
+  and $\arel^{\mathsf{c}}$ consists of all facts
+  $\B(c_{\A}^1, \ldots, c_{\A}^n)$ s.t.\ 
+  $\A \neq \B$ are $n$-ary predicates, $A \in \S$ and
+  $\B\in\sig{\T}$.
+\end{definition}
+%
+Indeed, if we consider again $\T = \Tex$ and $\S = \{\A\}$, the module
+for $\upchicls$ is empty, as desired.
+
+\begin{restatable}{theorem}{datalogClassifModules}
+  \label{thm:datalogClassifModules}
+  $\M^{\chicls}\eqc_\S\T$. 
+\end{restatable}
+
+%%%%
+\subsection{Additional Properties of Modules}
+%%%%
+
+Although the essential property of a module $\M$ is
+that it captures all relevant $\S$-consequences of $\T$,
+in some applications it is
+desirable that modules satisfy additional requirements.
+  
+In ontology reuse scenarios, it is sometimes desirable that a module
+$\M$ does not ``leave any relevant information behind'', in the sense that
+$\T \setminus \M$ does not
+entail any relevant $\S$-consequence---a property 
+referred to as \emph{depletingness}
+\cite{DBLP:journals/ai/KontchakovWZ10}.
+%
+\begin{definition}
+  Let $\equiv_{\S}^z$ be an inseparability relation.
+  A $\equiv_{\S}^z$-module $\M$ of $\T$ is \emph{depleting} if
+  $\T\setminus\M\equiv_{\S}^z\emptyset$.
+  %\footnote{In the literature, a stronger notion 
+  %is often considered where it is required that $\T\setminus\M\equiv_{\S \cup \sig{\M}}^z\emptyset$.
+  %The motivation for this strengthening is preservation of justifications. Although our modules are not
+  %strongly depleting, they do preserve justifications.}
+\end{definition}
+%
+Note that not all modules are depleting: for some relevant
+$\S$-entailment $\varphi$ it may be that $\M \models \varphi$
+(as required by the definition of module), but also that
+$(\T \setminus \M) \models \varphi$, in which case $\M$ is not depleting.
+The following theorem establishes 
+that all modules defined in Section \ref{sec:all-modules}
+are depleting.
+%
+\begin{restatable}{theorem}{depletingness}
+  $\M^{\chi_z}$ is depleting for each $z\in\set{\mathsf{m},\mathsf{q},\mathsf{f},\mathsf{i},\mathsf{c}}$. 
+\end{restatable}
+
+
+Another common application of modules is to optimise the
+computation of justifications: minimal subsets of
+a TBox that are sufficient to entail a given formula
+\cite{DBLP:conf/semweb/KalyanpurPHS07,DBLP:conf/aswc/SuntisrivarapornQJH08}.
+%
+\begin{definition}
+  Let $\T\models\fml$. A \emph{justification
+    for $\fml$ in $\T$} is a minimal subset $\T'\subseteq\T$ such that
+  $\T'\models\fml$.
+\end{definition}
+%
+Justifications are displayed in ontology development
+platforms as explanations of why an entailment holds, and 
+tools typically compute all of them. Extracting justifications
+is a computationally intensive task, and locality-based modules have
+been used to reduce the size of the problem: if $\T'$
+is a justification of $\varphi$ in $\T$, then $\T'$ is contained in
+a locality module of $\T$ for  $\S = \sig{\varphi}$. 
+Our modules are
+also justification-preserving, and we can adjust
+our modules depending on what kind of first-order sentence $\varphi$ is.
+%
+\begin{restatable}{theorem}{presJustifications} \label{thm:presJustifications} ~
+ Let $\T'$ be a justification for a first-order sentence $\varphi$ in $\T$ and let
+ $\sig{\varphi} \subseteq \S$. Then, $\T' \subseteq \M^{\chistar}$. Additionally,
+ the following properties hold:
+ %
+ \begin{inparaenum}[\it (i)]
+ \item if $\varphi$ is a rule, then $\T' \subseteq \M^{\chicq}$;
+ \item if $\varphi$ is datalog, then $\T' \subseteq \M^{\chidd}$; and
+ \item if $\varphi$ %is an implication,
+   is of the form $\A(\x)\to\B(\x)$, then $\T' \subseteq
+   \M^{\chiimp}$; finally, if $\varphi$ satisfies
+   $A \in \S, B \in \sig{\T}$, then
+   $\T' \subseteq \M^{\chicls}$.
+ \end{inparaenum}
+\end{restatable}
+
+
+
+%%%
+\subsection{Complexity of Module Extraction}
+\label{sec:complexity}
+%%%
+ 
+We conclude this section by showing that our modules can be 
+efficiently computed in most practically relevant cases. 
+
+\begin{restatable}{theorem}{complexity} \label{thm:complexity} %
+  Let $m$ be a non-negative integer and $L$ a class of TBoxes s.t.\ 
+  each rule in a TBox from $L$ has at most $m$
+  distinct universally quantified variables.  The following problem is
+  tractable: given $z \in \{\mathsf{q}, \mathsf{f}, \mathsf{i}, \mathsf{c}\}$, $\T\in L$, and 
+  $\ax\in\T$, decide whether \mbox{$\ax\in\M^{\chi_z}$}.
+ The problem is solvable in polynomial time for arbitrary classes $L$ of TBoxes if
+ $z = \mathsf{m}$. 
+\end{restatable}
+
+We now provide a proof sketch for this result.
+Checking whether a datalog program $\prog$ and an ABox $\abox$
+entail a fact
+is feasible in  $\mathcal{O}(\vert \prog \vert \cdot n^v)$, with 
+$n$ the number 
+of constants in $\prog \cup \abox$ and $v$ the maximum
+number of variables in a rule from $\prog$ \cite{DBLP:journals/csur/DantsinEGV01}.
+Thus, although datalog reasoning is exponential in the size of $v$
+(and hence of $\prog$), it
+is tractable if $v$ is bounded by a constant.
+
+Given arbitrary $\T$ and $\S$, and for $z \in \{\mathsf{m}, \mathsf{q}, \mathsf{f}, \mathsf{i}, \mathsf{c}\}$,
+the datalog program $\prog^{\chi_z}$ 
+can be computed in linear time in the size of $\vert \T \vert$.
+The number of constants $n$ in $\upchi_z$ (and hence in
+$\prog^{\chi_z} \cup \abox_0^z$) is
+linearly bounded in $\vert \T \vert$, whereas the maximum number of 
+variables $v$ coincides with the maximum number
+of universally quantified variables in a rule from $\T$. 
+As shown in \cite{DBLP:conf/aaai/ZhouNGH14}, 
+computing the support of a fact in a datalog program is
+no harder than fact entailment, and thus module extraction in our approach is
+feasible in  $\mathcal{O}(\vert \T \vert \cdot n^v)$, and thus
+tractable for ontology languages where rules have a bounded number of variables (as is the case for
+most DLs). Finally, if $z = \mathsf{m}$ the setting $\upchistar$ involves 
+a single constant $\ast$ and module extraction boils down to reasoning
+in propositional datalog (a tractable problem regardless of $\T$).
+
+
+
+
+
+%%%
+\subsection{Module Containment and Optimality} \label{sec:module-containment}
+%%
+
+Intuitively, the more expressive the language for which preservation
+of consequences is required the larger modules need to be.
+The following proposition shows 
+that our modules are consistent with this 
+intuition.
+% For this, we use the following notion of a homomorphism between
+% module settings.
+%
+\begin{restatable}{proposition}{hierarchy} \label{prop:module-hierarchy}
+  $\M^{\chiimp} \subseteq \M^{\chidd} \subseteq \M^{\chicq} \subseteq
+  \M^{\chistar}\subseteq\M^{\chibot}$ and $\M^{\chiimp} \subseteq \M^{\chicls} \subseteq \M^{\chibot}$
+\end{restatable}
+%
+As already discussed, these containment relations 
+are strict for many $\T$ and $\S$.
+
+We conclude this section by discussing whether 
+each
+$\upchi_z$ with $z \in \{\mathsf{q}, \mathsf{f}, \mathsf{i}, \mathsf{c}\}$
+is optimal for its inseparability relation in the sense that there is no
+setting that produces smaller modules.
+To make optimality statements precise we need to 
+consider families of module settings, that is, functions
+that assign a module setting for each pair of $\T$ and $\S$.
+%
+\begin{definition}
+  A \emph{setting family} is a function $\Psi$ that maps a TBox
+  $\T$ and signature $\S$ to a \bla{} for $\T$ and $\S$. 
+  We say that $\Psi$ is \emph{uniform} if for every $\S$ and
+  pair of TBoxes $\T,\T'$ with the same number of
+  existentially
+  quantified variables $\Psi(\T,\S)=\Psi(\T',\S)$.
+  Let $z\in\set{\mathsf{i},\mathsf{f},\mathsf{q},\mathsf{c}}$; then,
+  $\Psi$ is \emph{$z$-admissible} if, for each
+  $\T$ and $\S$, $\M^{\Psi(\T,\S)}$ is a $\equiv^z_\S$-module of $\T$. 
+  Finally, $\Psi$ is \emph{$z$-optimal} if
+  $\M^{\Psi(\T,\S)}\subseteq\M^{\Psi'(\T,\S)}$ for every $\T$, $\S$
+  and every uniform $\Psi'$ that is $z$-admissible.
+\end{definition}
+%
+Uniformity ensures that settings
+do not depend on the specific shape of rules in $\T$, but rather only on $\S$
+and the number of existentially quantified variables in $\T$.
+In turn, admissibility ensures that each setting yields a module.
+The (uniform and admissible) family $\Psi^z$
+corresponding to each setting  $\upchi^z$
+in Sections \ref{sec:all-modules} and \ref{sec:modules-class}
+is defined in the obvious way: 
+for each $\T$ and $\S$, $\Psi^z(\T,\S)$ is the
+setting $\upchi^z$ for $\T$ and $\S$.
+
+The next theorem shows that $\Psi^z$ is optimal for implication and
+classification inseparability.
+%
+\begin{restatable}{theorem}{optimality} \label{thm:optimality} %
+  $\Psi^z$ is $z$-optimal for $z\in\set{\mathsf{i},\mathsf{c}}$.
+\end{restatable}
+%
+In contrast, $\Psi^{\mathsf{q}}$ and  $\Psi^{\mathsf{f}}$
+are not optimal. To see this, let
+$\T = \{ \A(x) \to \B(x), \B(x) \to \A(x)\}$ and $\S = \{\A\}$. 
+The empty TBox is fact inseparable from $\T$ since the only $\S$-consequence
+of $\T$ is the tautology $\A(x) \to \A(x)$. However, $\M^{\chidd} = \T$ since 
+fact $\A(a)$ is in $\arel^{\mathsf{f}}$ and its support is included in the module.
+We can provide a family of settings that distinguishes
+tautological from non-tautological inferences (see 
+%extended version of the paper);
+appendix);
+%supplemental material);
+% We can provide a family of settings that distinguishes
+% tautological from non-tautological inferences (due to space restrictions we do
+% not include any details about this family here);
+however, this family yields settings of exponential size in $\vert \T \vert$, which is
+undesirable in practice.
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "paper"
+%%% End: 
+
+
+
+
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "paper"
+%%% End: 

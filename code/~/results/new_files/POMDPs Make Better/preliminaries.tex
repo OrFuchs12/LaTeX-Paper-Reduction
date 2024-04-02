@@ -1,0 +1,143 @@
+\section{Preliminaries}
+\label{preliminaries}
+
+We fill in some details on network structure and penetration
+testing. We give a brief background on POMDPs.
+
+
+
+\subsection{Network Structure}
+
+
+Networks can be viewed as directed graphs whose vertices are given by
+the set $M$ of \emph{machines}, and whose arcs are connections between
+pairs of $m \in M$. However, in practice, these network graphs have a
+particular structure. They tend to consist of \emph{subnetworks}, \ie,
+clusters $N$ of machines where every $m \in N$ is directly connected
+to every $m' \in N$. %
+By contrast, not every subnetwork $N$ is connected to every other
+subnetwork $N'$, and typically, if such a connection does exist, then
+it is filtered by a \emph{firewall}.
+
+From the perspective of an attacker, the firewalls filter the
+connections and thus limit the attacks that can be executed when
+trying to hack into a subnetwork $N'$ from another subnetwork $N$.  On
+the other hand, once the hacker managed to get into a subnetwork $N$,
+access to all machines within $N$ is easy. Thus a natural
+representation of the network, from an attack planning point of view,
+is that of a graph whose vertices are subnetworks, and whose arcs are
+annotated with firewalls $F$. We herein refer to this graph as the
+\emph{logical network} $LN$, and we denote its arcs with $N
+\xrightarrow{F} N'$.
+
+We formalize firewalls as sets of rules describing which kinds of
+communication (\eg, ports) are disallowed. Thus smaller sets
+correspond to ``weaker'' firewalls, and the \emph{empty firewall}
+blocks no communication at all.
+
+
+We remark that, in our POMDP model, we do not provide for privilege
+escalation, or obtaining passwords. This can instead be modeled at the
+level of $LN$. Different privilege levels on the same machine $m$ can
+be encoded via different copies of $m$. If controlling $m$ allows
+the retrieval of passwords, then $m$ can be connected via empty firewalls
+to the machines $m'$ who can be accessed by using these passwords, more
+precisely to high-privilege copies of these $m'$.
+
+
+
+
+
+\subsection{Penetration Testing}
+
+
+Uncertainty in pentesting arises because it is impossible to keep
+track of all the \emph{configuration} details of individual machines,
+i.e., exactly which versions of which programs are installed
+etc. However, it is safe to assume that the pentesting tool knows the
+structure of the network, \ie, the graph $LN$ and the filtering done
+by each firewall: changes to this are infrequent and can easily be
+registered.
+
+
+The objective of pentesting is to gain control over certain machines
+(with critical content) in the network. At any point in time, each
+machine has a unique {\em status}. A \emph{controlled} machine $m$ has
+already been hacked into. A \emph{reached} machine $m$ is connected to
+a controlled machine, \ie, either $m$ is in a subnetwork $N$ one of
+whose machines is controlled, or $m$ is in a subnetwork $N'$ with a
+$LN$ arc $N \xrightarrow{F} N'$ where one of the machines in $N$ is
+controlled. All other machines are \emph{not reached}. The algorithm
+starts with one controlled machine, denoted here by
+\start.\footnote{For simplicity, we will notate \start\ as a separate
+  vertex in $LN$.  If \start\ is part of a subnetwork $N$, this means
+  to turn $N \setminus \{\start\}$ into a separate vertex in $LN$,
+  connected to \start\ via the empty firewall.}
+We will use the following (small but real-life) situation as a running
+example:
+
+\vspace{-0.05cm}
+\begin{example}\label{exp:running-preliminaries}
+The attacker has already hacked into a machine $m'$, and now wishes to
+attack a machine $m$ within the same subnetwork. The attacker knows
+two exploits: \emph{SA}, the ``Symantec Rtvscan buffer overflow
+exploit''; and \emph{CAU}, the ``CA Unicenter message queuing
+exploit''. SA targets a particular version of ``Symantec Antivirus'',
+that usually listens on port 2967. CAU targets a particular version of
+``CA Unicenter'', that usually listens on port 6668. Both work only if
+a protection mechanism called \emph{DEP} (``Data Execution
+Prevention'') is disabled.
+\end{example}
+\vspace{-0.05cm}
+
+If SA fails, then it is likely that CAU will fail as well (because DEP
+is enabled). The attacker is then better off trying something
+else. Achieving such behavior requires the attack plan to observe the
+outcomes of actions, and to react accordingly. Classical planning
+(which assumes perfect world knowledge at planning time) cannot
+accomplish this.  
+
+Furthermore, port scans---observation actions testing whether or not a
+particular port is open---should be used only if one actually intends
+to execute a relevant exploit. Here, if we start with SA, we should
+scan only port 2967. We accomplish such behavior through the use of
+POMDPs. By contrast, to reduce uncertainty, classical planning
+requires a pre-process executing \emph{all} possible scans. In this
+example, there are only two---ports 2967 and 6668---however in general
+there are many, causing significant network traffic and waiting time.
+
+
+
+
+
+\subsection{POMDPs}
+
+
+POMDPs are usually defined (e.g., \cite{Monahan82,KaeLitCas-aij98}) by
+a tuple $\langle \cS, \cA, \cO, T, O, r, b_0 \rangle$. If the system
+is in state $s \in \cS$ (the {\em state space}), and the agent
+performs an action $a\in \cA$ (the {\em action space}), then that
+results in (1) a transition to a state $s'$ according to the {\em
+  transition function} $T(s,a,s')=Pr(s'| s,a)$, (2) an observation
+$o\in\cO$ (the {\em observation space}) according to the {\em
+  observation function} $O(s',a,o)=Pr(o| s',a)$ and (3) a scalar {\em
+  reward} $r(s,a,s')$. $b_0$, the {\em initial belief}, is a
+probability distribution over $\cS$. %
+
+The agent must find a decision {\em policy} $\pi$ choosing, at each
+step, the best action based on its past observations and actions so as
+to maximize its future gain, which we measure here through the total
+accumulated reward. The expected value of an optimal policy is denoted
+with $V^*$.
+
+
+The agent typically reasons about the hidden state of the system using
+a {\em belief state} $b$, a probability distribution over $\cS$. For
+our experiments we use SARSOP \cite{KurHsuLee08}, a state of the art
+point-based algorithm, i.e., an algorithm approximating the value
+function as the upper envelope of a set of hyperplanes, corresponding
+to a selection of particular belief states (referred to as
+``points'').
+
+
+

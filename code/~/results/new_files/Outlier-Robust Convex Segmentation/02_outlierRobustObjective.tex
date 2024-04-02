@@ -1,0 +1,267 @@
+\section{Outlier-Robust Convex Segmentation}\label{sec:outlierRobustObj}
+Segmentation is the task of dividing a sequence of $n$ data samples $\{\vxii\}_{i=1}^n$, into $K$ groups of consecutive samples, or segments, such that each group is homogeneous with respect to some criterion. A common choice of such a criterion often involves minimizing the squared Euclidean distance of a sample to some representative sample $\vmuii$. %, e.g. the centroid of the segment.
+This criterion is highly sensitive to outliers and indeed, as we show empirically below, the performance of segmentation algorithms degrades drastically when the data is contaminated with outliers.
+It is therefore desirable to incorporate robustness to outliers into the model. We achieve this by allowing some of the input
+samples $\vxii$ to be identified as outliers, in which case we do not require $\vmuii$ to be close to these samples.
+To this end we propose to minimize:
+\begin{align*}%\label{eq:outlierRobustObjective}
+    \min_{\vmu,\vz}\bbraces{&\frac{1}{2}\sum_{i=1}^n\normt{\vxii-\vzii-\vmuii}} \\
+    \textrm{ s.t. } & \sum_{i=1}^{n-1}\ind{\vnorm{\vmui{i+1}-\vmuii}_p>0}\leq K-1~,\\ %\sum_{i=1}^{n-1}\vnorm{\vmui{i+1}-\vmuii}_2\\&+
+                    & \sum_{i=1}^n\ind{\vnorm{\vzii}_q>0}\leq M~,
+\end{align*}
+where $p,q\geq 1$. Considering samples $\vxii$ for which $\vzii=0$, the objective measures the loss of replacing a point $\vxii$ with some shared point $\vmuii$, and can be thought of as minus the log-likelihood under Gaussian noise. Samples $i$ with $\vzii\neq0$ are intuitively identified as outliers. The first constraint bounds the number of segments by $K$,
+%and is the $\ell_0$ norm of the vector of norms-of-differences of the $\vmuii$s.
+while the second constraint bounds the number of outliers by $M$.
+%and can be seen as the $\ell_0$ norm of the vector with $\vnorm{\vzii}_q$ as its $i$th component.
+The optimal value for a nonzero $\vzii$ is to set $\vzii=\vxii-\vmuii$,
+making the contribution to the objective zero, and thus in practice
+ignoring this sample, treating it as an outlier. We note that a similar approach to robustness was employed by \cite{forero2011outlier} in the context of robust clustering, and by \cite{mateos2012robust} in the context of robust PCA.
+Since the $\ell_0$ constraints results in a non convex
+problem, we use a common practice and replace it with a convex surrogate $\ell_1$ norm which induces
+sparsity. For the $\vmuii$ variables it means that for most samples we will have $\vmui{i+1}-\vmui{i}=0$, allowing the identification of the corresponding samples as belonging to the same segment.
+For the $\vzii$ variables, it means that most will satisfy $\vzii=0$ and for some of them, the
+outliers, otherwise. We now incorporate the relaxed constraints into the objective, and in addition consider a slightly more general formulation in which we allow weighting of the summands in the first constraint. We get the following optimization problem:
+\begin{align}\label{eq:outlierRobustObjective}
+    \min_{\vmu,\vz}\bbraces{ &\frac{1}{2}\sum_{i=1}^n\normt{\vxii-\vzii-\vmuii}+\lambda\sum_{i=1}^{n-1}w_i\vnorm{\vmui{i+1}-\vmuii}_p\\
+    &+\gamma\sum_{i=1}^n\vnorm{\vzii}_q}~,\nonumber
+\end{align}
+where $w_i$ are weights to be determined.
+The parameter $\lambda>0$ can be thought of as a tradeoff parameter between the first term which is minimized with $n$ segments, and the second term which is minimized with a single segment. As $\lambda$ is decreased, it crosses values at which there is a transition from $K$ segments to $K+1$ segments, in a phase-transition like manner where $1/\lambda$ is the analog of temperature. The parameter $\gamma>0$ controls the amount of
+outliers, where for $\gamma=\infty$ we enforce $\vzii=0$ for all samples,
+and for $\gamma=0$ the objective is optimal for $\vzii=\vxii-\vmuii$, and thus all
+samples are in-fact outliers.
+Alternatively, one can think of $\lambda,\gamma$ as the Lagrange multipliers of a constrained optimization problem. In what follows we consider $p=2$ and $q=1,2$, focusing empirically on $q=2$. Note that $q=1$ encourages sparsity of coordinates of $\vzii$, and not of the vector as a whole.
+%, as is the case for $q=2$.
+This amounts to outliers being modeled as noise %concentrated
+in few features or samples, respectively.
+
+%Specifically, we introduce
+%additional variables $\{\vzii\}$ to the objective in
+%\eqref{eq:segmentationObjective}, which, intuitively, are
+%identified as the perturbation or outlier values, and replace
+%\eqref{eq:segmentationObjective} with the following,
+%\begin{align*}%\label{eq:outlierRobustObjective}
+%    \min_{\vmu,\vz}\bbraces{&\frac{1}{2}\sum_{i=1}^n\normt{\vxii-\vzii-\vmuii}+\lambda\sum_{i=1}^{n-1}\vnorm{\vmui{i+1}-\vmuii}_2\\&+
+%    \gamma\sum_{i=1}^n\ind{\vnorm{\vzii}_q>0}}~.%\nonumber
+%\end{align*}
+%When $\vzii=\vzero$ for all $i=1,\ldots,n$, \eqref{eq:outlierRobustObjective} reduces to
+%\eqref{eq:segmentationObjective}. Ideally, as before, the last term counts and therefore regularizes the number of samples for which $\vzii\neq 0$, and can be seen as the $\ell_0$ norm of the vector with $\vnorm{\vzii}_q$ as its $i$th component. In this case the optimal value for a nonzero $\vzii$ is to set $\vzii=\vxii-\vmuii$,
+%making the contribution to the first term zero, and thus in practice
+%ignoring this sample, treating it as an outlier.
+%However, as before, the $\ell_0$ regularization results in a non convex
+%function, and thus we relax it by an $\ell_1$ norm, which encourages
+%that for most samples we have $\vzii = 0$ and for some of them, the
+%outliers, otherwise. The parameter $\gamma$ controls the amount of
+%outliers. For $\gamma=\infty$ we enforce $\vzii=0$ for all samples,
+%reducing to the algorithm of previous section, while for $\gamma=0$
+%the objective is optimal for $\vzii=\vxii-\vmuii$, and thus all
+%samples are in-fact outliers.
+%In what follows we consider $q=1,2$, noting that $q=1$ encourages sparsity of individual components of $\vzii$, and not on the vector as a whole, as is the case for $q=2$. The resulting convex optimization problem is given by
+%\begin{align}\label{eq:outlierRobustObjective}
+%    \min_{\vmu,\vz}\bbraces{&\frac{1}{2}\sum_{i=1}^n\normt{\vxii-\vzii-\vmuii}+\lambda\sum_{i=1}^{n-1}\vnorm{\vmui{i+1}-\vmuii}_2\\&+
+%    \gamma\sum_{i=1}^n\vnorm{\vzii}_q}~.\nonumber
+%\end{align}
+
+\subsection{Algorithms}\label{sec:algorithms}
+The decoupling between $\vmu$ and $\vz$ allows us to optimize
+\eqref{eq:outlierRobustObjective} in an alternating manner, and we call this algorithm %for alternately optimizing \eqref{eq:outlierRobustObjective}
+Outlier-Robust Convex Sequential (ORCS) segmentation.
+Holding $\vmu$ constant, optimizing
+over $\vz$ is done analytically by noting that
+\eqref{eq:outlierRobustObjective} becomes the definition of the
+proximal operator evaluated at $\vxii-\vmuii$, for which a closed-form solution exists.
+For $q=1$ the objective as a function of $\vz$
+is separable both over coordinates and over data samples, and the proximal
+operator is the shrinkage-and-threshold operator evaluated at each
+coordinate $k$:
+\begin{equation*}%\label{eq:proxOp_l1}
+    \mathrm{prox}_\gamma\paren{v_k}=\sign\paren{v_k}\cdot\max\braces{0,\abs{v_k}-\gamma}.
+    %\begin{cases}
+%        v_k-\gamma, & v_k\geq\gamma\\
+%        v_k+\gamma, & v_k\leq-\gamma\\
+%        0, & \mathrm{otherwise}~.
+%    \end{cases}
+\end{equation*}
+However, we are interested in zeroing some of the $\vzii$'s as a whole, so we set $q=2$. In this case, the objective is separable over data samples, and the proximal operator is calculated to be:
+\begin{align}\label{eq:proxOp_l2}
+%\mathrm{prox}_{\gamma,\ell_2}\paren{v} &=&
+\mathrm{prox}_{\gamma}\paren{\vv} = \vv\cdot\max\braces{0,1-\frac{\gamma}{\vnorm{\vv}_2}}.
+ % \begin{cases}
+%    %\paren{1+\frac{\gamma}{\vnorm{v}_2-\gamma}}^{-1}v, &\text{if $\vnorm{v}_2>\gamma$}\\
+%    \frac{\vnorm{v}_2-\gamma}{\vnorm{v}_2}v, &\text{if $\vnorm{v}_2>\gamma$}\\
+%    0, & \text{otherwise}~.
+%  \end{cases}
+\end{align}
+Holding $\vz$ constant, optimizing over $\vmu$ is done by defining
+$\hvxii\triangleq \vxii-\vzii$, which results in the following optimization problem:
+\begin{equation}\label{eq:segmentationObjective_mu}
+ \min_\vmu\sum_{i=1}^n\normt{\hvxii-\vmuii}  + \lambda\sum_{i=1}^{n-1}w_i\vnorm{\vmui{i+1}-\vmuii}_2.
+\end{equation}
+%We note that in carrying the alternating optimization, using the optimal $\vmu$ from one iteration as the initial $\vmu$ for the next iteration speeds-up the convergence significantly.
+Note that \eqref{eq:segmentationObjective_mu} is equivalent to \eqref{eq:outlierRobustObjective} with no outliers present. We also note that if we plug the analytical solution for the $\vzii$s into \eqref{eq:segmentationObjective_mu} (via the $\hvxii$s), the loss term turns out to be the multidimensional equivalent of the Huber loss of robust regression.
+We now discuss two approaches for solving \eqref{eq:segmentationObjective_mu}, either exactly or approximately.
+
+\paragraph{Exact solution of \eqref{eq:segmentationObjective_mu}:}
+The common proximal-gradient approach \cite{bach2011convex,Beck_FISTA:2009} for solving non-smooth convex problems has in this case the disadvantage of convergence time which grows linearly with the number of samples $n$. The reason is that the Lipschitz constant of the gradient of the first term in \eqref{eq:segmentationObjective_mu} grows linearly with $n$, which results in a decreasing step size. An alternative approach is to derive the dual optimization problem to \eqref{eq:segmentationObjective_mu}, analogously to the derivation of \cite{Beck_TV:2009} %%(see also \cite{Chambolle:2004})
+in the context of image denoising. The resulting objective is smooth and has a bounded Lipschitz constant independent of $n$.
+Yet another approach was proposed by \cite{bleakley2011group} for the task of change-point detection, who showed that under a suitable change of variables \eqref{eq:segmentationObjective_mu} can be formulated as a group-LASSO regression \cite{tibshirani1996regression,yuan2006model}.
+%see also \cite{levy2007catching} for the one-dimensional case.
+%They proposed two algorithms for optimizing \eqref{eq:segmentationObjective_mu} either exactly or approximately.
+\paragraph{Approximate solution of \eqref{eq:segmentationObjective_mu}:}\label{par:seg_approx_solution}
+Two reasons suggest that deriving an alternative algorithm for solving \eqref{eq:segmentationObjective_mu} might have an advantage. %over the exact solution.
+First, the parameter $\lambda$
+does not allow direct control of the resulting number of segments, and in many use-cases such a control is a desired property.
+%The second reason has theoretical roots.
+Second, as mentioned above,
+%\cite{vert2010fast}
+\cite{bleakley2011group} showed that \eqref{eq:segmentationObjective_mu} is equivalent to group-LASSO regression, under a suitable change of variables. It is known from the theory of LASSO regression
+that certain conditions on the design matrix %(the matrix of inputs, or predictors, for the regression)
+must hold in order for perfect detection of segment boundaries to be possible. Unfortunately, these conditions are violated for the objective in \eqref{eq:segmentationObjective_mu} %when it is formulated as group-LASSO regression
+; see \cite{levy2007catching} and references therein. Therefore a non-exact solution has a potential of performing better, at least in some situations. We indeed encountered this phenomenon empirically, as is demonstrated in \secref{sec:experimentalResults}.
+Therefore we also derive an alternative top-down, greedy algorithm, which finds a segmentation into $K$
+segments, where $K$ is a user-controlled parameter. The algorithm works in rounds. On each round it picks a segment of a
+current segmentation, and finds the optimal segmentation of it into two subsequences.
+We start with the following lemma, which gives an analytical rule which solves \eqref{eq:segmentationObjective_mu} for the case of $K=2$ segments.
+\begin{lemma}\label{lem:analyticalSolutionK=2}
+Consider the optimal solution of \eqref{eq:segmentationObjective_mu} for the largest parameter $\lambda$ for which there are $K=2$ segments, and denote this value of the parameter by $\lambda^*$. Denote by $i^*$ the associated splitting point into $2$ segments, i.e. samples $\hvxii$ with $i\leq i^*$ belong to the first segment, and otherwise belong to the second segment. Then %$i^*$ is given by
+$i^*\paren{\vx} =\argmax{1\leq i\leq n-1}g\paren{i,\vx}$, where:
+\begin{align}\label{eq:lambdaStarWeighted}
+    %i^*\paren{\vx} &=\argmax{1\leq i\leq n-1}g\paren{i,\vx},\\% \textrm{ and }
+    %\lambda^*\paren{\vx} = g\paren{n^*,\vx},\\
+    g\paren{i,\vx} = \bbraces{\frac{i(n-i)}{w_in}\vnorm{\bvxi{2}(i)-\bvxi{1}(i)}_2},%\nonumber
+\end{align}
+and $\bvxi{1,2}(i)$ are the means of the first and second segments, respectively, given that the split occurs after the $i$th sample. In addition, $\lambda^*\paren{\vx} = g\paren{i^*,\vx}$.
+\end{lemma}
+The proof is given in %\secref{sec:proof_lem:analyticalSolutionK=2} of
+the supplementary material.
+%of \cite{DBLP:journals/corr/LattimoreCS14}.
+This result motivates a top-down hierarchical segmentation algorithm, which chooses at each iteration to split the segment
+which results in the maximal decrease of the sum-of-squared-errors criterion. Note that we
+cannot use the criterion of minimal increment to the objective in \eqref{eq:segmentationObjective_mu}, since by continuity of
+the solution path, there is no change in the objective at the splitting from $K=1$ to $K=2$ segments. The top-down algorithm can be implemented in $\mathcal{O}\paren{nK}$.
+%, where $n$ is the number of data samples and $K$ the number of segments.
+It has the advantage that no search in the solution path is needed in case $K$ is known, and
+that this search can be made efficiently in case where $K$ is not known. The top-down approach is used in the algorithm presented in \secref{sec:robust_top_down}.
+
+From the functional form of $g\paren{i,\vx}$ in \eqref{eq:lambdaStarWeighted} it is clear that in the unweighted case ($w_i=1$ for all $i$), the solution is biased towards segments of approximately the same length, because of the $i\paren{n-i}$ factor.
+We now show that a specific choice of $w_i$ exactly recovers the solution to the unrelaxed optimization problem, where the regularization term in \eqref{eq:segmentationObjective_mu} is replaced with the $\ell_0$ constraint, that is $\sum_{i=1}^{n-1}\ind{\vnorm{\vmui{i+1}-\vmuii}_2>0}=1$. This is formulated by the following lemma:
+\begin{lemma}\label{lem:weighted_solution_l0_l1}
+    Consider the case of two segments, $K=2$, and denote by $n_w^*$ the minimizer of \eqref{eq:lambdaStarWeighted} with $w_i=\sqrt{i\paren{n-i}}$. Then the split into two segments found by solving the following: % optimization problem:
+    \begin{align}\label{eq:segmentationObjective_unrelaxed_K=2}
+        \argmin{\vmu}&\braces{\sum_{i=1}^n\normt{\vxii-\vmuii}},\\
+        \mathrm{s.t.}\ &\sum_{i=1}^{n-1}\ind{\vnorm{\vmui{i+1}-\vmuii}_2>0}=1~,\nonumber
+    \end{align}
+    is also given by $n_w^*$.
+\end{lemma}
+The proof appears in %\secref{sec:proof_lem:weighted_solution_l0_l1} of
+the supplementary material.
+%of \cite{DBLP:journals/corr/LattimoreCS14}.
+We note that the same choice for $w_i$ was derived by \cite{bleakley2011group} from different considerations based on a specific noise model for the stochastic process generating the data. In this sense our derivation is more general, as it does not make any assumptions about the data.
+
+\subsubsection{Robust top-down algorithm}\label{sec:robust_top_down}
+We now propose a robust top-down algorithm for approximately optimizing \eqref{eq:outlierRobustObjective}.
+For a fixed value of $\vmu$, using \eqref{eq:proxOp_l2} we can
+calculate analytically which of the $\vzii$s represent a detected
+outlier. These are $\vzii$s which satisfy
+$\vnorm{\vzii}_2>\gamma$. This allows us to calculate the value
+$\gamma^*$ for which the first outlier is detected as having a
+non-zero norm. Furthermore, for $\lambda=\lambda^*,\ \gamma=\gamma^*$ we know that $\vzii=0$ for all $i=1\comdots n$, and therefore
+$\vmuii=\mathrm{mean}\paren{\vx-\vz}=\bvx$ for all $i=1\comdots n$, and we
+can find $\gamma^*$ analytically:
+\begin{equation}\label{eq:gmaStar}
+    \gamma^*=\max_i\braces{\vnorm{\vxii-\bvx}_2}~,
+\end{equation}
+where the index $i^*$ at which the maximum is attained is the index to the first detected outlier. The value of $\lambda^*$ is found as given in \lemref{lem:analyticalSolutionK=2}, with the replacement of each $\vxii$ with $\hvxii$ as defined above. We note that the values $\lambda^*,\ \gamma^*$ are helpful for finding a solution path, since they allow to exclude parameters which result in trivial solutions.
+
+In the case where $\lambda=\lambda^*$ we can extend \eqref{eq:gmaStar} for any number $M>1$ of outliers, by simply looking for the first $M$ vectors $\vxii-\bvx$ with the largest norm.
+%\begin{equation}\label{eq:gmaStar}
+%    \gamma^*_M=\vnorm{\vxii-\bvx}_2\textrm{: }\vxii \textrm{ is the vector with the $M$th largest $\ell_2$ norm}
+%\end{equation}
+In this case it no longer holds true that $\vzii=0$ for all $i=1\comdots n$, so
+we have to use the alternating optimization in order to find a
+solution. However, each iteration is now solved analytically and
+convergence is fast compared to the case $\lambda<\lambda^*$ where we
+do not have an analytical solution for the optimization over $\vmu$. This
+result motivates the top-down version of the ORCS algorithm. We
+denote the algorithm by TD-ORCS for the unweighted case ($w_i=1$, $i=1\comdots n$), and by WTD-ORCS when using the weights given in \lemref{lem:weighted_solution_l0_l1}. The number of required segments $K$ and number of
+required outliers $M$ is set by the user. In
+each iteration the algorithm chooses the segment-split which results in
+the maximal decrease in the squared loss. Whenever a segment is split,
+the number of outliers belonging to each sub-segment is kept and used
+in the next iteration, so the overall number of outliers equals $M$ at
+all iterations. The algorithm is summarized in \algref{alg:topdownORCS}.
+
+\begin{algorithm}[!t]
+\footnotesize
+ \caption{Top-down outlier-robust hierarchical segmentation}\label{alg:topdownORCS}
+  \begin{algorithmic}
+    \STATE \textbf{Input:} Data samples $\braces{\vxii}_{i=1}^n$.
+    \STATE \textbf{Parameters:} Number of required segments $K$, number of required outliers $M$, weights $\braces{w_i}_{i=1}^{n-1}$.
+    \STATE \textbf{Initialize:} Segments boundaries $\mathrm{B}=\braces{1,n}$, current number of segments $k=\abs{B}-1$, number of outliers for each segment $M_j=M$ (for $j=1$).
+    \WHILE{$k<K$}
+        \FOR{$j=1,...,k$}
+            \STATE  Set $S_j=\braces{\vxi{B_j},..,\vxi{B_{j+1}-1}}$.
+            \WHILE {not converged}
+                \STATE Split segment $S_j$ into sub-sequences $S_{1,2}$, using the solution to
+                \eqref{eq:lambdaStarWeighted} at $\vx-\vz$, with weights $\braces{w_i}$.
+                \STATE Find $\gamma$ for $M_j$ outliers, using the extension of \eqref{eq:gmaStar} to $M_j$ outliers.
+                \STATE Set $\vzii=\mathrm{prox}_{\gamma}\paren{\vxii-\bvx}$, for $i=1\comdots n$.
+            \ENDWHILE
+            \STATE Calculate the mean $\bvxi{j}$ of segment $S_j$, and the means of $S_{1,2}$, denoted by $\bvxi{1}$ and $\bvxi{2}$.
+            %\item Set $L(j)=\sum\limits_{i\in S_1}\normt{\vxii-\bvxi{1}}+\sum\limits_{i\in S_2}\normt{\vxii-\bvxi{2}}-\sum\limits_{i\in S_j}\normt{\vxii-\bvxi{j}}$.
+            \STATE Set \(L(j)=%\negspace
+              \sum \limits_{i\in S_1}\!\normt{\vxii-\bvxi{1}}
+              \!\!+\!\!
+              \sum\limits_{i\in S_2}\!\normt{\vxii-\bvxi{2}}
+              \!\!-\!\!
+              \sum \limits_{i\in S_j}\!\normt{\vxii-\bvxi{j}}\).
+        \ENDFOR
+        \STATE Choose segment $j^* = \arg\max_j  L(j)$ and calculate the splitting
+        point $n_{j^*}$
+        \STATE Add the new boundary $\vxi{B_{j^*}} + n_{j^*} + 1$ to the (sorted) boundary list $B$.
+        \STATE Set $M_j$ and $M_{j+1}$ to the number of $\vzii$s with non-zero norm in segment $S_j$ and $S_{j+1}$, respectively.
+    \ENDWHILE
+\end{algorithmic}
+\end{algorithm}
+
+%\begin{algorithm}[!t]
+%\footnotesize
+% \caption{Top-down outlier robust hierarchical segmentation}\label{alg:topdownORCS}
+%  \begin{algorithmic}
+%    \STATE \textbf{Input:} Data samples $\vxii\in\mathbb{R}^d$, $i=1 \comdots n$.
+%    \STATE \textbf{Parameters:} Number of required segments $K$, number of required outliers $M$.
+%    \STATE \textbf{Initialize:} Segments boundaries $\mathrm{B}=\braces{1,n}$, current number of segments $k=\abs{B}-1$, number of outliers for each segment $M_j=M$ (for $j=1$).
+%    \WHILE{$k<K$}
+%        \FOR{$j=1,...,k$}
+%        \STATE
+%        \begin{itemize}
+%          \nolineskips
+%            \item Set $S_j=\braces{\vxi{B_j},..,\vxi{B_{j+1}-1}}$
+%            \item {\bf While} {not converged} {\bf do}
+%            \begin{itemize}
+%              \nolineskips
+%                \item Find split for segment $S_j$ to sub-sequences $S_{1,2}$, by evaluating \eqref{eq:lambdaStar}, or
+%                    \eqref{eq:lambdaStar_weighted} for the weighted version, at $\vx-\vz$.
+%                \item Find $\gamma$ for $M_j$ outliers, using the extension of \eqref{eq:gmaStar} to $M_j$ outliers.
+%                \item Set $z=\mathrm{prox}_{\gamma}\paren{\vx-\bvx}$
+%                  \end{itemize}
+%
+%            \item Calculate the mean $\bvxi{j}$ of segment $S_j$, and the means of $S_{1,2}$, denoted by $\bvxi{1}$ and $\bvxi{2}$.
+%            %\item Set $L(j)=\sum\limits_{i\in S_1}\normt{\vxii-\bvxi{1}}+\sum\limits_{i\in S_2}\normt{\vxii-\bvxi{2}}-\sum\limits_{i\in S_j}\normt{\vxii-\bvxi{j}}$.
+%            \item Set \(L(j)\!\!=\!\!
+%              \sum \limits_{i\in S_1}\!\normt{\vxii-\bvxi{1}}
+%              \!\!+\!\!
+%              \sum\limits_{i\in S_2}\!\normt{\vxii-\bvxi{2}}
+%              \!\!-\!\!
+%              \sum \limits_{i\in S_j}\!\normt{\vxii-\bvxi{j}}\).
+%        \end{itemize}
+%        \ENDFOR
+%        %        \State Choose segment $j^*=\argmax{j}L(j)$ and calculate its splitting point $n_{j^*}$.
+%        %      \State Add the new boundary $\vxi{B_{j^*}}+n_{j^*}+1$ to the (sorted) boundary list $B$.
+%        \STATE Choose segment $j^* \!\! = \!\! \argmax{j}  L(j)$ and calculate the splitting point $n_{j^*}$
+%        \STATE Add the new boundary $\vxi{B_{j^*}} \! + \! n_{j^*} \! + \! 1$ to the (sorted) boundary list $B$
+%        \STATE Set $M_j$ and $M_{j+1}$ to the number of $\vzii$'s with non-zero norm in segment $S_j$ and $S_{j+1}$, respectively
+%    \ENDWHILE
+%\end{algorithmic}
+%\end{algorithm}
+%

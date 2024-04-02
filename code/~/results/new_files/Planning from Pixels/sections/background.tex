@@ -1,0 +1,84 @@
+\section{Background}
+
+\paragraph{Iterated width.}
+Iterated Width (IW)~\cite{iworginal} is a blind-search planning algorithm in which the states are represented by sets of boolean features (sets of propositional atoms). The set of all features/atoms is the \emph{feature set}, denoted $F$. IW is an algorithm parameterized by a \emph{width parameter} $k$. We use IW($k$) to denote IW with width parameter $k$. 
+Given an initial state $s_0$, IW($k$) is similar to a standard breadth-first search (BFS) from $s_0$ except that, when a new state $s$ is generated, it is immediately pruned if it is not novel. A state $s$ generated during search is defined to be \emph{novel} if there is a $k$-tuple of features (atoms) $t = (f_1, \ldots, f_k) \in F^k$ such that $s$ is the first generated state making all of the $f_i$ true ($s$ making $f_i$ true of course simply means $f_i \in s$, and the intuition is that $s$ then ``has'' the feature $f_i$).  In particular, in IW($1$), the only states that are not pruned are those that contain a feature $f \in F$ for the first time during the search.
+The maximum number of generated states is exponential in the width parameter (IW($k$) generates $O(|F|^k)$ states), whereas in BFS it is exponential in the number of features/atoms.
+
+\paragraph{Rollout IW.}
+RolloutIW($k$)~\cite{rolloutiw-orginal} is a variant of IW($k$) that searches via rollouts instead of doing a breadth-first search, hence making it more akin to a depth-first search. A \emph{rollout} is a state-action trajectory $(s_0, a_0, s_1, a_1, \ldots)$ from the initial state $s_0$ (a path in the state space), where actions $a_i$ are picked at random. It continues until reaching a state that is not novel. A state $s$ is \emph{novel} if it satisfies one of the following: 1) it is distinct from all previously generated states and there exists a $k$-tuple of features $(f_1,\dots,f_k)$ that are true in $s$, but not in any other state of the same depth of the search tree or lower; or 2) it is an already earlier generated state and there exists a $k$-tuple of features $(f_1,\dots,f_k)$ that are true in $s$, but not in any other state of lower depth in the search tree. The intuition behind case 1 is that the new state $s$ comes with a combination of $k$ features occurring at a lower depth than earlier encountered, which makes it relevant to explore further. In case 2, $s$ is an existing state containing the lowest occurrence of one of the combinations of $k$ features, again making it relevant to explore further. When a rollout reaches a state that is not novel, the rollout is terminated, and a new rollout is started from the initial state. The process continues until all possible states are explored, or a given time limit is reached. After the time limit has been reached, an action with maximal expected reward is chosen (the method was developed in the context of the Atari 2600 domain, making use of a simulator to compute action outcomes and rewards). The chosen action is executed, and the algorithm is repeated with the new state as the initial state. 
+
+RolloutIW is an anytime algorithm that will return an action independently of the time budget. In principle, IW could also be used as an anytime algorithm in the context of the Atari 2600 domain, but it will be severely limited by the breadth-first search strategy that will in practice prevent it from reaching nodes of sufficient depth in the state space, and hence prevent it from discovering rewards that only occur later in the game~\cite{rolloutiw-orginal}. 
+
+
+\paragraph{Planning with pixels.}
+The Arcade Learning Environment (ALE) \cite{DBLP:journals/corr/abs-1207-4708} provides an interface to Atari 2600 video games, and has been widely used in recent years as a benchmark for reinforcement learning and planning algorithms. In the visual setting, the sensory input consists of a pixel array of size $210\!\times\! 160$, where each pixel can have 128 distinct colors. Although in principle the set of $210\! \times\! 160\! \times\! 128$ booleans could be used as features, we will follow \citet{rolloutiw-orginal} and focus on features that capture meaningful structures from the image.
+
+An example of a visual feature set that has proven successful is \emph{B-PROST}~\cite{liang}, which consists of \emph{Basic}, \emph{B-PROS}, and \emph{B-PROT} features. 
+The screen is split into $14 \times 16$ disjoint tiles of size $15 \times 10$. 
+For each tile $(i,j)$ and color $c$, the basic feature $f_{i,j,c}$ is 1 iff $c$ is present in $(i,j)$.
+A B-PROS feature $f_{i,j,c,c'}$ is 1 iff color $c$ is present in tile $t$, color $c'$ in tile $t'$, and the relative offsets between the tiles are $i$ and $j$.
+Similarly, a B-PROT feature $f_{i,j,c,c'}$ is 1 iff color $c$ is present in tile $t$ \emph{in the previous decision point}, color $c'$ is present in tile $t'$ in the current one, and the relative offsets between the tiles are $i$ and $j$.
+The number of features in B-PROST is the sum of the number of features in these 3 sets, in total 20,598,848. 
+
+
+\paragraph{Variational autoencoders.}
+\emph{Latent variable models} (LVMs) are probabilistic models with unobserved variables. The marginal distribution over one observed datapoint $\xb$ is
+$\ptheta (\xb) = \int_{\zb} \ptheta (\xb, \zb) d \zb,$
+with $\zb$ the unobserved \emph{latent variables} and $\theta$ the model parameters. This quantity is typically referred to as \emph{marginal likelihood} or \emph{model evidence}. A simple and rather common structure for LVMs is:
+%
+% $ \ptheta (\xb, \zb) = \ptheta (\xb \given \zb) \ptheta (\zb)$.
+%
+\begin{equation*}
+    \ptheta (\xb, \zb) = \ptheta (\xb \given \zb) \ptheta (\zb).
+\end{equation*}
+% where both $\ptheta (\xb \given \zb)$ and $\ptheta (\zb)$ are specified.
+%
+If the model's distributions are parameterized by neural networks, the marginal likelihood is typically intractable for lack of an analytical solution or a practical estimator.
+
+\emph{Variational inference} (VI) is a common approach to approximating this intractable posterior, where we define a distribution $\qphi (\zb \given \xb)$ with \emph{variational parameters} $\phi$.
+In the LVM above, for any choice of $\qphi$ we have:
+%
+\begin{align*}
+    \log \ptheta(\xb) 
+    &= \log \E_{\qphi(\zb \given \xb)} \left[ \frac{\ptheta(\xb \given \zb)\ptheta(\zb)}{\qphi(\zb \given \xb)} \right] \\
+    & \geq \E_{\qphi(\zb \given \xb)}  \left[ \log \frac{\ptheta(\xb \given \zb)\ptheta(\zb)}{\qphi(\zb \given \xb)} \right] 
+    = \mathcal{L}_{\theta,\phi} (\xb)
+\end{align*}
+%
+where $\mathcal{L}_{\theta,\phi} (\xb)$ is a lower bound on the marginal log likelihood also known as \emph{Evidence Lower BOund} (ELBO).
+
+In contrast to traditional VI methods, where per-datapoint variational parameters are optimized separately, \emph{amortized variational inference} utilizes function approximators like neural networks to share variational parameters across data\-points and improve learning efficiency. In this setting, $\qphi (\zb \given \xb)$ is typically called an \emph{inference model} or \emph{encoder}.
+%
+Variational Autoencoders (VAEs)~\cite{kingma2013auto,rezende2014stochastic} are a framework for amortized VI, in which the ELBO is maximized by jointly optimizing the inference model and the LVM (i.e., $\phi$ and $\theta$, respectively) with stochastic gradient ascent.
+
+\paragraph{VAE optimization.}
+The ELBO, the objective function to be maximized, can be decomposed as follows:
+%
+\begin{align}
+    \mathcal{L}_{\theta,\phi} (\xb) 
+    &= \E_{\qphi}  \left[ \log \ptheta(\xb \given \zb) \right] - \E_{\qphi}  \left[ \log \frac{\qphi(\zb \given \xb)}{\ptheta(\zb)} \right] \label{eq:elbo} \\
+    &= \E_{\qphi}  \left[ \log \ptheta(\xb \given \zb) \right] - \kl(\qphi(\zb \given \xb) \,||\, \ptheta(\zb)) \nonumber
+\end{align}
+%
+where the first term can be interpreted as negative expected \emph{reconstruction error}, and the second term is the KL divergence from the prior $\ptheta(\zb)$ to the approximate posterior.
+
+When optimizing VAEs, the gradients of some terms of the objective function cannot be backpropagated through the sampling step.
+However, for a rather wide class of probability distributions \cite{kingma2013auto}, a random variable following such a distribution can be expressed as a differentiable, deterministic transformation of an auxiliary variable with independent marginal distribution. 
+For example, if $z$ is a sample from a Gaussian random variable with mean $\mu_\phi(x)$ and standard deviation $\sigma_\phi(x)$, then $z = \sigma_\phi(x)\, \epsilon + \mu_\phi(x)$, where $\epsilon \sim \mathcal{N}(0,1)$. Thanks to this \emph{reparameterization}, $z$ can be differentiated with respect to $\phi$ by standard backpropagation.
+This widely used approach, called \emph{pathwise gradient estimator}, typically exhibits lower variance than the alternatives.
+
+From an information theory perspective, optimizing the variational lower bound~\eqref{eq:elbo} involves a tradeoff between rate and distortion \cite{alemi2017fixing}.
+A straightforward way to control the rate--distortion tradeoff is to use the $\beta$-VAE framework \cite{higgins2017beta}, in which the training objective~\eqref{eq:elbo} is modified by scaling the KL term:
+%
+% \begin{align*}
+%     \mathcal{L}_{\theta,\phi, \beta} (\xb) &= \E_{\qphi}  \left[ \log \ptheta(\xb \;\!\! \given \;\!\! \zb) \right] - \beta \kl(\qphi(\zb \;\!\! \given \;\!\! \xb) \,||\, \ptheta(\zb)) \nonumber
+% \end{align*}
+\begin{align}
+    \mathcal{L}_{\theta,\phi, \beta} (\xb) &= \E_{\qphi}  \left[ \log \ptheta(\xb \given \zb) \right] \label{eq:beta_objective_function}\\
+    &\qquad - \beta \kl(\qphi(\zb \given \xb) \,||\, \ptheta(\zb)). \nonumber
+\end{align}
+
+\paragraph{VAEs with discrete variables.}
+Since the categorical distribution is not reparameterizable, training VAEs with categorical latent variables is generally impractical. A solution to this problem is to replace samples from a categorical distribution with samples from a Gumbel-Softmax distribution \cite{jang2016categorical,maddison2016concrete}, which can be smoothly annealed into a categorical distribution by making the temperature parameter $\tau$ tend to~0. Because Gumbel-Softmax is reparameterizable, the pathwise gradient estimator can be used to get a low-variance---although in this case biased---estimate of the gradient.
+In this work, we use Bernoulli latent variables (categorical with 2 classes) and their Gumbel-Softmax relaxations. 

@@ -1,0 +1,418 @@
+\section{4AL Decomposition Algorithm}
+\label{decomposition-algorithm}
+
+\ifthenelse{\isundefined{\jfpda}}{
+\begin{figure*}[t]
+\begin{tabular}{ccc}
+    \scalebox{0.7}{
+      \input{Images/4AL1.pdf_t}
+    } &
+    \scalebox{0.7}{
+      \input{Images/4AL2.pdf_t}
+    } &
+    \scalebox{0.7}{
+      \input{Images/4AL3.pdf_t}
+    } \\[0.1cm]
+    (a) $LN$ as tree of components $C$. & 
+    (b) Paths for attacking $C_1$. & 
+    (c) Attacking $N_3$ from $N_1$, using $m$ first.   
+  \end{tabular}
+  \vspace{-0.35cm}
+  \caption{Illustration of Levels 1, 2, and 3 (from left to right) of
+    the 4AL algorithm.}
+  \label{fig:4ALlevels123}
+  \vspace{-0.5cm}
+\end{figure*}
+}{
+  \begin{figure}[t]
+    \begin{minipage}{0.45\linewidth}
+      \centering
+      \scalebox{0.7}{
+        \input{Images/4AL1.pdf_t}
+      }
+      \\
+      (a) $LN$ as tree of components $C$.
+    \end{minipage}
+    \hfill  
+    \begin{minipage}{0.45\linewidth}
+      \centering
+      \scalebox{0.7}{
+        \input{Images/4AL2.pdf_t}
+      }
+      \\
+      (b) Paths for attacking $C_1$.
+    \end{minipage}
+
+    \medskip
+    
+    \begin{minipage}{1\linewidth}
+      \centering
+      \scalebox{0.7}{
+        \input{Images/4AL3.pdf_t}
+      }
+      \\
+      (c) Attacking $N_3$ from $N_1$, using $m$ first.   
+    \end{minipage}
+  %\vspace{-0.35cm}
+  \caption{Illustration of Levels 1, 2, and 3 (from left to right) of
+    the 4AL algorithm.}
+  \label{fig:4ALlevels123}
+  %\vspace{-0.5cm}
+\end{figure}
+}
+
+\begin{figure*}[t]
+\centering
+\begin{tabular}{cc}
+%\vspace{-0.1cm}
+\input{Algorithms/4AL1}
+&
+\input{Algorithms/4AL2}
+\\
+\input{Algorithms/4AL3}
+&
+\input{Algorithms/4AL4}
+\end{tabular}
+\vspace{-0.2cm}\caption{4AL algorithm, pseudo-code.}
+\label{fig:4ALcode}
+\vspace{-0.5cm}
+\end{figure*}
+
+As hinted, POMDPs do not scale to large networks (cf.\ the experiments
+in the next section). We now present an approach using decomposition
+and approximation to overcome this problem, relying on POMDPs only to
+attack individual machines. The approach is called \emph{4AL} since it
+addresses network attack at 4 different levels of abstraction. 4AL is
+a POMDP solver specialized to attack planning as addressed here. Its
+input are the logical network $LN$ and POMDP models encoding attacks
+on individual machines. Its output is a policy (an attack) for the
+global POMDP encoding $LN$, as well as an approximation of the value
+of the global value function. We next overview the algorithm, then
+fill in some technical details. To simplify the presentation, we will
+focus on the approximation of the value function, and outline only
+briefly how to construct the policy.
+
+
+
+
+\subsection{4AL Overview and Basic Properties}
+\label{decomposition-algorithm:overview}
+
+
+The four levels of 4AL are: (1) \emph{Decomposing the Network}, (2)
+\emph{Attacking Components}, (3) \emph{Attacking Subnetworks}, and (4)
+\emph{Attacking Individual Machines}. We outline these levels in
+turn before providing technical details. Figure~\ref{fig:4ALlevels123} provides illustrations.
+
+\vspace{-0.05cm}
+\begin{itemize}
+\item \textbf{Level~1:} Decompose the logical network $LN$ into a tree
+  of biconnected components, rooted at \start. In reverse topological
+  order, call Level~2 on each component; propagate the outcomes
+  upwards in the tree.
+\end{itemize}
+\vspace{-0.05cm}
+
+Every graph decomposes into a unique tree of biconnected components
+\cite{HopTar-cACM73}. A biconnected component is a sub-graph that
+remains connected when removing any one vertex. In pentesting,
+intuitively this means that there is more than one possibility (more
+than one path) to attack the subnetworks within the component,
+requiring to reason about the component as a whole (which is the job
+of Level~2). By contrast, if removing subnetwork $X$ (\eg, $N_2$
+in Figure~\ref{fig:4ALlevels123} (b)) makes the graph fall apart into
+two separate sub-graphs ($C_2$ vs.\ the rest of $LN$, compare also
+Figure~\ref{fig:4ALlevels123} (a)), then \emph{all} attacks from
+\start\ to one of these sub-graphs ($C_2$ here) must first traverse
+$X$ ($N_2$ here). Thus the overall expected value of the attack can be
+computed by (1) computing the value of attacking that sub-graph
+($C_2$) alone, %
+%given $X$ is already under control, 
+and (2) adding the result as a \emph{pivoting reward} to the reward of
+breaking into $X$ ($N_2$). In other words, we ``propagate the outcomes
+upwards'' in the tree displayed in Figure~\ref{fig:4ALlevels123}
+(a). 
+
+It is important to note that this tree decomposition will typically
+result in a huge reduction of complexity. Biconnected components in
+$LN$ arise only from clusters of more than $2$ subnetworks sharing a
+common (physical) firewall machine. Such clusters tend to be small. In
+the real-world test scenario used by Core Security and in our
+experiment here, there is only one cluster, of size $3$. In case there
+are no clusters at all, $LN$ is a tree and 4AL Level~2 trivializes
+completely.
+
+\vspace{-0.05cm}
+\begin{itemize}
+\item \textbf{Level~2:} Given component $\component$, consider, for
+  each rewarded subnetwork $N \in \component$, all paths $P$ in
+  $\component$ that reach $N$. Backwards along each $P$, call Level~3
+  on each subnetwork and associated firewall. Choose the best path for
+  each $N$. Aggregate these path values over all $N$, by summing up
+  but disregarding rewards that were already accounted for by a
+  previous path in the sum.
+\end{itemize}
+\vspace{-0.05cm}
+
+In case a biconnected component $\component$ contains more than one
+subnetwork, to obtain the best attack on $\component$, in general we
+have no choice but to encode the entire component as a POMDP. Since
+that is not feasible, Level~2 considers individual ``attack paths''
+within $\component$. Any single path $P$ is equivalent to a sequence
+of attacks on individual subnetworks; these attacks are evaluated
+using Level~3. We consider the rewarded vertices $N$ in separation,
+enumerating the attack paths and choosing a best one.  The values of
+the best paths are aggregated over all $N$ in a conservative
+(pessimistic) manner, by accounting for each reward at most once. A
+strict under-estimation occurs in case the best paths for some
+rewarded vertices are not disjoint: then these attacks share some of
+their cost, so a combined attack has a higher expected reward than the
+sum of independent attacks.
+
+In Figure~\ref{fig:4ALlevels123} (b), $N_2$ and $N_3$ have a pivoting
+reward because they allow to reach the components $C_2$ and $C_3$
+respectively. If the best paths for both $N_2$ and $N_3$ go via $N_1$
+(because the firewall $F^*_3$ is very strict), then these paths are
+not disjoint, duplicating the effort for breaking into $N_1$.
+
+Obviously, enumerating attack paths within $\component$ is exponential
+in the size of $\component$. This is the only point in 4AL---apart of
+course from calls to the POMDP solver---that has worst-case
+exponential runtime. In practice, biconnected components are typically
+small, \cf\ the above.
+
+\vspace{-0.05cm}
+\begin{itemize}
+\item \textbf{Level~3:} Given a subnetwork $N$ and a firewall $F$
+  through which to attack $N$, for each machine $m \in N$ approximate
+  the reward obtained when attacking $m$ first. For this, modify $m$'s
+  reward to take into account that, after breaking $m$, we are behind
+  $F$: call Level~4 to obtain the values of all $m' \neq m$ with an
+  empty firewall; then add these values, plus any pivoting reward, to
+  the reward of $m$ and call Level~4 on this modified $m$ with
+  firewall $F$. Maximize the resulting value over all $m \in N$.
+\end{itemize}
+\vspace{-0.05cm}
+
+Consider Figure~\ref{fig:4ALlevels123} (c). When attacking $N$ (here,
+$N_3$) from some machine behind the firewall $F$ (here, $F^1_3$), we
+have to choose which machine inside $N$ to attack. Given we commit to
+one such choice $m$, the attack problem becomes that of breaking into
+$m$ and afterwards exploiting the direct connection to any $m \neq m'
+\in N$, and any descendant network (here, $C_3$) we can now pivot
+to. As described, that can be dealt with by combining attacks on
+individual machines with modified rewards. (The pivoting reward for
+descendant networks is computed beforehand by Levels 1 and 2.)
+
+
+Like Level~2, Level~3 makes a conservative approximation. It fixes a
+choice of which $m \in N$ to attack. By contrast, the best strategy
+may be to switch between different $m \in N$ depending on the success
+of the attack so far. For example, if one exploit is very likely to
+succeed, then it may pay off to try this on all $m$ first, before
+trying anything else.
+
+
+\vspace{-0.05cm}
+\begin{itemize}
+\item \textbf{Level~4:} Given a machine $m$ and a firewall $F$, model
+  the single-machine attack planning problem as a POMDP, and run an
+  off-the-shelf POMDP solver. Cache known results to avoid duplicate
+  effort.
+\end{itemize}
+\vspace{-0.05cm}
+
+This last step should be self-explanatory. The POMDP model is created
+as described earlier. Note that Level~3 may, during the execution of
+4AL, call the same machine with the same firewall more than once. For
+example, in Figure~\ref{fig:4ALlevels123} (c), when we switch to
+attacking $m'_1$ instead of $m$, the call of Level~4 with $m'_k$ and
+an empty firewall is repeated.
+
+Summing up, 4AL has low-order polynomial runtime except for the
+enumeration of paths within biconnected components (Level~2), and
+solving single-machine POMDPs (Level~4). The decomposition at Level~1
+incurs no information loss. Levels 2 and 3 make conservative
+approximations, so, if the POMDP solutions are conservative (\eg,
+optimal), then the overall outcome of 4AL is conservative as well. 
+
+
+
+
+
+
+
+
+\subsection{Technicalities}
+\label{decomposition-algorithm:technicalities}
+
+
+
+
+To provide a more detailed understanding of 4AL, we now discuss
+pseudo-code for the algorithm, provided in
+Figure~\ref{fig:4ALcode}. Consider first
+Algorithm~\ref{alg:level1}. It should be clear how the overall
+structure of the algorithm corresponds to our previous discussion. It
+calls the linear-time algorithm by Hopcroft and Tarjan
+\shortcite{HopTar-cACM73} (hereafter, HT) to find the
+decomposition. The loop $i=k,\dots,1$ processes the components in
+reverse topological order. The pivoting reward function
+$\pivotingrewardfn$ encodes the propagation of rewards upwards in the
+tree; this should be self-explanatory apart for the expression ``the
+parent'' of $C_i$ in $LN$. The latter relies on the fact that, after
+``clean-up'' (line 2), each component has exactly one such parent.
+
+To explain the clean-up, note first that HT works on undirected
+graphs; when applying it, we ignore the direction of the arcs in
+$LN$. The outcome is an undirected tree of biconnected components,
+where the \emph{cut vertices}---those vertices removing which makes
+the graph break apart---are shared between several components. In
+Figure~\ref{fig:4ALlevels123} (b), \eg, $N_2$ prior to the clean-up
+belongs to both, $C_1$ and $C_2$. The clean-up sets the root of the
+tree to \start, and assigns each cut-vertex to the component closest
+to \start\ (\eg, $N_2$ is assigned to $C_1$); \start\ itself is turned
+into a separate component. Re-introducing the direction of arcs in
+$LN$, we then prune vertices not reachable from \start. Next, we
+remove arcs that cannot participate in any non-redundant attack path
+starting in \start. Since moving \emph{towards} \start\ in the
+decomposition tree necessarily leads any attack back to a vertex it
+has visited (broken into) already, after such removal the arcs between
+components form a directed tree as in Figure~\ref{fig:4ALlevels123}
+(a). Each non-root component $\component_i$ (\eg, $C_3$) has exactly
+one parent component $\component$ in the cleaned-up tree (\eg,
+$C_1$). The respective subnetwork $N \in \component$ (\eg, $N_3$) is a
+cut vertex in $LN$. Thus, as claimed above, $N$ is the \emph{only}
+vertex, in $LN$, that connects into $\component_i$.
+
+Obviously, all attacks on $\component_i$ must pass through its parent
+$N$. Further, the vertices and arcs removed by clean-up cannot be part
+of an optimal attack. Thus Level~1 is loss-free. To state this---and
+the other properties of 4AL---formally, we need some notations. We
+will use $V^*$ to denote the real (optimal) expected value of an
+attack, and $V$ to denote the 4AL approximation. The attacked object
+is given as the argument. For example, $V^*(LN)$ is the expected value
+of attacking $LN$; $V(C,\pivotingrewardfn)$ is the outcome of running
+4AL Level~2 on component $\component$ and pivoting reward function
+$\pivotingrewardfn$.
+
+\begin{proposition}\label{pro:level1correct} 
+Let $LN$ be a logical network. Say that, for all calls to 4AL Level~2
+made by 4AL Level~1 when run on $LN$, we have $V(C,\pivotingrewardfn)
+= V^*(C,\pivotingrewardfn)$. Then $V(LN) = V^*(LN)$. If
+$V(C,\pivotingrewardfn) \leq V^*(C,\pivotingrewardfn)$ for all calls
+to 4AL Level~2, then $V(LN) \leq V^*(LN)$.
+\end{proposition}
+
+
+Consider now Algorithm~\ref{alg:level2}. Our previous description was
+imprecise in omitting the additional algorithm argument
+$\pivotingrewardfn$. This integrates with the algorithm by being
+passed on, for every subnetwork on the paths we consider (line 7), to
+Algorithm~\ref{alg:level3} which adds it to the reward obtained for
+hacking into that subnetwork (Algorithm~\ref{alg:level3} line 4).
+
+$\reward$ aggregates the values (lines 1, 9), over all rewarded
+subnetworks $N$. This aggregation is made conservative by removing all
+rewards---pivoting rewards as well as the own rewards of the
+individual machines involved---that have already been accounted for
+(line 10). Regarding the individual machines,
+Algorithm~\ref{alg:level2} uses the shorthands (a) $\rewardfn(N) > 0$
+(line 2) and (b) $\rewardfn(N) \leftarrow 0$ (line 10); (a) means that
+there exists $m \in N$ so that $\rewardfn(m) > 0$; (b) means that
+$\rewardfn(m) \leftarrow 0$ for all $m \in N$. Regarding pivoting
+rewards, note that line 10 of Algorithm~\ref{alg:level2} modifies the
+function $\pivotingrewardfn$ maintained by
+Algorithm~\ref{alg:level1}. This does not lead to conflicts because,
+at the time when Algorithm~\ref{alg:level1} calls
+Algorithm~\ref{alg:level2} on component $C$, all descendants of $C$ in
+$LN$ have already been processed, and thus in particular
+Algorithm~\ref{alg:level1} will make no further updates to the value
+of $\pivotingrewardfn(N)$, for any $N \in C$.
+
+By $\component_\start$ (line 4) we denote the set $\{N \in \component
+\mid \exists N' \in LN, N' \not \in \component: (N',N) \in LN\}$ of
+subnetworks that serve as an entry into $\component$ (\eg, $N_1$ and
+$N_3$ for $C_1$ in Figure~\ref{fig:4ALlevels123} (b)).  Note in line 4
+that the path $P$ starts with a firewall $F_0$. To understand this,
+consider the situation addressed. The algorithm assumes that the
+parent $N$ of $\component$ (\start, for component $C_1$ in
+Figure~\ref{fig:4ALlevels123} (b)) is under control. But then, to
+break into $\component$, we still need to traverse an arc from $N$
+into $\component$. $F_0$ is the firewall on the arc chosen by $P$
+($F^*_1$ or $F^*_3$ in Figure~\ref{fig:4ALlevels123} (b)).
+
+The calls to Level~3 (line 7) comprise the network $N_i$ to be hacked
+into, the firewall $F_{i-1}$ that must be traversed for doing so, the
+pivoting reward of $N_i$, as well as the ongoing path reward
+$\reward(P)$ which gets propagated backwards along the path. Clearly,
+this is equivalent to the sequence of attacks required to execute $P$,
+and harvesting all pivoting rewards associated with such an
+attack. Thus, with the conservativeness of the aggregation across the
+subnetworks $N$, we get:
+
+\begin{proposition}\label{pro:level2conservative} 
+Let $\component$ be a biconnected component, and let
+$\pivotingrewardfn$ be a pivoting reward function. Say that, for all
+calls to 4AL Level~3 made by 4AL Level~2 when run on
+$(\component,\pivotingrewardfn)$, we have
+$V(F,N,\pivotingreward,\pathreward) \leq
+V^*(F,N,\pivotingreward,\pathreward)$. Then $V(C,\pivotingrewardfn)
+\leq V^*(C,\pivotingrewardfn)$.
+\end{proposition}
+
+
+Algorithms~\ref{alg:level3} and~\ref{alg:level4} should be
+self-explanatory, given our previous discussion. Just note that the
+pivoting reward $\pivotingreward$ is represented by the arc from $m$
+to $C_3$ in Figure~\ref{fig:4ALlevels123} (c), which is accounted for
+by simply adding it to the value of $m$ (Algorithm~\ref{alg:level3}
+line 4). The path reward $\pathreward$ (not illustrated in
+Figure~\ref{fig:4ALlevels123} (c)) is also added to the value of $m$
+(Algorithm~\ref{alg:level3} line 4). Max'ing over attacks on the
+individual machines $m$ is, obviously, a conservative approximation
+because attack strategies are free to choose $m$. Thus:
+
+\begin{proposition}\label{pro:level3conservative} 
+Let $F$ be a firewall, let $N$ be a subnetwork, let $\pivotingreward$
+be a pivoting reward, and let $\pathreward$ be a path reward. Say
+that, for all calls to 4AL Level~4 made by 4AL Level~3 when run on
+$(F,N,\pivotingreward,\pathreward)$, we have $V(F,m,\reward) \leq
+V^*(F,m,\reward)$. Then $V(F,N,\pivotingreward,\pathreward) \leq
+V^*(F,N,\pivotingreward,\pathreward)$.
+\end{proposition}
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Policy Construction} 
+
+
+At Level~1, the global policy is constructed from the Level~2 policies
+simply by following the tree decomposition: starting at the tree root,
+we execute the Level~2 policies for all reached components (in any
+order); once a hack into a component succeeds, the respective children
+components become reached. At Level~2, i.e., within a bi-connected
+component $C$, the policy corresponds to the set of paths $P$
+considered by Algorithm~\ref{alg:level2}. Each $P$ is processed in
+turn. For each node $N$ in $P$ (until failure to enter that
+subnetwork), we call the corresponding Level~3 policy.
+
+At Level~3, i.e., considering a single subnetwork $N$, our policy
+simply attacks the machine $m \in N$ that yielded the maximum in
+Algorithm~\ref{alg:level3}. The policy first attacks $m$ through the
+firewall, using the respective Level~4 policy. In case the attack
+succeeds, the policy attacks the remaining machines $m' \in N$ in any
+order (i.e., for each $m'$, we perform the associated Level~4 policy
+until termination). At Level~4, the policy is the POMDP policy
+returned by our POMDP solver.
+
+
+

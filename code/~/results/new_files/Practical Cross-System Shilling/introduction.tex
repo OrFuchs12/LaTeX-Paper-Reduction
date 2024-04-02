@@ -1,0 +1,75 @@
+
+
+\section{Introduction}
+\label{sec:intro}
+
+
+Recommender System (RS) has become an essential tool in various online services.
+However, its prevalence also attracts attackers who try to manipulate RS to mislead users for gaining illegal profits.
+Among various attacks, \emph{Shilling Attack} is the most subsistent and profitable one~\citep{abs-2206-11433}.
+RS allows users to interact with the system through various operations such as giving ratings or browsing the page of an item.
+In shilling attacks, an adversarial party injects a few fake user profiles into the system to hoax RS so that the target item can be promoted or demoted~\citep{GunesKBP14}.
+This way, the attacker can increase the possibility that the target item can be viewed/bought by people or impair the competitors by demoting their products.
+In experiments, shilling attacks are able to spoof real-world RS, including Amazon, YouTube and Yelp~\citep{XingMDSFL13,YangGC17}.
+In practice, services of various large companies were affected by shilling attacks~\citep{LamR04}.
+Studying how to spoof RS has become a hot direction~\cite{DeldjooNM21} as it gives insights into the defense against malicious attacks.
+
+
+Although much effort has been devoted to developing new shilling attack methods~\cite{GunesKBP14,DeldjooNM21}, 
+we find \emph{existing shilling attack approaches are still far from practical}\footnote{The detailed analysis is provided in Sec.~\ref{sec:analysis}.}.
+The main reason is that most of them require the complete knowledge of the RS data, which is not available in  real shilling attacks.
+A few works study attacking using incomplete data~\citep{ZhangTLSYZG21} or transferring knowledge from other sources to attack the victim RS~\citep{FanDZ0LWT021}.
+Nevertheless, they still request a large portion of the target data or assume other data sources share some items with the victim RS.
+
+In this paper, we study the problem of designing a \emph{practical} shilling attack approach.
+We believe a practical shilling attack method should have the following nice properties:
+\begin{itemize}
+\item \textbf{Property 1:} Do not require any prior knowledge of the victim RS (e.g., model architecture or parameters in the model).
+
+
+\item \textbf{Property 2:} When training the attacker, other data sources (e.g., public RS datasets) instead of the data of the victim RS can be used. Do not assume the training data contain any users or items that exist in the victim RS.
+
+
+\item \textbf{Property 3:} The attacker should use as little information of the data in the victim RS as possible. Required information should be easy to access in practice.
+\end{itemize}
+
+\begin{table*}[t]
+\centering
+\resizebox{1\linewidth}{!}{
+\begin{tabular}{ccccccccc}
+\hline
+\multirow{2}{*}{Category}     & \multirow{2}{*}{Method}                                         & \multicolumn{3}{c}{Knowledge}                                                                                                                                               & \multirow{2}{*}{\begin{tabular}[c]{@{}c@{}}Do not train with\\ a surrogate RS\end{tabular}} & \multirow{2}{*}{\begin{tabular}[c]{@{}c@{}}Do not require\\ multiple queries\end{tabular}} & \multirow{2}{*}{\begin{tabular}[c]{@{}c@{}}Cross-domain\\ attack\end{tabular}} & \multirow{2}{*}{\begin{tabular}[c]{@{}c@{}}Cross-system\\ attack\end{tabular}} \\ \cline{3-5}
+                              &                                                                 & \begin{tabular}[c]{@{}c@{}}Target\\ Data\end{tabular} & \begin{tabular}[c]{@{}c@{}}RS\\ Architecture\end{tabular} & \begin{tabular}[c]{@{}c@{}}RS\\ Parameters\end{tabular} &                                                                                             &                                                                                            &                                                                                &                                                                                \\ \hline
+\multirow{2}{*}{Optimization} & PGA and SGLD                                                    & $m\cdot n$                                            & \checkmark                                                & \checkmark                                              & \checkmark                                                                                  & \checkmark                                                                                 & ×                                                                              & ×                                                                              \\
+                              & RevAdv and RAPU                                                 & $m\cdot n$                                            & ×                                                         & ×                                                       & ×                                                                                           & \checkmark                                                                                 & ×                                                                              & ×                                                                              \\ \hline
+\multirow{3}{*}{GAN}          & TrialAttack                                                     & $m\cdot n$                                            & \checkmark                                                & ×                                                       & ×                                                                                           & \checkmark                                                                                 & ×                                                                              & ×                                                                              \\
+                              & Leg-UP                                                          & $m\cdot n$                                            & ×                                                         & ×                                                       & ×                                                                                           & \checkmark                                                                                 & ×                                                                              & ×                                                                              \\
+                              & \begin{tabular}[c]{@{}c@{}}DCGAN, AUSH\\ and RecUP\end{tabular} & $m\cdot n$                                            & ×                                                         & ×                                                       & \checkmark                                                                                  & \checkmark                                                                                 & ×                                                                              & ×                                                                              \\ \hline
+\multirow{3}{*}{RL}           & PoisonRec                                                       & $e\cdot n \cdot k$                                    & ×                                                         & ×                                                       & \checkmark                                                                                  & ×                                                                                          & ×                                                                              & ×                                                                              \\
+                              & LOKI                                                            & $m\cdot n$                                            & ×                                                         & ×                                                       & ×                                                                                           & \checkmark                                                                                 & ×                                                                              & ×                                                                              \\
+                              & CopyAttack                                                      & $e\cdot n \cdot k$                                    & ×                                                         & ×                                                       & \checkmark                                                                                  & ×                                                                                          & \checkmark                                                                     & ×                                                                              \\ \hline
+KD                            & Model Extraction Attack                                         & $c \cdot k$                                           & \checkmark                                                & ×                                                       & \checkmark                                                                                  & ×                                                                                          & ×                                                                              & ×                                                                              \\ \hline
+                              & \ours                                                           & $p \cdot m\cdot n$                                    & ×                                                         & ×                                                       & \checkmark                                                                                  & \checkmark                                                                                 & \checkmark                                                                     & \checkmark                                                                     \\ \hline
+\end{tabular}
+}
+\caption{Comparisons of shilling attack approaches. Reference of each method can be found in Sec.~\ref{sec:related}. $m$ and $n$ indicate the numbers of users and items, respectively. $p$ is the maximum percentage of the target data that \ours requires. $e$, $k$ and $c$ represent the number of training epochs, the length of recommendation list and the number of queries, respectively.}
+\label{tab:pre}
+\end{table*}
+
+
+
+Our idea is that limiting the access to the target RS data does not mean that the attacker cannot leverage a large volume of other public RS data to train the attack model.
+We propose a new concept of \emph{Cross-system Attack}:
+Thanks to the prosperous development of RS research, many real RS datasets are available and can be used for extracting knowledge and training the attacker to launch shilling attacks.
+Along this direction, we design a \underline{P}ractical \underline{C}ross-system Shilling \underline{Attack} (\ours) framework that requires little information on the victim RS model and the target RS data. 
+The contributions of this work are summarized as follows:
+\begin{enumerate}
+	\item We analyze the inadequacy of existing shilling attack methods and propose the concept of cross-system attack for designing a practical shilling attack model.
+
+	\item We design \ours for shilling attacks. \ours is trained to capture graph topology knowledge from public RS data in a self-supervised manner. Then, it is fine-tuned on a small portion of target data that is readily available to construct fake profiles. \ours has all the three nice properties discussed above.
+
+	\item We conduct extensive experiments to demonstrate that \ours exceeds state-of-the-art methods w.r.t. attack power and attack invisibility. Even in an unfair comparison where other attack methods can access the complete target data, \ours with limited access to the target data still exhibits superior performance.  
+\end{enumerate}
+
+
+

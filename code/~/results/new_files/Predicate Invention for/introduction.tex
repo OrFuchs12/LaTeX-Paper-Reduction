@@ -1,0 +1,39 @@
+Hierarchical planning is a powerful approach for decision-making in environments with continuous states, continuous actions, and long horizons.
+A crucial bottleneck in scaling hierarchical planning is the reliance on human engineers to manually program domain-specific abstractions.
+For example, in bilevel sample-based task and motion planning~\cite{srivastava2014combined,garrett2021integrated}, an engineer must design (1) symbolic predicates; (2) symbolic operators; and (3) samplers that propose different refinements of the symbolic operators into continuous actions.
+However, recent work has shown that when predicates are \emph{given}, operators and samplers can be learned from a modest number (50--200) of demonstrations~\cite{silver2021learning,chitnis2021learning}.
+Our objective in this work is to \emph{learn} predicates that can then be used to learn operators and samplers.
+
+
+
+\begin{figure*}[t]
+  \centering
+    \noindent
+    \includegraphics[width=\textwidth]{figures/teaser.png}
+    \caption{\small{\textbf{Overview of our framework.} Given a small set of goal predicates (first panel, top), we use demonstration data to learn new predicates (first panel, bottom). In this Blocks example, the learned predicates \texttt{P1} -- \texttt{P4} intuitively represent \texttt{Holding}, \texttt{NotHolding}, \texttt{HandEmpty}, and \texttt{NothingAbove} respectively. Collectively, the predicates define a state abstraction that maps continuous states $x$ in the environment to abstract states $s$. Object types are omitted for clarity. After predicate invention, we learn abstractions of the continuous action space and transition model via planning operators (second panel). For each operator, we learn a sampler (third panel), a neural network that maps continuous object features in a given state to continuous action parameters for controllers which can be executed in the environment. In this example, the sampler proposes different placements on the table for the held block.
+    With these learned representations, we perform bilevel planning (fourth panel), with search in the abstract spaces guiding planning in the continuous spaces.}}
+  \label{fig:teaser}
+\end{figure*}
+
+Predicates in bilevel planning represent a discrete state abstraction of the underlying continuous state space~\cite{li2006towards,abel2017near}.
+For example, \texttt{On(block1, block2)} is an abstraction that discards the exact continuous poses of \texttt{block1} and \texttt{block2}.
+State abstraction alone is useful for decision-making, but predicates go further: together with operators, predicates enable the use of highly-optimized domain-independent AI planners~\cite{helmert2006fast}.
+
+We consider a problem setting where a small set of \emph{goal predicates} are available and sufficient for describing task goals, but practically insufficient for bilevel planning.
+For example, in a block stacking domain~(\figref{fig:teaser}), we start with \texttt{On} and \texttt{OnTable}, but have no predicates for describing whether a block is currently held or graspable.
+Our aim is to invent new predicates to enrich the state abstraction beyond what can be expressed with the goal predicates alone, leading to stronger reasoning at the abstract level.
+
+What objective should we optimize to learn predicates for bilevel planning?
+First, consider our real objective: we want a predicate set such that bilevel planning is fast and successful, in expectation over a task distribution, when we use those predicates to learn operators and samplers for planning.
+Unfortunately, this real objective is far too expensive to use directly, since even a single evaluation requires neural network sampler training and bilevel planning.
+
+
+In this work, we propose a novel surrogate objective that is deeply connected to our real bilevel-planning objective, but is tractable for predicate learning.
+Our main insight is that demonstrations can be used to analytically approximate bilevel planning time.
+To leverage this objective for predicate learning, we take inspiration from the program synthesis literature~\cite{menon2013machine,ellis2020dreamcoder}, and learn predicates via a hill-climbing search through a grammar, with the search guided by the objective.
+After predicate learning, we use the predicates to learn operators and samplers.
+All three components can then be used for efficient bilevel planning on new tasks.
+
+In experiments across four robotic planning environments, we find predicates, operators, and samplers learned from 50--200 demonstrations enable efficient bilevel planning on held-out tasks that involve different numbers of objects, longer horizons, and larger goal expressions than seen in the demonstrations.
+Furthermore, predicates learned with our proposed surrogate objective substantially outperform those learned with objectives inspired by previous work, which are based on prediction error~\cite{pasula2007learning,jetchev2013learning}, bisimulation~\cite{konidaris2018skills,curtis2021discovering}, and inverse planning~\cite{baker2009action,ramirez2010probabilistic,zhi2020online}.
+We compare against several other baselines and ablations of our system to further validate our results.
