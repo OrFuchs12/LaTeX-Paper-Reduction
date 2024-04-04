@@ -19,31 +19,33 @@ def run(latex_path,pdf_path,bib_path):
     try:
         # lidor = Lidor_part.read_file(latex_path, bib_path)
         print("starting converting Latex to rows list")
-        lidor = convert_Latex_to_rows_list(latex_path, pdf_path)
+        # lidor = convert_Latex_to_rows_list(latex_path, pdf_path)
+        # if lidor is None:
+        #     return [], None
+        lidor = []
+        with open(latex_path, encoding='UTF-8') as f:
+            file = f.read()
+            file = file.split("\n")
+            foundHeader=False
+            foundBottom=False
+            for line in file:
+                line = line.lstrip()
+                if foundHeader==False:
+                    if line.startswith("\\begin{document}"):
+                        foundHeader=True
+                    lidor.append("\n")
+                else:
+                    if foundBottom==False and line.startswith("\\end{document}"):
+                        foundBottom=True
+                        lidor.append(line)
+                    elif foundBottom == False and line == "":
+                        continue
+                    else:
+                        if foundBottom==False:
+                            lidor.append(line)
         if lidor is None:
             return [], None
         print("Finished converting Latex to rows list")
-        # lidor = []
-        # with open(latex_path, encoding='UTF-8') as f:
-        #     file = f.read()
-        #     file = file.split("\n")
-        #     foundHeader=False
-        #     foundBottom=False
-        #     for line in file:
-        #         line = line.lstrip()
-        #         if foundHeader==False:
-        #             if line.startswith("\\begin{document}"):
-        #                 foundHeader=True
-        #             lidor.append("\n")
-        #         else:
-        #             if foundBottom==False and line.startswith("\\end{document}"):
-        #                 foundBottom=True
-        #             elif foundBottom == False and line == "":
-        #                 continue
-        #             else:
-        #                 if foundBottom==False:
-        #                     lidor.append(line)
-
 
 
         print("starting parsing")

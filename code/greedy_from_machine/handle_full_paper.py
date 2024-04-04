@@ -17,8 +17,8 @@ def copy_last_pages(input_pdf_path, NUMBER_OF_LAST_PAGES, iteration):
     pdf_document = fitz.open(input_pdf_path)
     total_pages = len(pdf_document)
     new_pdf_document = fitz.open()
-    
-    for page_num in range(total_pages - NUMBER_OF_LAST_PAGES, total_pages):
+    final_num_of_pages = min(NUMBER_OF_LAST_PAGES, total_pages)
+    for page_num in range(total_pages - final_num_of_pages, total_pages):
         new_pdf_document.insert_pdf(pdf_document, from_page=page_num, to_page=page_num)
     
     new_pdf_document.save(output_pdf_path)
