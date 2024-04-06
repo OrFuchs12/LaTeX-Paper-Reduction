@@ -17,14 +17,23 @@ def count_lines_in_page(pdf_path, page_number):
     
 directory = 'C:\\Users\\orfuc\\OneDrive\\שולחן העבודה\\LaTeX-Paper-Reduction-4\\code\\greedy_from_machine\\check_line_number\\Paper_Greedy'
 directory2 = 'C:\\Users\\orfuc\\OneDrive\\שולחן העבודה\\LaTeX-Paper-Reduction-4\\code\\greedy_from_machine\\check_line_number'
+# for file in os.listdir(directory):
+#     if not file.endswith('.pdf'):
+#         continue
+#     file_path = os.path.join(directory, file)
+#     lines = count_lines_in_page(file_path, -1)
+#     if lines == 3:
+#         new_direcotry = os.path.join(directory2, '3_lines')
+#         shutil.move(file_path, new_direcotry)
+#     else:
+#         new_direcotry = os.path.join(directory2, 'not_3_lines')
+#         shutil.move(file_path, new_direcotry)
+
 for file in os.listdir(directory):
-    if not file.endswith('.pdf'):
-        continue
-    file_path = os.path.join(directory, file)
-    lines = count_lines_in_page(file_path, -1)
-    if lines == 3:
-        new_direcotry = os.path.join(directory2, '3_lines')
-        shutil.move(file_path, new_direcotry)
-    else:
-        new_direcotry = os.path.join(directory2, 'not_3_lines')
-        shutil.move(file_path, new_direcotry)
+    new_direcotry = os.path.join(directory2, '3_lines')
+    #find latex files in directory that have the same pdf file name in the "3_lines" directory and move them to 3_lines
+    if file.endswith('.tex'):
+        file_name = file.split('.')[0]
+        if os.path.exists(os.path.join(new_direcotry, file_name+'.pdf')):
+            file_tomove = os.path.join(directory, file)
+            shutil.move(file_tomove, new_direcotry)
