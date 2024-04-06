@@ -465,7 +465,8 @@ def parse(path, lines= None):
     # if file[0].startswith("\\title"):
     #     title=True
     # if title==False:
-    file.insert(0,"\\section{demo}")
+    if (file[0] != "\\section{demo}"):
+        file.insert(0,"\\section{demo}")
     order = receive_lines_version_1(file)
     latex, tree, lines = latex_parsing_perry.parse(lines)
     result11,first_object_location = Connector_perry.connect(latex, lines)
@@ -485,8 +486,8 @@ def parse2_lidor(path, lines= None):
         file = lines
     else:
         file = read_file(path)
-
-    file.insert(0,"\\section{demo}")
+    if (file[0] != "\\section{demo}"):
+        file.insert(0,"\\section{demo}")
     order = receive_lines_version_1(file)
     latex, tree, lines = latex_parsing_perry.parse(lines)
 
@@ -515,7 +516,8 @@ def parse3_lidor(path, lines= None):
     # if file[0].startswith("\\title"):
     #     title=True
     # if title==False:
-    file.insert(0,"\\section{demo}")
+    if (file[0] != "\\section{demo}"):
+        file.insert(0,"\\section{demo}")
     order = receive_lines_version_1(file)
     latex, tree, lines = latex_parsing_perry.parse(lines)
     # print(latex)

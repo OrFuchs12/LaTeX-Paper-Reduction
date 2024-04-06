@@ -1274,6 +1274,7 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name, file_n
         return iteration, end - start, reduced, total_cost,count_operators
     except Exception as e:
         print(e)
+        traceback.print_exc()
         if iteration > 0:
             end = time.time()
             return iteration, end - start, reduced, total_cost,count_operators
