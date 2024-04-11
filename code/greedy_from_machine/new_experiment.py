@@ -794,7 +794,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
             flag = False
             index_to_go_through = chosen_index_to_insert
             while (flag != True):
-                if (index_to_go_through > len(latex_clean_lines)):
+                if (index_to_go_through >= len(latex_clean_lines)):
                     break
                 if (latex_clean_lines[index_to_go_through].startswith(
                         '\\includegraphics')):  # finding the line where we can change the scale of the figure
@@ -1325,6 +1325,8 @@ def non_stop_heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_nam
             if oper in operators_done or oper not in allowed_operators:
                 index += 1
                 continue
+            else:
+                operators_done.append(oper)
             
 
             # condition to apply the operator
