@@ -2014,7 +2014,7 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
                 # if directory already exists in destination, do not copy it
                 if not os.path.exists(destination_path):
                     shutil.copytree(source_path, destination_path)
-        for file in os.scandir(paper_dir): 
+
             if file.name.endswith(".tex"):
                 file_name = file.name.split(".")[0]
                 # whether you want to run the model-based greedy algorithm
