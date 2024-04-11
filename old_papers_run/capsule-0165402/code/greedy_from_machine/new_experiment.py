@@ -1095,7 +1095,8 @@ def handle_new_operator_and_check_reduced(latex_after_operator, paper_name,itera
             subprocess.run(['pdflatex', '-interaction=nonstopmode', base_name], cwd=dir_path) #On mac
             after_pdf = os.path.join(dest, paper_name)
             after_pdf = os.path.join(after_pdf, f"after_operator{algorithm_number}_{file_name}.pdf")
-            last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
+            # last_pages_pdf = copy_last_pages(after_pdf, NUMBER_OF_LAST_PAGES, iteration)
+            last_pages_pdf = after_pdf
             
             
             # os.system(cmd_line_act)
@@ -1332,6 +1333,8 @@ def non_stop_heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_nam
             if oper in operators_done or oper not in allowed_operators:
                 index += 1
                 continue
+            else:
+                operators_done.append(oper)
             
 
             # condition to apply the operator
@@ -1998,7 +2001,8 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
                     remove_comments(path_to_latex)
                 if path_to_pdf:
                     num_of_pages = check_lines(path_to_pdf)[1]
-                    last_pages_pdf_path = copy_last_pages(path_to_pdf,NUMBER_OF_LAST_PAGES, 0)
+                    # last_pages_pdf_path = copy_last_pages(path_to_pdf,NUMBER_OF_LAST_PAGES, 0)
+                    last_pages_pdf_path = path_to_pdf
 
             elif file.is_dir():
                 # move all the directories in 'code/greedy_from_machine/files' directory to 'code/~/results/new_files' directory
