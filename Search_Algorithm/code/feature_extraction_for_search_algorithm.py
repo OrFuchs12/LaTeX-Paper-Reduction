@@ -188,7 +188,7 @@ def run_feature_extraction(list_latex_files,list_pdf_files,list_bib_files):
     files_created =[]
     #for loop blablabla
     for file_index in range(len(list_latex_files)):
-        res = mapping_latex_to_pdf.run(latex_path=list_latex_files[file_index],pdf_path=list_pdf_files[file_index],bib_path="code/~/results/helper_files/bibliography.bib") # path_for_adi
+        res, lidor = mapping_latex_to_pdf.run(latex_path=list_latex_files[file_index],pdf_path=list_pdf_files[file_index],bib_path="code/~/results/helper_files/bibliography.bib") # path_for_adi
         print(res)
         max_height = res[-1]
         res = res[:-1]

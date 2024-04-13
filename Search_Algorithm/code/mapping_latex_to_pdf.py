@@ -1,6 +1,6 @@
 import main_parsing2
 import combining_tex_by_content_comparison_functions as combining_tex_by_content_comparison_functions
-
+import Last_2_pages_rows_extract
 def run(latex_path,pdf_path,bib_path):
     """
 
@@ -10,25 +10,13 @@ def run(latex_path,pdf_path,bib_path):
     :return: mapping every tex element to its location in pdf
     """
     try:
-        original_lines = []
-        with open(latex_path, encoding='UTF-8') as file:
-            # doc = file.read()
-
-            foundHeader=False
-            foundBottom=False
-            for line in file:
-                if foundHeader==False:
-                    if line.startswith("\\begin{document}"):
-                        foundHeader=True
-                    original_lines.append("\n")
-                else:
-                    if foundBottom==False and line.startswith("\\end{document}"):
-                        foundBottom=True
-                    else:
-                        if foundBottom==False:
-                            original_lines.append(line)
-
-
+              # lidor = Lidor_part.read_file(latex_path, bib_path)
+        print("starting converting Latex to rows list")
+        lidor = Last_2_pages_rows_extract.convert_Latex_to_rows_list(latex_path, pdf_path)
+        if lidor is None:
+            return [], None
+        print("Finished converting Latex to rows list")
+       
         #tex parsing and tokenizing tree
         tags, lines = main_parsing2.parse(latex_path, original_lines)
 
@@ -100,10 +88,10 @@ def run(latex_path,pdf_path,bib_path):
         #     print("---")
         #     for key in k:
         #         print(f"{key}[]{k[key]}")
-        return results_lst
+        return results_lst , lidor
     except Exception as e:
         print(e)
-        return []
+        return [] ,None
 
 # if __name__=="__main__":
 #

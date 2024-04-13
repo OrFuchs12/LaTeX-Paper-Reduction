@@ -49,31 +49,94 @@ def combine_two_paragraphs(lst, index_1, index_2):
     lst[index_1] = lst[index_1].replace("\n", " ") + lst.pop(index_2)
     return lst
 
+def extract_adjustbox_width(latex_command):
+    empty_resizebox = False
+    missing_number_index = None
+    # Regular expression pattern to match the width value in the LaTeX command
+    #patter should fit to width=20mm or width=20 or width=0.9\\columnwidth or width=\columnwidth
+    pattern = r'\\begin{adjustbox}{(width=)?([0-9.]*)\\+[a-zA-Z]*}' #\\columnwidth
+    pattern2= r'\\begin{adjustbox}{(width=)?([0-9.]+)\\?[a-zA-Z]*}' #specific mm/cm
+    match1 = re.search(pattern, latex_command)
+    match2 = re.search(pattern2, latex_command)
+    if match1:
+        width_value = match1.group(2)
+        if width_value == '':
+            width_value = '1'
+            empty_resizebox = True
+            missing_number_index = match1.start(2)
+        try:
+            is_float = width_value.find('.') != -1
+            if is_float:   
+                return float(width_value), empty_resizebox, missing_number_index
+            return int(width_value), empty_resizebox, missing_number_index
+        except ValueError:
+ 
+                return None , None, None
+    elif match2:
+        width_value = match2.group(2)
+        if width_value == '':
+            width_value = '1'
+            empty_resizebox = True
+            missing_number_index = match2.start(2)
+        try:
+            is_float = width_value.find('.') != -1
+            if is_float:   
+                return float(width_value), empty_resizebox, missing_number_index
+            return int(width_value), empty_resizebox, missing_number_index
+        except ValueError:
+            return None ,None, None 
+    else:
+        return None, None, None
+def extract_resizebox_width(latex_command):
+    empty_resizebox = False
+    missing_number_index = None
+    # Regular expression pattern to match the width value in the LaTeX command
+    pattern = r'\\resizebox{([0-9.]*)\\+[a-zA-Z]*}'
+    pattern2= r'\\resizebox{([0-9.]+)\\?[a-zA-Z]*}'
+    match = re.search(pattern, latex_command)
+    match2 = re.search(pattern2, latex_command)
+    if match:
+        width_value = match.group(1)
+        if width_value == '':
+            width_value = '1'
+            empty_resizebox = True
+            missing_number_index = match.start(1)
+        try:
+            is_float = width_value.find('.') != -1
+            if is_float:
+                    return float(width_value), empty_resizebox, missing_number_index
+            return int(width_value), empty_resizebox, missing_number_index
+        except ValueError:
+                return None , None, None
+    elif match2:
+        width_value = match2.group(1)
+        if width_value == '':
+            width_value = '1'
+            empty_resizebox = True
+            missing_number_index = match2.start(1)
+        try:
+            is_float = width_value.find('.') != -1
+            if is_float:
+                    return float(width_value), empty_resizebox, missing_number_index
+            return int(width_value), empty_resizebox, missing_number_index
+        except ValueError:
+                return None , None, None
+       
+        
+    else:
+        return None, None, None
+def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,path_to_file):
 
-def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to_file):
-
-    with open(latex_path, encoding='UTF-8') as file:
-        original_lines_lst=[]
-        # doc = file.read()
-        latex_clean_lines = []
-        with open(latex_path, encoding='UTF-8') as file:
-            # doc = file.read()
-
-            foundHeader = False
-            foundBottom = False
-            for line in file:
-                latex_clean_lines.append(line)
-                if foundHeader == False:
-                    if line.startswith("\\begin{document}"):
-                        foundHeader = True
-                    original_lines_lst.append("\n")
-                else:
-                    if foundBottom == False and line.startswith("\\end{document}"):
-                        foundBottom = True
-                    else:
-                        if foundBottom == False:
-                            original_lines_lst.append(line)
-
+    latex_clean_lines = []
+    with open(latex_path, encoding='UTF-8') as f:
+        file = f.read()
+        file = file.split("\n")
+       
+        for line in file:
+            line = line.lstrip()
+            line += "\n"
+            latex_clean_lines.append(line)
+           
     # print(latex_clean_lines)
     # trying vspace
     list_of_starts, tags = main_parsing.parse2(latex_path, original_lines_lst)  
@@ -347,41 +410,54 @@ def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to
             flag = False
             index_to_go_through = chosen_index_to_insert
             while (flag != True):
-                if (index_to_go_through > len(latex_clean_lines)):
+                if (index_to_go_through > len(latex_clean_lines) - 1) or latex_clean_lines[index_to_go_through] == '\\end{table}':
                     break
                 if (latex_clean_lines[index_to_go_through].startswith(
                         '\\begin{adjustbox}')):  # finding the line where we can change the scale of the figure
                     found_index = index_to_go_through
                     flag = True
+                    string_to_edit = latex_clean_lines[found_index]  # the line that we need to edit in order to change the scale
+
+                    width, empty_resizebox, resize_index = extract_adjustbox_width(string_to_edit)
+
+                elif (latex_clean_lines[index_to_go_through].startswith('\\resizebox')):
+
+                    found_index = index_to_go_through
+
+                    flag = True
+
+                    string_to_edit = latex_clean_lines[found_index]
+
+                    width, empty_resizebox, resize_index = extract_resizebox_width(string_to_edit)
                 else:
                     index_to_go_through += 1
-            if (flag == False):
+            if (flag == False or width == None):
                 continue
             # now we will shrink the figure to the 5 options of shrinking:
             # we will first find the places and then add the values based on the scale
             # print(found_index)
             # print(latex_clean_lines[found_index])
-            string_to_edit = latex_clean_lines[
-                found_index]  # the line that we need to edit in order to change the scale
+            # string_to_edit = latex_clean_lines[
+            #     found_index]  # the line that we need to edit in order to change the scale
             # we will look for width and if it exists we will change it
-            start_index = string_to_edit.find('width')
-            running_index = 0
-            if (start_index != -1):  # find the number for width
-                running_index = start_index
-                while (running_index < len(string_to_edit)):
-                    if (string_to_edit[running_index] == '='):
-                        running_index += 1  # now we will find the number and change it
-                        end_number = False
-                        number = ''
-                        while (end_number != True):
-                            if (string_to_edit[running_index] == '\\'):
-                                end_number = True
-                            else:
-                                number += string_to_edit[running_index]
-                                running_index += 1
-                        width = float(number)
-                        break
-                    running_index += 1
+            # start_index = string_to_edit.find('width')
+            # running_index = 0
+            # if (start_index != -1):  # find the number for width
+            #     running_index = start_index
+            #     while (running_index < len(string_to_edit)):
+            #         if (string_to_edit[running_index] == '='):
+            #             running_index += 1  # now we will find the number and change it
+            #             end_number = False
+            #             number = ''
+            #             while (end_number != True):
+            #                 if (string_to_edit[running_index] == '\\'):
+            #                     end_number = True
+            #                 else:
+            #                     number += string_to_edit[running_index]
+            #                     running_index += 1
+            #             width = float(number)
+            #             break
+            #         running_index += 1
             # print(width)
             options = [0.9, 0.8, 0.7, 0.6]  # scale options
             table_name_key_new_latex_list_value[
@@ -389,16 +465,58 @@ def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to
             string_to_edit = latex_clean_lines[found_index]  # the string to edit
             heuristic = 0
             for i in range(4):
+
                 if (i == 0):
-                    heuristic = 0
+
+                    heuristic = value['height'] * 0.1
+
                 elif (i == 1):
-                    heuristic = value['height'] * 0.1111
+
+                    heuristic = value['height'] * 0.2
+
                 elif (i == 2):
-                    heuristic = value['height'] * 0.2222
+
+                    heuristic = value['height'] * 0.3
+
                 elif (i == 3):
-                    heuristic = value['height'] * 0.3333
-                new_width = options[i]
-                new_str = string_to_edit.replace(str(width), str(new_width))
+
+                    heuristic = value['height'] * 0.4
+
+                new_width = options[i] 
+
+                # if width == 0:
+
+                #     #  in the begin adjust box there is no width. we have begin{adjubox}{}, we need to find the index of the second {
+
+                #     index_of_second_bracket = string_to_edit.find('{', string_to_edit.find('{') + 1)
+
+                #     new_str = string_to_edit[:index_of_second_bracket + 1] + "width=" + str(new_width) + "\columnwidth" + string_to_edit[index_of_second_bracket+1:]
+
+                # else:
+
+                    # if empty_number:
+
+                    #    #add the new_width after =
+
+                    #     new_str = string_to_edit.replace('=', '=' + str(new_width)) 
+
+                if empty_resizebox:
+
+                        #add the new_width to the resize_index
+
+                    new_str = string_to_edit[:resize_index] + str(new_width) + string_to_edit[resize_index:]
+
+                    # elif width == 2: 
+
+                    #     new_str = string_to_edit.replace(str(int(width)), str(2 * new_width))
+
+                    # elif width == 1:
+
+                    #     new_str = string_to_edit.replace(str(int(width)), str(new_width))                        
+
+                else:
+
+                    new_str = string_to_edit.replace(str(width), str(round(new_width * width, 2)))  
                 copy_list = copy.deepcopy(latex_clean_lines)
                 copy_list[found_index] = new_str
                 table_name_key_new_latex_list_value[key].append(
@@ -445,39 +563,91 @@ def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to
                         end_number = False
                         number = ''
                         while (end_number != True):
-                            if (string_to_edit[running_index] == '\\'):
+                            if (string_to_edit[running_index].isdigit() == False and string_to_edit[running_index] not in ['.', ',']):
+
                                 end_number = True
+
                             else:
+
                                 number += string_to_edit[running_index]
+
                                 running_index += 1
+
+                        if number == '':
+
+                            number= 1
+
                         width = float(number)
+
                         break
+
                     running_index += 1
+
+            given_height = False
+
             start_index = string_to_edit.find('height')
+
             running_index = 0
+
             if (start_index != -1):  # find the number for height
+
                 running_index = start_index
+
+                given_height = True
+
                 while (running_index < len(string_to_edit)):
+
                     if (string_to_edit[running_index] == '='):
+
                         running_index += 1  # now we will find the number and change it
+
                         end_number = False
+
                         number = ''
+
                         while (end_number != True):
-                            if (string_to_edit[running_index] == '\\'):
+
+                            if (string_to_edit[running_index].isdigit() == False and string_to_edit[running_index] not in ['.', ',']):
+
                                 end_number = True
+
                             else:
+
                                 number += string_to_edit[running_index]
+
                                 running_index += 1
+
+                        
+
                         height = float(number)
+
                         break
+
                     running_index += 1
-            # print(width)
-            # print(height)
+
+            else: #no height declared in latex, we will find the height using proportion of width 
+
+                #get height in point and convert to inches
+
+                height = round(value['height']/72, 2)
+
+
+
+               
+
+                
+
+                
             # create 5 options:
             options = [0.9, 0.8, 0.7, 0.6, 0.5]  # scale options
             figure_name_key_new_latex_list_value[
                 key] = []  # this dict will have the key as the figure name and then value will be the lists of the new latex content for the new file
             string_to_edit = latex_clean_lines[found_index]  # the string to edit
+            if not given_height:
+
+                index_for_height = string_to_edit.find(']')
+
+                string_to_edit = string_to_edit[:index_for_height] + ",height=" + str(height) +"in "+ string_to_edit[index_for_height:]
             heuristic = 0
             for i in range(5):
                 if (i == 0):
@@ -580,7 +750,8 @@ def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to
         chosen_index_to_insert = arr_of_places_and_vspace_to_add[i][0]
         str__ = arr_of_places_and_vspace_to_add[i][1]
         latex_clean_lines.insert(chosen_index_to_insert, str__)
-        latex_clean_lines = latex_clean_lines  # [1:]
+        latex_clean_lines = latex_clean_lines
+        latex_string = ''.join(latex_clean_lines) #todo find why putting all the latexstring# [1:]
         # print(latex_clean_lines)
         # for item in latex_clean_lines:
         # write each item on a new line
@@ -743,14 +914,14 @@ def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to
             (par[2], latex_string, 6, 1, 1, num_of_object))  # type, value, object_used_on, num_of_object
         index_for_all_operators += 1
 
-    for key, value in object_name_key_new_latex_list_value.items():
-        # f = open(path_to_file + str(doc_index) + str(index_for_all_operators) + ".tex", "w")
-        # files_created.append((path_to_file + str(doc_index) + str(index_for_all_operators) + ".tex",
-        #                       path_to_file + str(doc_index) + str(index_for_all_operators) + ".pdf",
-        #                       value[1], 'remove_special_positional_chars',
-        #                       1,
-        #                       key, value[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-        x_list = value[0]  # [1:]
+    # for key, value in object_name_key_new_latex_list_value.items():
+    #     # f = open(path_to_file + str(doc_index) + str(index_for_all_operators) + ".tex", "w")
+    #     # files_created.append((path_to_file + str(doc_index) + str(index_for_all_operators) + ".tex",
+    #     #                       path_to_file + str(doc_index) + str(index_for_all_operators) + ".pdf",
+    #     #                       value[1], 'remove_special_positional_chars',
+    #     #                       1,
+    #     #                       key, value[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+    #     x_list = value[0]  # [1:]
         # print(x_list)
         # for item in x_list:
         # write each item on a new line
@@ -758,11 +929,11 @@ def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to
         # f.close()
         # print('Done')
         # print(value[2])
-        latex_string = ''.join(x_list)
-        num_of_object = re.findall('\d+', key)[0]
-        operators_dict.append(
-            (value[2], latex_string, 8, 1, value[1], num_of_object))  # type, value, object_used_on, num_of_object
-        index_for_all_operators += 1
+        # latex_string = ''.join(x_list)
+        # num_of_object = re.findall('\d+', key)[0]
+        # operators_dict.append(
+        #     (value[2], latex_string, 8, 1, value[1], num_of_object))  # type, value, object_used_on, num_of_object
+        # index_for_all_operators += 1
 
     for key, value in dict_for_removing_last_2_words_operator.items():
         # f = open(path_to_file + str(doc_index) + str(index_for_all_operators) + ".tex", "w")

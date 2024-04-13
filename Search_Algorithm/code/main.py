@@ -14,6 +14,8 @@ import search_algorithms_for_experiment
 import reload_models
 import new_experiment_inferstructure
 import subprocess
+import shutil
+import handle_full_paper
 
 # Read list to memory
 def read_list(path):
@@ -62,8 +64,8 @@ def has_more_operators_to_check_greedy(activated, to_activate):
     return False
 
 
-def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, operators_max, helper_directory, models,
-                           bibliograph_path):
+def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, operators_max, models, paper_directory,
+                          bibliograph_path ):
     """
     Experiment on single document
     :param path_for_tex: path to tex file
@@ -297,20 +299,20 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                                                                             models=models, mse_dct=mse_dct)
             first_element = results[0]
             max_len_tree = max(max_len_tree, len_tree)
-            df1 = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
+            df1, lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                          bibliograph_path,
-                                                         f"{helper_directory}dct0",
-                                                         f"{helper_directory}dct0",
+                                                         "code/~/results/dct0",
+                                                          "code/~/results/dct0",
                                                          "test", pd.DataFrame())
             df1 = df1.T
             df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
                       'num_of_object'], axis=1, inplace=True)
 
-            with open(f"{helper_directory}dct0",
+            with open(  "code/~/results/dct0",
                       'rb') as dct_file:
                 dct = pickle.load(dct_file)
 
-            original_operators_list = greedy.perform_operators(dct, 0, current_path_for_tex, helper_directory)
+            original_operators_list = greedy.perform_operators(dct, 0, current_path_for_tex, helper_directory,lidor)
 
             for j in range(len(original_operators_list)):
                 first_element_new_list = original_operators_list[j]
@@ -323,14 +325,15 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
 
                 if oper == first_element:
                     latex_after_operator = first_element_new_list[1]
-                    current_path_for_tex = helper_directory + "new.tex"
+                    current_path_for_tex = os.path.join("code/~/results/new_files/", "new.tex")
                     f = open(current_path_for_tex, "w")
                     f.write(latex_after_operator)
                     f.close()
 
                     # cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
                     # os.system(cmd_line_act)
-                    dir_path = "code/~/results/helper_files/files/"
+                    dir_path = os.path.join("code/~/results/new_files", paper_directory)
+
                     # base_name = os.path.basename(after_path)
                     # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
                     subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
@@ -340,6 +343,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     last_page_height = read_single_file.order(current_path_for_pdf)
                     cost += first_element_new_list[0]
 
+                    lines, pages = greedy.check_lines(current_path_for_pdf)
                     if (last_page_height < original_height or last_page_height == 0):
                         reduced = True
                         operators_activated += 1
@@ -371,21 +375,20 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                                                                         models=models, mse_dct=mse_dct)
         print(results)
         for operator in results:
-
-            df1 = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
+            df1, lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                          bibliograph_path,
-                                                         f"{helper_directory}dct0",
-                                                         f"{helper_directory}dct0",
-                                                         "test", pd.DataFrame())
+                                                         "code/~/results/dct0",
+                                                          "code/~/results/dct0",
+                                                         "test", pd.DataFrame())   
             df1 = df1.T
             df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
                       'num_of_object'], axis=1, inplace=True)
 
-            with open(f"{helper_directory}dct0",
+            with open( "code/~/results/dct0",
                       'rb') as dct_file:
                 dct = pickle.load(dct_file)
 
-            original_operators_list = greedy.perform_operators(dct, 0, current_path_for_tex, helper_directory)
+            original_operators_list = greedy.perform_operators(dct, 0, current_path_for_tex, helper_directory,lidor)
 
             for j in range(len(original_operators_list)):
                 first_element_new_list = original_operators_list[j]
@@ -400,18 +403,19 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 print(operator)
                 if oper == operator:
                     latex_after_operator = first_element_new_list[1]
-                    current_path_for_tex = helper_directory + "new.tex"
+                    current_path_for_tex = os.path.join("code/~/results/new_files/", "new.tex")
                     f = open(current_path_for_tex, "w")
                     f.write(latex_after_operator)
                     f.close()
 
                     # cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
                     # os.system(cmd_line_act)
-                    dir_path = "code/~/results/helper_files/files/"
+                    dir_path = os.path.join("code/~/results/new_files", paper_directory)
+
                     # base_name = os.path.basename(after_path)
                     # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
                     subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
-                
+              
                     current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
                     last_page_height = read_single_file.order(current_path_for_pdf)
                     cost += first_element_new_list[0]
@@ -872,7 +876,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         original_height, last_page_height, gained, time_taken, reduced, cost, iterations, len_tree, operators_activated)
 
 
-def results(path_for_docs, filename, type_of_experiment, operators_max, helper_directory, models, bibliograph_path):
+def results(path_for_docs, type_of_experiment, operators_max, models, bibliograph_path):
     """
     Run experiments on all documents in path_for_docs
     :param path_for_docs: directory of tex files and their corresponding pdf
@@ -886,47 +890,90 @@ def results(path_for_docs, filename, type_of_experiment, operators_max, helper_d
 
     results_data = []
 
-    path_to_latex = ""
-    path_to_pdf = ""
-    file_path = os.path.join(path_for_docs, filename + ".pdf")
-    if os.path.isfile(file_path):
-        path_to_pdf = file_path
+    # path_to_latex = ""
+    # path_to_pdf = ""
+    # file_path = os.path.join(path_for_docs, filename + ".pdf")
+    # if os.path.isfile(file_path):
+    #     path_to_pdf = file_path
 
-    file_path = os.path.join(path_for_docs, filename + ".tex")
-    print(file_path)
-    if os.path.isfile(file_path):
-        path_to_latex = file_path
+    # file_path = os.path.join(path_for_docs, filename + ".tex")
+    # print(file_path)
+    # if os.path.isfile(file_path):
+    #     path_to_latex = file_path
+    directory = path_for_docs
+    
+    idx = 0
+    done = 1
+    #get last name of files_dir
+    dir_name = path_for_docs.split('\\')[-1]
+    for paper_dir in os.scandir(directory):
+        print("paper_dir:", paper_dir.name)
+        names = []
+        paper_directory = paper_dir.name
+        idx += 1
+        path_to_latex = None
+        path_to_pdf = None
+        for file in os.scandir(paper_dir):
+            if file.is_file():
+                source_dir = os.path.join("data/files", paper_directory)
+                destination_dir = os.path.join("code/~/results/new_files", paper_directory)       
+                os.makedirs(destination_dir, exist_ok=True)     
+                if file.name.lower().endswith("_changed.pdf") :
+                    path_to_pdf = os.path.join(destination_dir, file.name)
+                if file.name.lower().endswith("_changed.tex") :
+                    path_to_latex = os.path.join(destination_dir, file.name)
+                source_path = file.path
+                destination_path = os.path.join(destination_dir, file.name)
+                shutil.copy(source_path, destination_path)
+                if path_to_latex:
+                    handle_full_paper.remove_comments(path_to_latex)
+                if path_to_pdf:
+                    num_of_pages = greedy.check_lines(path_to_pdf)[1]
+                    last_pages_pdf_path = handle_full_paper.copy_last_pages(path_to_pdf,2, 0)
 
-    lines, pages = greedy.check_lines(path_to_pdf)
+            elif file.is_dir():
+                # move all the directories in 'code/greedy_from_machine/files' directory to 'code/~/results/new_files' directory
+                source_dir = os.path.join("data/files", paper_directory)
+                destination_dir = os.path.join("code/~/results/new_files", paper_directory)
+                os.makedirs(destination_dir, exist_ok=True)
+                source_path = file.path
+                destination_path = os.path.join(destination_dir, file.name)
+                # if directory already exists in destination, do not copy it
+                if not os.path.exists(destination_path):
+                    shutil.copytree(source_path, destination_path)
 
-    if lines < 2:
-        # print("Less then 2 lines")
-        return {}
-    if pages < 2:
-        # print("Less then 2 pages")
-        return {}
+    # lines, pages = greedy.check_lines(path_to_pdf)
 
-    original_height, last_page_height, gained, time_taken, reduced, cost, iterations, len_tree, count_operators = experiment_on_document(
-        path_to_latex, type_of_experiment, path_to_pdf, operators_max, helper_directory, models, bibliograph_path)
-    results_data.append(
-        {"docName": filename, "experiment_type": type_of_experiment, "operators_max": operators_max,
-         "iterations": iterations, "reduced": reduced,
-         "original_height": original_height, "last_page_height": last_page_height, "gained": gained,
-         "cost": cost, "time_taken": time_taken, "max_len_tree": len_tree, "operators_count": count_operators})
+    # if lines < 2:
+    #     # print("Less then 2 lines")
+    #     return {}
+    # if pages < 2:
+    #     # print("Less then 2 pages")
+    #     return {}
 
-    return results_data
+        original_height, last_page_height, gained, time_taken, reduced, cost, iterations, len_tree, count_operators = experiment_on_document(
+                path_to_latex, type_of_experiment, last_pages_pdf_path, operators_max, models,paper_directory, bibliograph_path)
+        results_data.append(
+                {"docName": paper_directory, "experiment_type": type_of_experiment, "operators_max": operators_max,
+                "iterations": iterations, "reduced": reduced,
+                "original_height": original_height, "last_page_height": last_page_height, "gained": gained,
+                "cost": cost, "time_taken": time_taken, "max_len_tree": len_tree, "operators_count": count_operators})
+    results_df = pd.DataFrame.from_records(results_data)
+    results_df.to_csv(path_for_write_csv, index=False)
+
+    # return results_data
 
 
 if __name__ == "__main__":
-    filename = sys.argv[1]
-    type_of_experiment = int(sys.argv[2])
-    operators_max = int(sys.argv[3])
-    path_for_docs = sys.argv[4]
-    path_for_write_csv = sys.argv[5]
-    helper_directory = sys.argv[6]
-    bibliograph_path = sys.argv[7]
-    models_path_cat = sys.argv[8]
-    models_path_xgb = sys.argv[9]
+    # filename = sys.argv[1]
+    type_of_experiment = int(sys.argv[1])
+    operators_max = int(sys.argv[2])
+    path_for_docs = sys.argv[3]
+    path_for_write_csv = sys.argv[4]
+    # helper_directory = sys.argv[6]
+    bibliograph_path = sys.argv[5]
+    models_path_cat = sys.argv[6]
+    models_path_xgb = sys.argv[7]
 
     if type_of_experiment == 0:
         type_of_experiment = "greedy-separate"
@@ -951,9 +998,9 @@ if __name__ == "__main__":
     else:
         models = greedy.load_models(models_path_xgb)
 
-    results_data = results(path_for_docs, filename, type_of_experiment, operators_max, helper_directory, models,
+    results(path_for_docs, type_of_experiment, operators_max, models,
                            bibliograph_path)
 
     # writing results to csv
-    results_df = pd.DataFrame.from_records(results_data)
-    results_df.to_csv(path_for_write_csv, index=False)
+    # results_df = pd.DataFrame.from_records(results_data)
+    # results_df.to_csv(path_for_write_csv, index=False)

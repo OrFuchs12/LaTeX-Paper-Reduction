@@ -195,7 +195,7 @@ def run_feature_extraction(latex_path, pdf_path, bib_path, path_to_save_df_dict,
 
     for file_index in range(1):
 
-        res = mapping_latex_to_pdf.run(latex_path, pdf_path, bib_path)
+        res, lidor = mapping_latex_to_pdf.run(latex_path, pdf_path, bib_path)
         
         # try:
         #     with open(path_to_save_analysis_dict, 'rb') as dct_file:
@@ -1216,7 +1216,7 @@ def run_feature_extraction(latex_path, pdf_path, bib_path, path_to_save_df_dict,
     # print(df)
     # print(df.T)
     # df2 = df.T
-    return df
+    return df ,lidor
     # return df,files_created
     # df2.to_csv('example.csv')
 
