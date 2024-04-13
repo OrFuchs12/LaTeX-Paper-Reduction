@@ -13,7 +13,7 @@ from pathlib import Path
 import search_algorithms_for_experiment
 import reload_models
 import new_experiment_inferstructure
-
+import subprocess
 
 # Read list to memory
 def read_list(path):
@@ -135,8 +135,13 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 f.write(latex_after_operator)
                 f.close()
 
-                cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
-                os.system(cmd_line_act)
+                # cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
+                # os.system(cmd_line_act)
+                dir_path = "code/~/results/helper_files/files/"
+                # base_name = os.path.basename(after_path)
+                # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+                subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
+            
 
                 current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
                 last_page_height = read_single_file.order(current_path_for_pdf)
@@ -246,8 +251,13 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 f.write(latex_after_operator)
                 f.close()
 
-                cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
-                os.system(cmd_line_act)
+                # cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
+                # os.system(cmd_line_act)
+                dir_path = "code/~/results/helper_files/files/"
+                # base_name = os.path.basename(after_path)
+                # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+                subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
+            
 
                 current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
                 last_page_height = read_single_file.order(current_path_for_pdf)
@@ -318,8 +328,13 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     f.write(latex_after_operator)
                     f.close()
 
-                    cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
-                    os.system(cmd_line_act)
+                    # cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
+                    # os.system(cmd_line_act)
+                    dir_path = "code/~/results/helper_files/files/"
+                    # base_name = os.path.basename(after_path)
+                    # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+                    subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
+                
 
                     current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
                     last_page_height = read_single_file.order(current_path_for_pdf)
@@ -390,9 +405,13 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     f.write(latex_after_operator)
                     f.close()
 
-                    cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
-                    os.system(cmd_line_act)
-
+                    # cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
+                    # os.system(cmd_line_act)
+                    dir_path = "code/~/results/helper_files/files/"
+                    # base_name = os.path.basename(after_path)
+                    # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+                    subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
+                
                     current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
                     last_page_height = read_single_file.order(current_path_for_pdf)
                     cost += first_element_new_list[0]
@@ -473,8 +492,13 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     f.write(latex_after_operator)
                     f.close()
 
-                    cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
-                    os.system(cmd_line_act)
+                    # cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
+                    # os.system(cmd_line_act)
+                    dir_path = "code/~/results/helper_files/files/"
+                    # base_name = os.path.basename(after_path)
+                    # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+                    subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
+                
 
                     current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
                     last_page_height = read_single_file.order(current_path_for_pdf)
@@ -609,8 +633,13 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     f.write(latex_after_operator)
                     f.close()
 
-                    cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
-                    os.system(cmd_line_act)
+                    # cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
+                    # os.system(cmd_line_act)
+                    dir_path = "code/~/results/helper_files/files/"
+                    # base_name = os.path.basename(after_path)
+                    # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+                    subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
+                
 
                     current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
                     last_page_height = read_single_file.order(current_path_for_pdf)
@@ -710,9 +739,13 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                         f.write(latex_after_operator)
                         f.close()
 
-                        cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
-                        os.system(cmd_line_act)
-
+                        # cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
+                        # os.system(cmd_line_act)
+                        dir_path = "code/~/results/helper_files/files/"
+                        # base_name = os.path.basename(after_path)
+                        # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+                        subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
+                    
                         current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
                         last_page_height = read_single_file.order(current_path_for_pdf)
                         cost += first_element_new_list[0]
@@ -799,8 +832,13 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                         f.write(latex_after_operator)
                         f.close()
 
-                        cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
-                        os.system(cmd_line_act)
+                        # cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
+                        # os.system(cmd_line_act)
+                        dir_path = "code/~/results/helper_files/files/"
+                        # base_name = os.path.basename(after_path)
+                        # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+                        subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
+                    
 
                         current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
                         last_page_height = read_single_file.order(current_path_for_pdf)

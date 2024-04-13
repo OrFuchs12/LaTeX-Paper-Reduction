@@ -44,7 +44,7 @@ def results(path_for_docs, path_for_write_csv, from_doc, to_doc, type_of_experim
 
     idx = 0
     if type_of_experiment.find("search") != -1:
-        models_path_cat = "/sise/home/toris/latex_files/creating_batches/modelling/second_exp/regression_models"
+        models_path_cat = "data/regression_models"
         models = reload_models.load_regression_models_cat(models_path_cat)
     else:
         models = greedy.load_models()

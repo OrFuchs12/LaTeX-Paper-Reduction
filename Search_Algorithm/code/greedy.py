@@ -791,14 +791,14 @@ def perform_operators(objects, doc_index, latex_path, path_to_file):  # ,path_to
 
 def check_lines(file_path):
     # Open the PDF file
-    with open(file_path, 'rb') as file:
-        pdf = PyPDF2.PdfFileReader(file)
+   with open(file_path, 'rb') as file:
+        pdf = PyPDF2.PdfReader(file)
         # Get the number of pages in the PDF
-        pages = pdf.getNumPages()
+        pages = len(pdf.pages)
         # Get the last page
-        last_page = pdf.getPage(pages - 1)
+        last_page = pdf.pages[pages - 1]
         # Extract the text from the last page
-        text = last_page.extractText()
+        text = last_page.extract_text()
         # Split the text into lines
         lines = text.split('\n')
         return len(lines), pages
