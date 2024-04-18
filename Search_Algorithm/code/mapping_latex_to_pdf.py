@@ -18,7 +18,7 @@ def run(latex_path,pdf_path,bib_path):
         print("Finished converting Latex to rows list")
        
         #tex parsing and tokenizing tree
-        tags, lines = main_parsing2.parse(latex_path, original_lines)
+        tags, lines = main_parsing2.parse(latex_path, lidor)
 
         tags_without_figures_and_tables = []
         figures = []
