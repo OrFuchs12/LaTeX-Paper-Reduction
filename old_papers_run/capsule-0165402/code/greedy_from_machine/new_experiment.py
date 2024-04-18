@@ -1067,8 +1067,8 @@ def feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name, d
     
     lines, pages = check_lines(path_to_pdf)
     #check whether the file is not good for the algorithm:
-    if lines < 2:
-        print("Less then 2 lines")
+    if lines < 1:
+        print("Less then 1 line")
         return df, lidor, lines, pages, False
     if pages < 2:
         print("Less then 2 pages")
@@ -1136,7 +1136,7 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name, file_name
         dct_dir = os.path.join(result_path, "dct0")
         df, lidor, lines, pages, valid = feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name, dct_dir)
         if not valid:
-            return -1, -1, False, -1   
+            return -1, -1, False, -1 , -1
              
         # define stop condition and some variables
         target = lines - 2
@@ -1220,7 +1220,7 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name, file_n
         dct_dir = os.path.join(result_path, "dct0")
         df, lidor, lines, pages, valid = feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name, dct_dir)
         if not valid:
-            return -1, -1, False, -1
+            return -1, -1, False, -1, -1
         
 
         # define stop condition and some variables
@@ -1299,7 +1299,7 @@ def non_stop_heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_nam
         dct_dir = os.path.join(result_path, "dct0")
         df, lidor, lines, pages, valid = feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name, dct_dir)
         if not valid:
-            return -1, -1, False, -1
+            return -1, -1, False, -1, -1
         
         # define stop condition and some variables
         target = lines - 2
@@ -1394,7 +1394,7 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name, f
         dct_dir = os.path.join(result_path, "dct0")
         df1, lidor, lines, pages, valid = feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name, dct_dir)
         if not valid:
-            return -1, -1, False, -1
+            return -1, -1, False, -1, -1
         
 
         df1 = df1.T
@@ -1480,7 +1480,7 @@ def non_stop_classification_greedy(path_to_pdf, path_to_latex, models,num_of_pag
         dct_dir = os.path.join(result_path, "dct0")
         df1, lidor, lines, pages, valid = feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name, dct_dir)
         if not valid:
-            return -1, -1, False, -1
+            return -1, -1, False, -1, -1
 
         df1 = df1.T
         df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
@@ -1571,7 +1571,7 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
         dct_dir = os.path.join(result_path, "dct0")
         df1, lidor, lines, pages, valid = feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name, dct_dir)
         if not valid:
-            return -1, -1, False, -1
+            return -1, -1, False, -1, -1
         
         df1 = df1.T
         df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
@@ -1670,7 +1670,7 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
         dct_dir = os.path.join(result_path, "dct0")
         df1, lidor, lines, pages, valid = feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name, dct_dir)
         if not valid:
-            return -1, -1, False, -1
+            return -1, -1, False, -1, -1
         df1 = df1.T
         df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
                     'num_of_object'], axis=1, inplace=True)
@@ -1781,7 +1781,7 @@ def classification_regression_greedy (path_to_pdf, path_to_latex, models_list ,n
         dct_dir = os.path.join(result_path, "dct0")
         df1, lidor, lines, pages, valid = feature_extract_and_validate_paper(path_to_pdf, path_to_latex, paper_name, dct_dir)
         if not valid:
-            return -1, -1, False, -1
+            return -1, -1, False, -1, -1
 
         df1 = df1.T
         df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
