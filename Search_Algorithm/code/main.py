@@ -65,7 +65,7 @@ def has_more_operators_to_check_greedy(activated, to_activate):
 
 
 def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, operators_max, models, paper_directory,
-                          bibliograph_path ):
+                          bibliograph_path, num_of_pages ):
     """
     Experiment on single document
     :param path_for_tex: path to tex file
@@ -97,18 +97,18 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
 
             df1 = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                          bibliograph_path,
-                                                         f"{helper_directory}dct0",
-                                                         f"{helper_directory}dct0",
+                                                         "code/~/results/dct0",
+                                                         "code/~/results/dct0",
                                                          "test", pd.DataFrame())
             df1 = df1.T
             df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
                       'num_of_object'], axis=1, inplace=True)
 
-            with open(f"{helper_directory}dct0",
+            with open("code/~/results/dct0",
                       'rb') as dct_file:
                 dct = pickle.load(dct_file)
 
-            operators_list = greedy.perform_operators(dct, 0, current_path_for_tex, helper_directory)
+            operators_list = greedy.perform_operators(dct, current_path_for_tex, lidor)
             found = False
             while found == False and index != len(operators_list):
                 if str(operators_list[index][2]) == '1':
@@ -176,17 +176,17 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
 
         df1 = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                      bibliograph_path,
-                                                     f"{helper_directory}dct0",
-                                                     f"{helper_directory}dct0",
+                                                     "code/~/results/dct0",
+                                                     "code/~/results/dct0",
                                                      "test", pd.DataFrame())
         df1 = df1.T
         df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
                   'num_of_object'], axis=1, inplace=True)
-        with open(f"{helper_directory}dct0",
+        with open("code/~/results/dct0",
                   'rb') as dct_file:
             dct = pickle.load(dct_file)
 
-        original_operators_list = greedy.perform_operators(dct, 0, current_path_for_tex, helper_directory)
+        original_operators_list = greedy.perform_operators(dct,  current_path_for_tex, lidor)
         operators_list = []
         for index in range(len(original_operators_list)):
             if str(original_operators_list[index][2]) == '1':
@@ -210,18 +210,18 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
             if count_operators != 0:
                 df1 = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                              bibliograph_path,
-                                                             f"{helper_directory}dct0",
-                                                             f"{helper_directory}dct0",
+                                                             "code/~/results/dct0",
+                                                             "code/~/results/dct0",
                                                              "test", pd.DataFrame())
                 df1 = df1.T
                 df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
                           'num_of_object'], axis=1, inplace=True)
 
-                with open(f"{helper_directory}dct0",
+                with open("code/~/results/dct0",
                           'rb') as dct_file:
                     dct = pickle.load(dct_file)
 
-                new_operators_list = greedy.perform_operators(dct, 0, current_path_for_tex, helper_directory)
+                new_operators_list = greedy.perform_operators(dct, current_path_for_tex, lidor)
 
             if check_index == len(operators_list):
                 break
@@ -294,9 +294,9 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         max_len_tree = 0
         for i in range(operators_max):
             results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
-                                                                            file_name=current_path_for_tex,
+                                                                            file_name=current_path_for_tex, last_pages=current_path_for_pdf,
                                                                             algorithm_search=search_algorithms_for_experiment.dijkstra,
-                                                                            models=models, mse_dct=mse_dct)
+                                                                            models=models, mse_dct=mse_dct, bib_path=bibliograph_path)
             first_element = results[0]
             max_len_tree = max(max_len_tree, len_tree)
             df1, lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
@@ -312,8 +312,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                       'rb') as dct_file:
                 dct = pickle.load(dct_file)
 
-            original_operators_list = greedy.perform_operators(dct, 0, current_path_for_tex, helper_directory,lidor)
-
+            original_operators_list = greedy.perform_operators(dct,  current_path_for_tex,lidor)
+            iter = 0
             for j in range(len(original_operators_list)):
                 first_element_new_list = original_operators_list[j]
                 if str(first_element_new_list[2]) == '1':
@@ -325,7 +325,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
 
                 if oper == first_element:
                     latex_after_operator = first_element_new_list[1]
-                    current_path_for_tex = os.path.join("code/~/results/new_files/", "new.tex")
+                    current_path_for_tex = os.path.join(f"code/~/results/new_files/{paper_directory}", "new.tex")
                     f = open(current_path_for_tex, "w")
                     f.write(latex_after_operator)
                     f.close()
@@ -340,16 +340,21 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 
 
                     current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
-                    last_page_height = read_single_file.order(current_path_for_pdf)
+                    last_page_height = read_single_file.order(current_path_for_pdf) #todo check why this takes so long
                     cost += first_element_new_list[0]
-
-                    lines, pages = greedy.check_lines(current_path_for_pdf)
-                    if (last_page_height < original_height or last_page_height == 0):
+                    
+                    lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
+                    # make a new pdf only with 2 last pages:
+                    last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
+                    lines, pages = greedy.check_lines(last_pages_pdf)
+                    if (pages < 2 or new_number_of_pages< num_of_pages):
                         reduced = True
                         operators_activated += 1
 
                     if (last_page_height == 0):
                         break
+                    iter += 1
+                    current_path_for_pdf = last_pages_pdf
 
         end = time.time()
         time_taken = end - start
@@ -370,7 +375,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
 
         mse_dct = new_experiment_inferstructure.create_dict()
         results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
-                                                                        file_name=current_path_for_tex,
+                                                                        file_name=current_path_for_tex,last_pages=path_for_pdf,
                                                                         algorithm_search=search_algorithms_for_experiment.dijkstra,
                                                                         models=models, mse_dct=mse_dct)
         print(results)
@@ -388,7 +393,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                       'rb') as dct_file:
                 dct = pickle.load(dct_file)
 
-            original_operators_list = greedy.perform_operators(dct, 0, current_path_for_tex, helper_directory,lidor)
+            original_operators_list = greedy.perform_operators(dct,  current_path_for_tex,lidor)
 
             for j in range(len(original_operators_list)):
                 first_element_new_list = original_operators_list[j]
@@ -449,8 +454,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         count_operators = 0
         df1 = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                      bibliograph_path,
-                                                     f"{helper_directory}dct0",
-                                                     f"{helper_directory}dct0",
+                                                    "code/~/results/dct0",
+                                                     "code/~/results/dct0",
                                                      "test", pd.DataFrame())
         df1 = df1.T
         df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
@@ -460,7 +465,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                   'rb') as dct_file:
             dct = pickle.load(dct_file)
 
-        operators_list = greedy.perform_operators(dct, 0, current_path_for_tex, helper_directory)
+        operators_list = greedy.perform_operators(dct, current_path_for_tex, lidor)
 
         while reduced == False and has_more_operators_to_check_greedy(operators_done,
                                                                       operators_list) == True and iterations < 10:
@@ -516,8 +521,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     break
                 df1 = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                              bibliograph_path,
-                                                             f"{helper_directory}dct0",
-                                                             f"{helper_directory}dct0",
+                                                             "code/~/results/dct0",
+                                                             "code/~/results/dct0",
                                                              "test", pd.DataFrame())
                 df1 = df1.T
                 df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
@@ -527,7 +532,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                           'rb') as dct_file:
                     dct = pickle.load(dct_file)
 
-                operators_list = greedy.perform_operators(dct, 0, current_path_for_tex, helper_directory)
+                operators_list = greedy.perform_operators(dct,  current_path_for_tex, lidor)
 
         operators_activated = count_operators
         end = time.time()
@@ -551,8 +556,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
 
         df1 = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                      bibliograph_path,
-                                                     f"{helper_directory}dct0",
-                                                     f"{helper_directory}dct0",
+                                                     "code/~/results/dct0",
+                                                     "code/~/results/dct0",
                                                      "test", pd.DataFrame())
         df1 = df1.T
         df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
@@ -561,7 +566,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                   'rb') as dct_file:
             dct = pickle.load(dct_file)
 
-        original_operators_list = greedy.perform_operators(dct, 0, current_path_for_tex, helper_directory)
+        original_operators_list = greedy.perform_operators(dct,  current_path_for_tex, lidor)
         operators_list = []
 
         while reduced == False and has_more_operators_to_check_greedy(operators_done,
@@ -590,19 +595,19 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 if count_operators != 0:
                     df1 = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                                  bibliograph_path,
-                                                                 f"{helper_directory}dct0",
-                                                                 f"{helper_directory}dct0",
+                                                                 "code/~/results/dct0",
+                                                                 "code/~/results/dct0",
                                                                  "test", pd.DataFrame())
                     df1 = df1.T
                     df1.drop(
                         ['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
                          'num_of_object'], axis=1, inplace=True)
 
-                    with open(f"{helper_directory}dct0",
+                    with open("code/~/results/dct0",
                               'rb') as dct_file:
                         dct = pickle.load(dct_file)
 
-                    new_operators_list = greedy.perform_operators(dct, 0, current_path_for_tex, helper_directory)
+                    new_operators_list = greedy.perform_operators(dct,  current_path_for_tex, lidor)
 
                 if check_index == len(operators_list):
                     break
@@ -667,17 +672,17 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 break
             df1 = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                          bibliograph_path,
-                                                         f"{helper_directory}dct0",
-                                                         f"{helper_directory}dct0",
+                                                         "code/~/results/dct0",
+                                                         "code/~/results/dct0",
                                                          "test", pd.DataFrame())
             df1 = df1.T
             df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
                       'num_of_object'], axis=1, inplace=True)
-            with open(f"{helper_directory}dct0",
+            with open("code/~/results/dct0",
                       'rb') as dct_file:
                 dct = pickle.load(dct_file)
 
-            original_operators_list = greedy.perform_operators(dct, 0, current_path_for_tex, helper_directory)
+            original_operators_list = greedy.perform_operators(dct,  current_path_for_tex, lidor)
             operators_list = []
 
         operators_activated = count_operators
@@ -700,7 +705,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         operators_done = []
         mse_dct = new_experiment_inferstructure.create_dict()
         results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
-                                                                        file_name=current_path_for_tex,
+                                                                        file_name=current_path_for_tex,last_pages=path_for_pdf,
                                                                         algorithm_search=search_algorithms_for_experiment.dijkstra,
                                                                         models=models, mse_dct=mse_dct)
 
@@ -711,18 +716,18 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
 
                 df1 = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                              bibliograph_path,
-                                                             f"{helper_directory}dct0",
-                                                             f"{helper_directory}dct0",
+                                                             "code/~/results/dct0",
+                                                             "code/~/results/dct0",
                                                              "test", pd.DataFrame())
                 df1 = df1.T
                 df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
                           'num_of_object'], axis=1, inplace=True)
 
-                with open(f"{helper_directory}dct0",
+                with open("code/~/results/dct0",
                           'rb') as dct_file:
                     dct = pickle.load(dct_file)
 
-                original_operators_list = greedy.perform_operators(dct, 0, current_path_for_tex, helper_directory)
+                original_operators_list = greedy.perform_operators(dct,  current_path_for_tex, lidor)
 
                 for j in range(len(original_operators_list)):
                     first_element_new_list = original_operators_list[j]
@@ -766,7 +771,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
             if (last_page_height == 0):
                 break
             results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
-                                                                            file_name=current_path_for_tex,
+                                                                            file_name=current_path_for_tex,last_pages=path_for_pdf,
                                                                             algorithm_search=search_algorithms_for_experiment.dijkstra,
                                                                             models=models, mse_dct=mse_dct)
 
@@ -789,7 +794,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         max_len_tree = 0
         operators_done = []
         results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
-                                                                        file_name=current_path_for_tex,
+                                                                        file_name=current_path_for_tex,last_pages=path_for_pdf,
                                                                         algorithm_search=search_algorithms_for_experiment.dijkstra,
                                                                         models=models, mse_dct=mse_dct)
 
@@ -803,18 +808,18 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 max_len_tree = max(max_len_tree, len_tree)
                 df1 = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                              bibliograph_path,
-                                                             f"{helper_directory}dct0",
-                                                             f"{helper_directory}dct0",
+                                                             "code/~/results/dct0",
+                                                             "code/~/results/dct0",
                                                              "test", pd.DataFrame())
                 df1 = df1.T
                 df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
                           'num_of_object'], axis=1, inplace=True)
 
-                with open(f"{helper_directory}dct0",
+                with open("code/~/results/dct0",
                           'rb') as dct_file:
                     dct = pickle.load(dct_file)
 
-                original_operators_list = greedy.perform_operators(dct, 0, current_path_for_tex, helper_directory)
+                original_operators_list = greedy.perform_operators(dct,  current_path_for_tex, lidor)
 
                 for j in range(len(original_operators_list)):
                     first_element_new_list = original_operators_list[j]
@@ -862,7 +867,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     continue
 
                 results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
-                                                                                file_name=current_path_for_tex,
+                                                                                file_name=current_path_for_tex,last_pages=path_for_pdf,
                                                                                 algorithm_search=search_algorithms_for_experiment.dijkstra,
                                                                                 models=models, mse_dct=mse_dct)
 
@@ -920,6 +925,7 @@ def results(path_for_docs, type_of_experiment, operators_max, models, bibliograp
                 os.makedirs(destination_dir, exist_ok=True)     
                 if file.name.lower().endswith("_changed.pdf") :
                     path_to_pdf = os.path.join(destination_dir, file.name)
+                    
                 if file.name.lower().endswith("_changed.tex") :
                     path_to_latex = os.path.join(destination_dir, file.name)
                 source_path = file.path
@@ -952,7 +958,7 @@ def results(path_for_docs, type_of_experiment, operators_max, models, bibliograp
     #     return {}
 
         original_height, last_page_height, gained, time_taken, reduced, cost, iterations, len_tree, count_operators = experiment_on_document(
-                path_to_latex, type_of_experiment, last_pages_pdf_path, operators_max, models,paper_directory, bibliograph_path)
+                path_to_latex, type_of_experiment, last_pages_pdf_path, operators_max, models,paper_directory, bibliograph_path,num_of_pages)
         results_data.append(
                 {"docName": paper_directory, "experiment_type": type_of_experiment, "operators_max": operators_max,
                 "iterations": iterations, "reduced": reduced,

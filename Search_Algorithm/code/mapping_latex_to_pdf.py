@@ -1,6 +1,7 @@
-import main_parsing2
+import main_parsing
 import combining_tex_by_content_comparison_functions as combining_tex_by_content_comparison_functions
 import Last_2_pages_rows_extract
+import traceback
 def run(latex_path,pdf_path,bib_path):
     """
 
@@ -18,7 +19,7 @@ def run(latex_path,pdf_path,bib_path):
         print("Finished converting Latex to rows list")
        
         #tex parsing and tokenizing tree
-        tags, lines = main_parsing2.parse(latex_path, lidor)
+        tags, lines = main_parsing.parse(latex_path, lidor)
 
         tags_without_figures_and_tables = []
         figures = []
@@ -90,6 +91,8 @@ def run(latex_path,pdf_path,bib_path):
         #         print(f"{key}[]{k[key]}")
         return results_lst , lidor
     except Exception as e:
+        #show traceback
+        traceback.print_exc()
         print(e)
         return [] ,None
 

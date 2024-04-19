@@ -64,6 +64,8 @@ def recurs(hirar, lines):
         if type == "par":
             for par in paragraphs:
                 size = paragraphs[par]
+                if size.__len__() == 1:
+                    size = [size[0], size[0] + 1]
                 lns = lines[size[0]:size[1]]
                 liine_koin = ''.join(lns)
                 parpar2.append([liine_koin, size])
@@ -118,12 +120,6 @@ def read_first(lines, sorted_latex):
 
 
 def connect(latex_parsing, lines):
-    """
-    connection of lines elements
-    :param latex_parsing:
-    :param lines:
-    :return:
-    """
     sorted_latex = sorted(latex_parsing.items(), key=lambda x: x[0][0])
 
     hirar = create_order(sorted_latex)

@@ -4900,7 +4900,7 @@ def check_valid_operator(list_of_used_operators, new_operator):
 
 
 
-def generate_search_graph(depth_graph, file_name, models, prob_dict):
+def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_dict,bib_path):
 
     DEPTH_OF_TREE = depth_graph
 
@@ -4911,7 +4911,7 @@ def generate_search_graph(depth_graph, file_name, models, prob_dict):
     # df = feature_extraction.run_feature_extraction(['lidor_test_2','lidor_test_3'],['lidor_test_2','lidor_test_3'],['bibliography','bibliography'])
     print(file_name)
     print(file_name.split(".tex")[0]+".pdf")
-    df,summative_features,dct_of_elements_in_order,count_dict_of_elements = feature_extraction_for_search_algorithm.run_feature_extraction([file_name], [file_name.split(".tex")[0]+".pdf"],['bibliography'])
+    df,summative_features,dct_of_elements_in_order,count_dict_of_elements = feature_extraction_for_search_algorithm.run_feature_extraction(file_name, last_pages_pdf,bib_path, "test", pd.DataFrame())
     # df is the dataframe pre transposed, now we will need to duplicate each column times the files_created at the index of the doc
     # for example if we have doc0 , we will duplicate it for the length of files_created[0] (which is len(files_created[0]) (doc 1 is the first doc, so first element in the files_created[0]
     # first we will need to compile the new tex files in files_created (for example, files_created[0][0] is a tex file)

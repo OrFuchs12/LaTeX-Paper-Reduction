@@ -1,7 +1,7 @@
 import os
 import pickle
 import time
-import main_parsing
+import main_parsing2
 import latex_parsing
 import PyPDF2
 import sys
@@ -125,7 +125,7 @@ def extract_resizebox_width(latex_command):
         
     else:
         return None, None, None
-def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,path_to_file):
+def perform_operators(objects, latex_path,lidor):  # ,path_to_file):
 
     latex_clean_lines = []
     with open(latex_path, encoding='UTF-8') as f:
@@ -137,24 +137,10 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
             line += "\n"
             latex_clean_lines.append(line)
            
-    # print(latex_clean_lines)
-    # trying vspace
-    list_of_starts, tags = main_parsing.parse2(latex_path, original_lines_lst)  
-    # list_of_starts = list_of_starts[1:]
-    # latex_clean_lines = latex_clean_lines[1:]
-    # print(list_of_starts)
-    # print(tags)
-    # print(list_of_starts)
-    # print(latex_clean_lines[29])
-    # ##print(latex_clean_lines[60])
-    # #print(list_of_starts)
-    # #print(tags)
-    # x = get_list_of_locations.run(latex_path)
-    # #print(x)
-    # #print(base_doc[80])
-    # #print(base_doc[81])
-    # #print(base_doc[88])
 
+
+  
+    list_of_starts, tags = main_parsing2.parse2_lidor(latex_path, lidor)  # perry.parse2_lidor(latex_path, lidor)
     index_for_object = {'Par': 1, 'Figure': 2, 'CaptionFigure': 3, 'Table': 4, 'CaptionTable': 5, 'Section': 6,
                         'SubSection': 7, 'Matrix': 8, 'Enum': 9, 'Formula': 10, 'Algorithm': 11}
     # mapping:
@@ -176,10 +162,8 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
     paragraph_index = 0
     figure_index = 0
     table_index = 0
-    # print(tags)
-    # print(list_of_starts)
+    
     for i in range(len(list_of_starts)):
-        # print(i)
         if (tags[i][0][0] == 'Par'):
             par_index += 1
             index = par_index
@@ -223,30 +207,18 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
             undetected_index += 1
             index = undetected_index
         if (tags[i][0][0] == 'Figure'):
-            # print(tags[i][0][0])
-            # print(str(tags[i][1]))
             mapping_dict[tags[i][0][0] + str(tags[i][0][1])] = (list_of_starts[i], latex_clean_lines[list_of_starts[i]])
         elif (tags[i][0][0] == 'Table'):
             mapping_dict[tags[i][0][0] + str(int(tags[i][0][1]) + 1)] = (
                 list_of_starts[i], latex_clean_lines[list_of_starts[i]])
         else:
-            ##print(str(index))
-            # print(tags[i][0][0])
             mapping_dict[tags[i][0][0] + str(index)] = (list_of_starts[i], latex_clean_lines[list_of_starts[i]])
 
-    # for i in objects:
-    #     print(f'{i}' ':' f'{objects[i]}')
-    # for i in mapping_dict:
-    #     print(f'{i}' ':' f'{mapping_dict[i]}')
-
+   
     # we are taking into a account that latex and pdf may be ordered differently
-
-    # print(objects)
-    ##print(summative_features)
     indexer = 0
     object_to_add_vspace_behind = 0
-    # print(latex_clean_lines)
-    # latex_clean_lines = latex_clean_lines[1:]
+   
     arr_of_places_and_vspace_to_add = []
     figure_name_key_new_latex_list_value = {}
     table_name_key_new_latex_list_value = {}
@@ -268,6 +240,9 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
     pdf_pairs = [(pdf_order[i], pdf_order[i + 1]) for i in range(len(pdf_order) - 1)]
     latex_pairs = [(latex_order[i], latex_order[i + 1]) for i in range(len(latex_order) - 1)]
     pair_to_check = []
+    
+    height = 0
+    width = 0
 
     for key, value in objects.items():  # in this loop we will make all the operators
 
@@ -403,7 +378,7 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
             if (index_to_edit != -1):  # there is a special positional char
                 new_string_to_edit = re.sub("[\(\[].*?[\)\]]", "", string_to_edit)
                 new_list_2[chosen_index_to_insert] = new_string_to_edit
-                object_name_key_new_latex_list_value[key] = (new_list_2, 11, 0)
+                object_name_key_new_latex_list_value[key] = (new_list_2, 11, 5) #TODO!!!! check cost 
 
         if (key.startswith('Table')):
             chosen_index_to_insert = mapping_dict[key][0]  # index where the figure starts
@@ -417,32 +392,26 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
                     found_index = index_to_go_through
                     flag = True
                     string_to_edit = latex_clean_lines[found_index]  # the line that we need to edit in order to change the scale
-
                     width, empty_resizebox, resize_index = extract_adjustbox_width(string_to_edit)
-
                 elif (latex_clean_lines[index_to_go_through].startswith('\\resizebox')):
-
                     found_index = index_to_go_through
-
                     flag = True
-
                     string_to_edit = latex_clean_lines[found_index]
+                    width, empty_resizebox, resize_index = extract_resizebox_width(string_to_edit)                    
 
-                    width, empty_resizebox, resize_index = extract_resizebox_width(string_to_edit)
                 else:
                     index_to_go_through += 1
-            if (flag == False or width == None):
+            if (flag == False) or (width == None):
                 continue
             # now we will shrink the figure to the 5 options of shrinking:
             # we will first find the places and then add the values based on the scale
-            # print(found_index)
-            # print(latex_clean_lines[found_index])
-            # string_to_edit = latex_clean_lines[
-            #     found_index]  # the line that we need to edit in order to change the scale
+           
+            
             # we will look for width and if it exists we will change it
+            # empty_number = False
             # start_index = string_to_edit.find('width')
             # running_index = 0
-            # if (start_index != -1):  # find the number for width
+            # if (start_index != -1) and width == None:  # find the number for width
             #     running_index = start_index
             #     while (running_index < len(string_to_edit)):
             #         if (string_to_edit[running_index] == '='):
@@ -455,68 +424,44 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
             #                 else:
             #                     number += string_to_edit[running_index]
             #                     running_index += 1
+            #             if number == '':
+            #                 number = 1
+            #                 empty_number = True
             #             width = float(number)
             #             break
             #         running_index += 1
-            # print(width)
             options = [0.9, 0.8, 0.7, 0.6]  # scale options
             table_name_key_new_latex_list_value[
                 key] = []  # this dict will have the key as the table name and then value will be the lists of the new latex content for the new file
             string_to_edit = latex_clean_lines[found_index]  # the string to edit
             heuristic = 0
             for i in range(4):
-
                 if (i == 0):
-
                     heuristic = value['height'] * 0.1
-
                 elif (i == 1):
-
                     heuristic = value['height'] * 0.2
-
                 elif (i == 2):
-
                     heuristic = value['height'] * 0.3
-
                 elif (i == 3):
-
                     heuristic = value['height'] * 0.4
-
                 new_width = options[i] 
-
                 # if width == 0:
-
                 #     #  in the begin adjust box there is no width. we have begin{adjubox}{}, we need to find the index of the second {
-
                 #     index_of_second_bracket = string_to_edit.find('{', string_to_edit.find('{') + 1)
-
                 #     new_str = string_to_edit[:index_of_second_bracket + 1] + "width=" + str(new_width) + "\columnwidth" + string_to_edit[index_of_second_bracket+1:]
-
                 # else:
-
                     # if empty_number:
-
                     #    #add the new_width after =
-
                     #     new_str = string_to_edit.replace('=', '=' + str(new_width)) 
-
                 if empty_resizebox:
-
                         #add the new_width to the resize_index
-
                     new_str = string_to_edit[:resize_index] + str(new_width) + string_to_edit[resize_index:]
-
                     # elif width == 2: 
-
                     #     new_str = string_to_edit.replace(str(int(width)), str(2 * new_width))
-
                     # elif width == 1:
-
                     #     new_str = string_to_edit.replace(str(int(width)), str(new_width))                        
-
                 else:
-
-                    new_str = string_to_edit.replace(str(width), str(round(new_width * width, 2)))  
+                    new_str = string_to_edit.replace(str(width), str(round(new_width * width, 2)))
                 copy_list = copy.deepcopy(latex_clean_lines)
                 copy_list[found_index] = new_str
                 table_name_key_new_latex_list_value[key].append(
@@ -529,7 +474,7 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
             if (index_to_edit != -1):  # there is a special positional char
                 new_string_to_edit = re.sub("[\(\[].*?[\)\]]", "", string_to_edit)
                 new_list_2[chosen_index_to_insert] = new_string_to_edit
-                object_name_key_new_latex_list_value[key] = (new_list_2, 4, 0)
+                object_name_key_new_latex_list_value[key] = (new_list_2, 4, 5)
 
         if (key.startswith('Figure')):  # changing size of figure
             chosen_index_to_insert = mapping_dict[key][0]  # index where the figure starts
@@ -548,8 +493,6 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
                 continue
             # now we will shrink the figure to the 5 options of shrinking:
             # we will first find the places and then add the values based on the scale
-            # print(found_index)
-            # print(latex_clean_lines[found_index])
             string_to_edit = latex_clean_lines[
                 found_index]  # the line that we need to edit in order to change the scale
             # we will look for width and if it exists we will change it
@@ -564,79 +507,42 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
                         number = ''
                         while (end_number != True):
                             if (string_to_edit[running_index].isdigit() == False and string_to_edit[running_index] not in ['.', ',']):
-
                                 end_number = True
-
                             else:
-
                                 number += string_to_edit[running_index]
-
                                 running_index += 1
-
                         if number == '':
-
                             number= 1
-
                         width = float(number)
-
                         break
-
                     running_index += 1
-
             given_height = False
-
             start_index = string_to_edit.find('height')
-
             running_index = 0
-
             if (start_index != -1):  # find the number for height
-
                 running_index = start_index
-
                 given_height = True
-
                 while (running_index < len(string_to_edit)):
-
                     if (string_to_edit[running_index] == '='):
-
                         running_index += 1  # now we will find the number and change it
-
                         end_number = False
-
                         number = ''
-
                         while (end_number != True):
-
                             if (string_to_edit[running_index].isdigit() == False and string_to_edit[running_index] not in ['.', ',']):
-
                                 end_number = True
-
                             else:
-
                                 number += string_to_edit[running_index]
-
                                 running_index += 1
-
                         
-
                         height = float(number)
-
                         break
-
                     running_index += 1
-
             else: #no height declared in latex, we will find the height using proportion of width 
-
                 #get height in point and convert to inches
-
                 height = round(value['height']/72, 2)
 
-
-
                
-
                 
-
                 
             # create 5 options:
             options = [0.9, 0.8, 0.7, 0.6, 0.5]  # scale options
@@ -644,9 +550,7 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
                 key] = []  # this dict will have the key as the figure name and then value will be the lists of the new latex content for the new file
             string_to_edit = latex_clean_lines[found_index]  # the string to edit
             if not given_height:
-
                 index_for_height = string_to_edit.find(']')
-
                 string_to_edit = string_to_edit[:index_for_height] + ",height=" + str(height) +"in "+ string_to_edit[index_for_height:]
             heuristic = 0
             for i in range(5):
@@ -664,6 +568,8 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
                 new_height = height * options[i]
                 new_str = string_to_edit.replace(str(width), str(new_width))
                 new_str = new_str.replace(str(height), str(new_height))
+
+                    
                 copy_list = copy.deepcopy(latex_clean_lines)
                 copy_list[found_index] = new_str
                 figure_name_key_new_latex_list_value[key].append(
@@ -676,18 +582,14 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
             if (index_to_edit != -1):  # there is a special positional char
                 new_string_to_edit = re.sub("[\(\[].*?[\)\]]", "", string_to_edit)
                 new_list_2[chosen_index_to_insert] = new_string_to_edit
-                object_name_key_new_latex_list_value[key] = (new_list_2, 2, 0)
+                object_name_key_new_latex_list_value[key] = (new_list_2, 2, 5)
 
         if (
                 indexer == 0):  # in this if we wanted to skip the first object for the vspace but we need the first element for the other operators.
             indexer += 1
             continue
         else:
-            # print(value['space_between_this_object_and_last_object'])
             if (value['space_between_this_object_and_last_object'] > 10):  # candidate to add vspace
-                # object_to_add_vspace_behind = key
-                # print()
-                # print(mapping_dict[key])
                 chosen_index_to_insert = mapping_dict[key][0]
                 if ('Formula' in key):
                     # we will make 3 partitions:
@@ -695,11 +597,8 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
                     herustica = 0
                     vspace_size_part = vspace_size_max / 4
                     for i in range(1, 5):
-                        # print("Part " + str(i) + " :")
                         herustica = (value['space_between_this_object_and_last_object'] * i) / 4
                         vspace_size = "{:.2f}".format(vspace_size_part * i)
-                        # print("vspace size: " + str(vspace_size))
-                        # latex_clean_lines.insert(chosen_index_to_insert, '\\vspace{-' + str(vspace_size) + 'mm}\n')
                         for j in index_for_object.keys():
                             if (key.startswith(j)):
                                 num = index_for_object[j]
@@ -711,11 +610,8 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
                     vspace_size_max = value['space_between_this_object_and_last_object'] / 3.5
                     vspace_size_part = vspace_size_max / 4
                     for i in range(1, 5):
-                        # print("Part " + str(i) + " :")
                         herustica = (value['space_between_this_object_and_last_object'] * i) / 4
                         vspace_size = "{:.2f}".format(vspace_size_part * i)
-                        # print("vspace size: " + str(vspace_size))
-                        # latex_clean_lines.insert(chosen_index_to_insert, '\\vspace{-' + str(vspace_size) + 'mm}\n')
                         for j in index_for_object.keys():
                             if (key.startswith(j)):
                                 num = index_for_object[j]
@@ -726,93 +622,43 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
                         offset += 1
 
     # we will create a new doc with each vspace addition:
-    # print(figure_name_key_new_latex_list_value)
-    # for i in figure_name_key_new_latex_list_value:
-    #     print(f'{i}' ':' f'{figure_name_key_new_latex_list_value[i]}')
     new_clean_latex_to_remember = copy.deepcopy(latex_clean_lines)
     # we will make changes to latex_clean_lines and then clean it with new_clean_latex_to_remember
     files_created = []
     operators_dict = []
     index_for_all_operators = 1
-    # print(arr_of_places_and_vspace_to_add)
+
     for i in range(len(arr_of_places_and_vspace_to_add)):
-        ##print("clean: ")
-        ##print(new_clean_latex_to_remember)
         latex_clean_lines = []
         latex_clean_lines = copy.deepcopy(new_clean_latex_to_remember)
-        # f = open(path_to_file +str(doc_index)+str(index_for_all_operators)+".tex","w")
-        # files_created.append((path_to_file +str(doc_index)+str(index_for_all_operators)+".tex",
-        #                       path_to_file +str(doc_index)+str(index_for_all_operators)+".pdf",
-        #                       arr_of_places_and_vspace_to_add[i][2],
-        #                       'vspace',
-        #                       arr_of_places_and_vspace_to_add[i][3],
-        #                       arr_of_places_and_vspace_to_add[i][4], arr_of_places_and_vspace_to_add[i][5])) # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
         chosen_index_to_insert = arr_of_places_and_vspace_to_add[i][0]
         str__ = arr_of_places_and_vspace_to_add[i][1]
         latex_clean_lines.insert(chosen_index_to_insert, str__)
-        latex_clean_lines = latex_clean_lines
-        latex_string = ''.join(latex_clean_lines) #todo find why putting all the latexstring# [1:]
-        # print(latex_clean_lines)
-        # for item in latex_clean_lines:
-        # write each item on a new line
-        # f.write(item)
-
-        latex_string = ''.join(latex_clean_lines)
-        # x_list = value[i][0]
-        # print("here", arr_of_places_and_vspace_to_add[i][5])
+        latex_clean_lines = latex_clean_lines  # [1:]
+        latex_string = ''.join(latex_clean_lines) #todo find why putting all the latexstring
         num_of_object = re.findall('\d+', arr_of_places_and_vspace_to_add[i][4])[0]
-        # operators_dict.append((arr_of_places_and_vspace_to_add[i][5], latex_string))
-        # print("here")
-        # print(arr_of_places_and_vspace_to_add[i][6])
-        # print("here")
         operators_dict.append((arr_of_places_and_vspace_to_add[i][5], latex_string, 1,
                                arr_of_places_and_vspace_to_add[i][6], arr_of_places_and_vspace_to_add[i][2],
                                num_of_object))  # type, value, object_used_on, num_of_object
-        # f.write(latex_string)
         index_for_all_operators += 1
 
     # here we will create the new files for figure changes
     options = [0.9, 0.8, 0.7, 0.6, 0.5]
     for key, value in figure_name_key_new_latex_list_value.items():
         for i in range(5):
-            # f = open(path_to_file + str(doc_index) + str(index_for_all_operators) + ".tex", "w")
-            # files_created.append((path_to_file + str(doc_index) + str(index_for_all_operators) + ".tex", path_to_file + str(doc_index) + str(index_for_all_operators) + ".pdf",
-            #                       2, 'change_figure_size',  options[i],key,value[i][1]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
             x_list = value[i][0]  # [1:]
-            # print(x_list)
-            # for item in x_list:
-            # write each item on a new line
-            # f.write(item)
-            # f.close()
-            # print(x_list)
-            # print(value[i][1])
             latex_string = ''.join(x_list)
-            # print(latex_string)
             num_of_object = re.findall('\d+', key)[0]
             operators_dict.append((value[i][1], latex_string, 2, options[i], 2,
                                    num_of_object))  # type, value, object_used_on, num_of_object
 
-            # print('Done')
             index_for_all_operators += 1
 
     # create new files for table changes
     options = [0.9, 0.8, 0.7, 0.6]
     for key, value in table_name_key_new_latex_list_value.items():
-        # print(index_for_all_operators)
         for i in range(4):
-            # f = open(path_to_file + str(doc_index) + str(index_for_all_operators) + ".tex", "w")
-            # files_created.append((path_to_file + str(doc_index) + str(index_for_all_operators) + ".tex",
-            #                       path_to_file + str(doc_index) + str(index_for_all_operators) + ".pdf",
-            #                       4, 'change_table_size',
-            #                       options[i], key, value[i][1]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key,num_of_object_used_on)]
             x_list = value[i][0]  # [1:]
-            # print(value[i][1])
-            # print(x_list)
-            # for item in x_list:
-            # write each item on a new line
-            # f.write(item)
-            # f.close()
-            # print('Done')
             latex_string = ''.join(x_list)
             num_of_object = re.findall('\d+', key)[0]
 
@@ -822,23 +668,8 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
             index_for_all_operators += 1
 
     for al in algorithm_list:
-        # f = open(path_to_file + str(doc_index) + str(index_for_all_operators) + ".tex", "w")
-        # files_created.append((path_to_file + str(doc_index) + str(
-        #     index_for_all_operators) + ".tex", path_to_file + str(doc_index) + str(
-        #     index_for_all_operators) + ".pdf",
-        #                       11, 'change_algorithm_size',
-        #                       1, al[1], al[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-
         x_list = al[0]  # [1:]
-        # print(x_list)
-
-        # for item in x_list:
-        # write each item on a new line
-        # f.write(item)
-        # f.close()
-        # print('Done')
         latex_string = ''.join(x_list)
-        # print(al[2])
         num_of_object = re.findall('\d+', al[1])[0]
 
         operators_dict.append(
@@ -846,45 +677,15 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
         index_for_all_operators += 1
 
     for enum in enum_list:
-        # print(enum)
-        # f = open(path_to_file + str(doc_index) + str(index_for_all_operators) + ".tex", "w")
-        # files_created.append((path_to_file + str(doc_index) + str(
-        #     index_for_all_operators) + ".tex", path_to_file + str(doc_index) + str(
-        #     index_for_all_operators) + ".pdf",
-        #                       9, 'convert_enum',
-        #                       1, enum[1], enum[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-
         x_list = enum[0]  # [1:]
-        # print(x_list)
-
-        # for item in x_list:
-        # write each item on a new line
-        # f.write(item)
-        # f.close()
-        # print('Done')
         latex_string = ''.join(x_list)
-        # print(enum[2])
         num_of_object = re.findall('\d+', enum[1])[0]
         operators_dict.append(
             (enum[2], latex_string, 4, 1, 9, num_of_object))  # type, value, object_used_on, num_of_object
         index_for_all_operators += 1
 
     for par in par_remove_list:
-        # f = open(path_to_file + str(doc_index) + str(index_for_all_operators) + ".tex","w")
-        # files_created.append((path_to_file + str(doc_index) + str(
-        #     index_for_all_operators) + ".tex", path_to_file + str(doc_index) + str(
-        #     index_for_all_operators) + ".pdf",
-        #                       1, 'remove_par_tag',
-        #                       1, par[1], par[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-
         x_list = par[0]  # [1:]
-        # print(x_list)
-
-        # for item in x_list:
-        # write each item on a new line
-        # f.write(item)
-        # f.close()
-        # print('Done')
         latex_string = ''.join(x_list)
         num_of_object = re.findall('\d+', par[1])[0]
         operators_dict.append(
@@ -892,22 +693,7 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
         index_for_all_operators += 1
 
     for par in combined_paragraphs_list:
-        # f = open(path_to_file + str(doc_index) + str(index_for_all_operators) + ".tex", "w")
-        # files_created.append((path_to_file + str(doc_index) + str(
-        #     index_for_all_operators) + ".tex",
-        #                       path_to_file + str(doc_index) + str(
-        #                           index_for_all_operators) + ".pdf",
-        #                       1, 'combine_two_paragraphs',
-        #                       1, par[1], par[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-
         x_list = par[0]  # [1:]
-        # print(x_list)
-
-        # for item in x_list:
-        # write each item on a new line
-        # f.write(item)
-        # f.close()
-        # print('Done')
         latex_string = ''.join(x_list)
         num_of_object = re.findall('\d+', par[1])[0]
         operators_dict.append(
@@ -915,50 +701,25 @@ def perform_operators(objects, doc_index, latex_path, path_to_file,lidor):  # ,p
         index_for_all_operators += 1
 
     # for key, value in object_name_key_new_latex_list_value.items():
-    #     # f = open(path_to_file + str(doc_index) + str(index_for_all_operators) + ".tex", "w")
-    #     # files_created.append((path_to_file + str(doc_index) + str(index_for_all_operators) + ".tex",
-    #     #                       path_to_file + str(doc_index) + str(index_for_all_operators) + ".pdf",
-    #     #                       value[1], 'remove_special_positional_chars',
-    #     #                       1,
-    #     #                       key, value[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-    #     x_list = value[0]  # [1:]
-        # print(x_list)
-        # for item in x_list:
-        # write each item on a new line
-        # f.write(item)
-        # f.close()
-        # print('Done')
-        # print(value[2])
-        # latex_string = ''.join(x_list)
-        # num_of_object = re.findall('\d+', key)[0]
-        # operators_dict.append(
-        #     (value[2], latex_string, 8, 1, value[1], num_of_object))  # type, value, object_used_on, num_of_object
-        # index_for_all_operators += 1
+    #     x_list = value[0]
+    #     latex_string = ''.join(x_list)
+    #     num_of_object = re.findall('\d+', key)[0]
+    #     operators_dict.append(
+    #         (value[2], latex_string, 8, 1, value[1], num_of_object))  # type, value, object_used_on, num_of_object
+    #     index_for_all_operators += 1
 
     for key, value in dict_for_removing_last_2_words_operator.items():
-        # f = open(path_to_file + str(doc_index) + str(index_for_all_operators) + ".tex", "w")
-        # files_created.append((path_to_file + str(doc_index) + str(index_for_all_operators) + ".tex",
-        #                       path_to_file + str(doc_index) + str(index_for_all_operators) + ".pdf",
-        #                       value[1], 'remove_last_2_words',
-        #                       1,
-        #                       key,value[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-        x_list = value[0]  # [1:]
-        # print(x_list)
-        # for item in x_list:
-        # write each item on a new line
-        # f.write(item)
-        # f.close()
-        # print('Done')
-        # print(value[2])
+        x_list = value[0]
         latex_string = ''.join(x_list)
         num_of_object = re.findall('\d+', key)[0]
-        # print(num_of_object)
         operators_dict.append(
             (value[2], latex_string, 9, 1, value[1], num_of_object))  # type, value, object_used_on, num_of_object
         index_for_all_operators += 1
 
-    # print(files_created)
+
     return sorted(operators_dict, key=lambda x: x[0])  # , reverse=True) #remove reversedd
+
+
 
 def check_lines(file_path):
     # Open the PDF file

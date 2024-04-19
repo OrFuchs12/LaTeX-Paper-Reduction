@@ -5,9 +5,6 @@ import Connector
 import re
 
 def remove_comments(doc):
-    """
-    Remove comments from tex file
-    """
     new_doc=[]
     begin_document_found=False
     for line in doc:
@@ -56,10 +53,6 @@ def remove_unnecessary_stuff(doc): #working insane
     return new_doc
 
 def read_file(document_path):
-    """
-    :param document_path: tex file path
-    :return: lines of the file, without all the lines before '\begin{document}'
-    """
     with open(document_path, encoding='UTF-8') as file:
         # doc = file.read()
         doc = [line for line in file]
@@ -138,11 +131,6 @@ def set_scope(new_line):
 
 
 def receive_lines_version_1(lines):
-    """
-
-    :param lines: lines in file
-    :return: creates a list of tex objects, each one with its attributes.
-    """
     begins=get_begins()
     order = []
     scope = ""
@@ -157,7 +145,8 @@ def receive_lines_version_1(lines):
             definition_line =new_line[new_line.find("}")+1:].lstrip(" ")
             original_line = new_line
             new_line = new_line.split("{")[1].split("}")[0]
-
+            if new_line.endswith("*"):
+                new_line = new_line[:-1]
             if begins.get(new_line,-1) != -1:
                 if new_line == "enumerate" or new_line == "cases":
                     continue
@@ -275,10 +264,7 @@ def receive_lines_version_1(lines):
 
 
 def combine(order, result11):
-    """
-    Helper function in order to deal with definition elements (definition elements may have inner elements). This function deals
-    with it. Note that we didn't use definition elements in our research, but you can still use in order to deal with it :-)
-    """
+
     for i in result11:
         rng = i[1]
         chosen=0
@@ -315,9 +301,8 @@ def combine(order, result11):
 
 
 def createTags(combined_res):
-    """
-    :return: Tags list of the tex file. We will use the tags in order to map them to the pdf elements.
-    """
+    list_of_starts=[]
+
     lst = []
     current_par=True
     lne=""
@@ -339,24 +324,41 @@ def createTags(combined_res):
                 linearr=i[3]
                 linearr[0]=lne_number
                 lst.append((tuple(helper), linearr))
+                if (type(linearr[0]) == list):
+                    start_object = linearr[0][0]
+                else:
+                    start_object=linearr[0]
+                list_of_starts.append(start_object-1)
+
                 current_par=False
             else:
                 lst.append((i[1], i[3]))
+                if (type(i[-1]) == list):
+                    start_object = i[-1][0]
+                else:
+                    start_object=i[-1]
+                list_of_starts.append(start_object-1)
         elif i[1][0].startswith("Caption"):
             lst.append((i[1], i[3]))
+            if (type(i[-1]) == list):
+                start_object = i[-1][0]
+            else:
+                start_object = i[-1]
+            list_of_starts.append(start_object-1)
             current_par=False
         else:
             lst.append((i[1], i[2]))
+            if (type(i[-1]) == list):
+                start_object = i[-1][0]
+            else:
+                start_object = i[-1]
+            list_of_starts.append(start_object-1)
             current_par=False
 
-    return lst
+    return lst,list_of_starts
 
 
 def createLinesToSearch(combined_res):
-    """
-        :return: Lines list of the tex file. The lines are textual content. The mapping process (in the combining_tex script)
-        go over pdf textual lines, so we will use the Lines object in order to understand which tex element we currently see.
-    """
     lst = []
     current_par = True
     lne = ""
@@ -384,10 +386,6 @@ def createLinesToSearch(combined_res):
     return lst
 
 def read_first(lines, first_object_location):
-    """
-    Helper function to deal with paragraphs. Paragraphs have no specific tags. Therefore, they are been analyzed in this
-     special function.
-    """
     first_line_object=min(first_object_location,len(lines)-1)
     res=[]
     from_index=0
@@ -423,14 +421,43 @@ def read_first(lines, first_object_location):
 
     return res
 
+def addfirstLine(lines,combined_res):
+    if type(combined_res[1][-1])==list:
+        first_loc=combined_res[1][-1][0]
+    else:
+        first_loc = combined_res[1][-1]
+
+    res=[]
+    counter=0
+    current_paragraph=False
+    for i in range(30,first_loc):
+        line = lines[i]
+        if line == "\n":
+            if current_paragraph == False:
+                continue
+            else:
+                counter += 1
+                combined_res.insert(counter,[helper_str[:40], (
+                'Par', helper_str[:30].replace("\n", " "), helper_str[-30:-1].replace("\n", " "),
+                helper_str.replace("\n", " ")),
+                            ('Par', helper_str[:30].replace("\n", " "), helper_str[-30:-1].replace("\n", " "),
+                             helper_str.replace("\n", " ")), from_index])
+
+                from_index = 0
+                to_index = 0
+                helper_str = ""
+                current_paragraph = False
+        else:
+            if current_paragraph == False:
+                from_index = i
+                to_index = i
+                current_paragraph = True
+                helper_str = line
+            else:
+                to_index += 1
+                helper_str += line
 
 def parse(path, lines= None):
-    """
-    main function of parsing. For every latex element, create an object with all attributes needed.
-    :param path: path of tex
-    :param lines: list of lines of tex. Sometimes we read the file above and sent the lines.
-    :return:
-    """
     if lines != None:
         file = lines
     else:
@@ -439,7 +466,8 @@ def parse(path, lines= None):
     # if file[0].startswith("\\title"):
     #     title=True
     # if title==False:
-    file.insert(0,"\\section{demo}")
+    if (file[0] != "\\section{demo}"):
+        file.insert(0,"\\section{demo}")
     order = receive_lines_version_1(file)
     latex, tree, lines = latex_parsing.parse(lines)
     result11,first_object_location = Connector.connect(latex, lines)
@@ -453,3 +481,92 @@ def parse(path, lines= None):
 
 
     return create_tag, create_lines_to_search
+
+def parse2_lidor(path, lines= None):
+    """_summary_
+
+    Args:
+        path : path to latex file
+        lines :lidor's lines
+
+    Returns:
+        list of starts: list of line numbers
+        , list of tags
+    """
+    if lines != None:
+        file = lines
+    else:
+        file = read_file(path)
+
+    if (file[0] != "\\section{demo}"):
+        file.insert(0,"\\section{demo}")
+    order = receive_lines_version_1(file)
+    latex, tree, lines = latex_parsing.parse(lines)
+
+    result11,first_object_location = Connector.connect(latex, lines)
+    combined_res = combine(order,result11)
+
+    # addfirstLine(lines,combined_res)
+    first_res = read_first(lines, first_object_location)
+
+    first_res.extend(combined_res)
+    combined_res = first_res
+
+    create_tag,list_of_starts = createTags(combined_res)
+
+    create_tag=create_tag[1:]
+    list_of_starts=list_of_starts[1:]
+
+    return list_of_starts,create_tag
+
+def parse3_lidor(path, lines= None):
+    if lines != None:
+        file = lines
+    else:
+        file = read_file(path)
+    # title=False
+    # if file[0].startswith("\\title"):
+    #     title=True
+    # if title==False:
+    file.insert(0,"\\section{demo}")
+    order = receive_lines_version_1(file)
+    latex, tree, lines = latex_parsing.parse(lines)
+    # print(latex)
+    # print("---------------")
+    # print(tree)
+    # print('---------------------------')
+    # print(lines)
+    result11,first_object_location = Connector.connect(latex, lines)
+    # print("----------------------------------------------------")
+    # print(result11)
+    # print("--------------------------------------------------------------------")
+    # print(first_object_location)
+    combined_res = combine(order,result11)
+    # print("------------------------------------------------------------------------------")
+    # print(combined_res)
+    list_of_starts = []
+    print(combined_res)
+    skip_next_object = False
+    for i in combined_res:
+        # print(i[-1])
+        if(skip_next_object):
+            skip_next_object = False
+            continue
+        if(i[0] == 'Paragraph' or i[0] =='paragraph'):
+            skip_next_object = True #this is a non important par which gets included in the tag paragraph
+        if(type(i[-1]) == list):
+            start_object = i[-1][0]
+        else:
+            start_object = i[-1]
+        list_of_starts.append(start_object)
+    first_res = read_first(lines, first_object_location)
+    first_res.extend(combined_res)
+    combined_res = first_res
+    create_tag = createTags(combined_res)[1:]
+    list_of_starts=list_of_starts[1:]
+    # print("final:")
+    # print(create_tag)
+    #create_lines_to_search = createLinesToSearch(combined_res)[1:]
+    # print("final2:")
+    # print(create_lines_to_search)
+    return list_of_starts,create_tag

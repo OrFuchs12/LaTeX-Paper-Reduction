@@ -52,6 +52,9 @@ def read_file(document_path):
     return new_doc
 
 def get_operators():
+    """_summary_
+    This function returns a list of all the operators in the latex file.(const operators)
+    """
     # return ["\\section","\\begin{table}","\\end{table}",
     #         "\\begin{figure}","\\end{figure}","\\begin{abstract}",
     #         "\\end{abstract}","\\title","\\[","\\prob","\\begin{definition}",
@@ -64,6 +67,9 @@ def get_operators():
             "\\subsubsection","\\begin{enumerate}","\\end{enumerate}","\\item","\\noindent","\\end{equation}","\\begin{equation}"]
 
 def get_objects():
+    """_summary_
+    This function returns a list of all the objects in the latex file.(const objects)
+    """
     # return ["\\section","\\begin{table}","\\end{table}",
     #         "\\begin{figure}","\\end{figure}","\\begin{abstract}",
     #         "\\end{abstract}","\\title","\\[","\\prob","\\begin{definition}",
@@ -76,10 +82,20 @@ def get_objects():
             "\\subsubsection","\\end{enumerate}","\\item","\\noindent","\\end{equation}"]
 
 def receive_lines_version_1(lines):
+    """_summary_
+
+    Args:
+        lines : the lines of the latex file of lidor
+
+    Returns:
+        parsing_tree : a dictionary that maps each operator to a list of tuples of the form (start_line,end_line)
+        new_dict : a dictionary that maps each line number  of begin object to a tuple of the form (end number line ,end object)
+    """
+    
     i=1
     parsing_tree={}
-    operators=get_operators()
-    objects=get_objects()
+    operators=get_operators() # const opertors
+    objects=get_objects() # const objects
     for ob in objects:
         parsing_tree[ob]=[]
 
@@ -107,12 +123,15 @@ def receive_lines_version_1(lines):
             if str_line.find(f"\\end") != -1:
                 op = str_line.split("}")[0] + "}"
                 if op in operators:
-                    obj = stack.pop()
-                    parsing_tree[op].append((obj[0],i))
-                    new_dict[obj[0]]=(i,op)
+                    if stack:
+                        obj = stack.pop()
+                        parsing_tree[op].append((obj[0],i))
+                        new_dict[obj[0]]=(i,op)
 
             if str_line.startswith("\\section") or str_line.startswith("\\subsection") or  str_line.find("\\subsubsection") != -1 :
                 op = str_line.split("{")[0]
+                if op.endswith("*"):
+                    op=op[:-1]
                 if section_stack:
                     obj = section_stack.pop()
                     parsing_tree[obj[1]].append((obj[0], i-1))
@@ -205,8 +224,39 @@ def get_definition_par(lines, line_number, count):
     return count, new_counter
 
 
-def count_paragraphs(lines,ans,new_dict):
+allowed_beginnings = [
+  '\\textbf',
+  '\\textit',
+  '\\underline',
+  '\\texttt',
+  '\\textsc',
+  '\\textsf',
+  '\\noindent',
+  '\\citeauthor',
+  '\\alg',
+  '\\emph',
+   '\\cite',
+   '\\phi',
+   '\\alpha',
+    '\\beta',
+    '\\gamma',
+    '\\delta',
+    '\\epsilon'
+]
 
+
+
+def count_paragraphs(lines,ans,new_dict):
+    """_summary_
+
+    Args:
+        lines : the lines of the latex file of lidor
+        ans : a dictionary that maps each operator to a list of tuples of the form (start_line,end_line)
+        
+
+    Returns:
+       flow : a dictionary that maps each operator to a list of tuples of the form (start_line,end_line)
+    """
 
     sections=ans["\\section"]+ans["\\subsection"]+ans["\\subsubsection"]+ans["\\end{abstract}"]+ans["\\end{definition}"]
     flow={}
@@ -224,6 +274,13 @@ def count_paragraphs(lines,ans,new_dict):
                     count_def, counter_def = get_definition_par(lines, line_number, count+1)
                     count = count_def
                     counter.update(counter_def)
+                if str_line.startswith("\\begin{theorem}") or str_line.startswith("\\begin{lemma}") or str_line.startswith("\\begin{proposition}") or str_line.startswith("\\begin{corollary}") or str_line.startswith("\\begin{proof}") or str_line.startswith("\\begin{example}"):
+                    if flag:
+                        if line_number != counter[count][0] + 1:
+                            counter[count].append(line_number)
+                        flag=False
+                        count+=1
+                    counter[count] = [line_number]
                 if flag:
                     counter[count].append(line_number)
                     flag=False
@@ -232,10 +289,12 @@ def count_paragraphs(lines,ans,new_dict):
             if is_in_begin>0:
                 if str_line.startswith("\\end"):
                     is_in_begin-=1
+                    if str_line.startswith("\\end{theorem}") or str_line.startswith("\\end{lemma}") or str_line.startswith("\\end{proposition}") or str_line.startswith("\\end{corollary}") or str_line.startswith("\\end{proof}") or str_line.startswith("\\end{example}"):
+                        counter[count].append(line_number)
+                        count+=1
                 else:
                     continue
-
-            if str_line.startswith("\\alg\\") or str_line.startswith("\\noindent") or (not str_line.startswith(f"\\")) or str_line.startswith(f"\\citeauthor") :
+            if not str_line.startswith("\\") or any(str_line.startswith(prefix) for prefix in allowed_beginnings):
                 if flag == False and not (str_line.isspace()):
                     count += 1
                     counter[count] = [line_number]
@@ -243,14 +302,31 @@ def count_paragraphs(lines,ans,new_dict):
                 if flag == True and not (str_line.isspace()):
                     continue
 
-                if flag and (str_line.isspace()):
+                if flag and (str_line.isspace()) :
                     counter[count].append(line_number)
                     flag = False
+            if flag and (str_line.startswith("\\bibliography") or str_line.startswith("\\vspace") or str_line.startswith("\\clearpage")):
+                flag = False
+                
+                
+
+
 
         flow[section]=(str(lines[section[0]-1]),counter)
     return flow
 
 def objects(lines,ans,new_dict,type):
+    """_summary_
+
+    Args:
+        lines : the lines of the latex file of lidor
+        ans : a dictionary that maps each operator to a list of tuples of the form (start_line,end_line)
+        new_dict : a dictionary that maps tuple of the form (start_line,end_line) to a tuple of the form (type,boolean,caption)
+        type : the type of the object we want to add to the dictionary
+
+    Returns:
+        new_dict : a dictionary that maps tuple of the form (start_line,end_line) to a tuple of the form (type,boolean,caption)
+    """
     objects=ans[type]
     if type=="\\end{figure}":
         for object in objects:

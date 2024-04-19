@@ -5,9 +5,6 @@ import Connector
 import re
 
 def remove_comments(doc):
-    """
-    Remove comments from tex file
-    """
     new_doc=[]
     begin_document_found=False
     for line in doc:
@@ -56,10 +53,6 @@ def remove_unnecessary_stuff(doc): #working insane
     return new_doc
 
 def read_file(document_path):
-    """
-    :param document_path: tex file path
-    :return: lines of the file, without all the lines before '\begin{document}'
-    """
     with open(document_path, encoding='UTF-8') as file:
         # doc = file.read()
         doc = [line for line in file]
@@ -136,14 +129,17 @@ def set_scope(new_line):
     if new_line=="paragraph":
         return "paragraph"
 
-
+# lines = lidor list + demo (section)
 def receive_lines_version_1(lines):
-    """
+    """_summary_
 
-    :param lines: lines in file
-    :return: creates a list of tex objects, each one with its attributes.
+    Args:
+        lines : the lidor list of relevant lines from the latex file
+
+    Returns:
+        list of lists, each list represents an object in the paper and the line number in the latex file
     """
-    begins=get_begins()
+    begins=get_begins() # returns a constant dictionary
     order = []
     scope = ""
     i = -1
@@ -157,6 +153,8 @@ def receive_lines_version_1(lines):
             definition_line =new_line[new_line.find("}")+1:].lstrip(" ")
             original_line = new_line
             new_line = new_line.split("{")[1].split("}")[0]
+            if new_line.endswith("*"):
+                new_line = new_line[:-1]
 
             if begins.get(new_line,-1) != -1:
                 if new_line == "enumerate" or new_line == "cases":
@@ -222,22 +220,26 @@ def receive_lines_version_1(lines):
                 scope = set_scope(new_line)
                 continue
         elif new_line.startswith("\\caption"):
-            if new_line.split("{")[1].split("}")[0] != "":
-                if scope == "algorithm":
-                    continue
-                elif scope=="figure":
-                    new_line = "Figure" + new_line.split("{")[1].split("}")[0]
-                    order.append([new_line, ("CaptionFigure", new_line[:40], new_line[-40:-1],new_line.replace("\n", " ")),
-                                  ("CaptionFigure", "Figure " + new_line[:40], new_line[-40:-1]), i])
-                elif scope=="table":
-                    new_line = "Table" + new_line.split("{")[1].split("}")[0]
-                    order.append([new_line, ("CaptionTable", new_line[:40], new_line[-40:-1],new_line.replace("\n", " ")),
-                                  ("CaptionTable", "Table " + new_line[:40], new_line[-40:-1]), i])
-                elif scope=="subfigure":
-                    new_line = "Figure" + new_line.split("{")[1].split("}")[0]
-                    order.append([new_line, ("CaptionFigure", new_line[:40], new_line[-40:-1], new_line.replace("\n", " ")),
-                                  ("CaptionFigure", "Figure " + new_line[:40], new_line[-40:-1]), i])
-
+            brace_count = new_line.count("{") - new_line.count("}")
+            caption_index = i + 1
+            while brace_count > 0:
+                new_line += lines[caption_index]
+                brace_count = new_line.count("{") - new_line.count("}")
+                caption_index +=1
+            if scope == "algorithm":
+                continue
+            elif scope=="figure":
+                new_line = "Figure" + new_line.split("{", 1)[1].rsplit("}", 1)[0]
+                order.append([new_line, ("CaptionFigure", new_line[:40], new_line[-40:-1],new_line.replace("\n", " ")),
+                                ("CaptionFigure", "Figure " + new_line[:40], new_line[-40:-1]), i])
+            elif scope=="table":
+                new_line = "Table" + new_line.split("{", 1)[1].rsplit("}", 1)[0]
+                order.append([new_line, ("CaptionTable", new_line[:40], new_line[-40:-1],new_line.replace("\n", " ")),
+                                ("CaptionTable", "Table " + new_line[:40], new_line[-40:-1]), i])
+            elif scope=="subfigure":
+                new_line = "Figure" + new_line.split("{", 1)[1].rsplit("}", 1)[0]
+                order.append([new_line, ("CaptionFigure", new_line[:40], new_line[-40:-1], new_line.replace("\n", " ")),
+                                ("CaptionFigure", "Figure " + new_line[:40], new_line[-40:-1]), i]) 
         if new_line.startswith("\\item"):
             new_line = new_line[6:]
             order.append([new_line[:30], ("Enum",new_line[:40],new_line[-40:-1],new_line.replace("\n", " ")), ("Enum",new_line[:40],new_line[-40:-1]),i])
@@ -250,7 +252,7 @@ def receive_lines_version_1(lines):
             begins["subsection"] = 1
             order.append([str(begins["section"]) + " " + new_line, ("Section", new_line,new_line,new_line),("Section", new_line,new_line), i])
         if new_line.startswith("\\subsection"):
-            new_line = new_line.split("{")[1].split("}")[0]
+            new_line = new_line.split("{", 1)[1].rsplit("}", 1)[0]
             order.append([str(begins["section"]) + "." + str(begins["subsection"]) + " " + new_line, ("SubSection",new_line,new_line,new_line), ("SubSection",new_line,new_line), i])
             begins["subsection"] += 1
 
@@ -275,10 +277,7 @@ def receive_lines_version_1(lines):
 
 
 def combine(order, result11):
-    """
-    Helper function in order to deal with definition elements (definition elements may have inner elements). This function deals
-    with it. Note that we didn't use definition elements in our research, but you can still use in order to deal with it :-)
-    """
+
     for i in result11:
         rng = i[1]
         chosen=0
@@ -315,67 +314,41 @@ def combine(order, result11):
 
 
 def createTags(combined_res):
-    """
-    :return: Tags list of the tex file. We will use the tags in order to map them to the pdf elements.
-    Note: This is a different function from createTags in documents_generation
-    """
-    list_of_starts=[]	
-    lst = []	
-    current_par=True	
-    lne=""	
-    lne_number=0	
-    for i in combined_res:	
-        if i[1][0]==("Paragraph"):	
-            current_par=True	
-            lne=i[1][1]	
-            lne_number=i[3]	
-            # lst.append((i[1],i[3]))	
-        elif i[1][0]==("Par"):	
-            if current_par==True:	
-                helper=list(i[1])	
-                helper[0]="Paragraph"	
-                helper[1]=lne+" "+helper[1]	
-                helper[3]=lne+" "+helper[3]	
-                linearr=i[3]	
-                linearr[0]=lne_number	
-                lst.append((tuple(helper), linearr))	
-                if (type(linearr[0]) == list):	
-                    start_object = linearr[0][0]	
-                else:	
-                    start_object=linearr[0]	
-                list_of_starts.append(start_object-1)	
-                current_par=False	
-            else:	
-                lst.append((i[1], i[3]))	
-                if (type(i[-1]) == list):	
-                    start_object = i[-1][0]	
-                else:	
-                    start_object=i[-1]	
-                list_of_starts.append(start_object-1)	
-        elif i[1][0].startswith("Caption"):	
-            lst.append((i[1], i[3]))	
-            if (type(i[-1]) == list):	
-                start_object = i[-1][0]	
-            else:	
-                start_object = i[-1]	
-            list_of_starts.append(start_object-1)	
-            current_par=False	
-        else:	
-            lst.append((i[1], i[2]))	
-            if (type(i[-1]) == list):	
-                start_object = i[-1][0]	
-            else:	
-                start_object = i[-1]	
-            list_of_starts.append(start_object-1)	
-            current_par=False	
-    return lst,list_of_starts	
+    lst = []
+    current_par=True
+    lne=""
+    lne_number=0
+    for i in combined_res:
+
+        if i[1][0]==("Paragraph"):
+            current_par=True
+            lne=i[1][1]
+            lne_number=i[3]
+            # lst.append((i[1],i[3]))
+
+        elif i[1][0]==("Par"):
+            if current_par==True:
+                helper=list(i[1])
+                helper[0]="Paragraph"
+                helper[1]=lne+" "+helper[1]
+                helper[3]=lne+" "+helper[3]
+                linearr=i[3]
+                linearr[0]=lne_number
+                lst.append((tuple(helper), linearr))
+                current_par=False
+            else:
+                lst.append((i[1], i[3]))
+        elif i[1][0].startswith("Caption"):
+            lst.append((i[1], i[3]))
+            current_par=False
+        else:
+            lst.append((i[1], i[2]))
+            current_par=False
+
+    return lst
 
 
 def createLinesToSearch(combined_res):
-    """
-        :return: Lines list of the tex file. The lines are textual content. The mapping process (in the combining_tex script)
-        go over pdf textual lines, so we will use the Lines object in order to understand which tex element we currently see.
-    """
     lst = []
     current_par = True
     lne = ""
@@ -403,10 +376,6 @@ def createLinesToSearch(combined_res):
     return lst
 
 def read_first(lines, first_object_location):
-    """
-    Helper function to deal with paragraphs. Paragraphs have no specific tags. Therefore, they are been analyzed in this
-     special function.
-    """
     first_line_object=min(first_object_location,len(lines)-1)
     res=[]
     from_index=0
@@ -442,64 +411,40 @@ def read_first(lines, first_object_location):
 
     return res
 
-def addfirstLine(lines,combined_res):	
-    if type(combined_res[1][-1])==list:	
-        first_loc=combined_res[1][-1][0]	
-    else:	
-        first_loc = combined_res[1][-1]	
-    res=[]	
-    counter=0	
-    current_paragraph=False	
-    for i in range(30,first_loc):	
-        line = lines[i]	
-        if line == "\n":	
-            if current_paragraph == False:	
-                continue	
-            else:	
-                counter += 1	
-                combined_res.insert(counter,[helper_str[:40], (	
-                'Par', helper_str[:30].replace("\n", " "), helper_str[-30:-1].replace("\n", " "),	
-                helper_str.replace("\n", " ")),	
-                            ('Par', helper_str[:30].replace("\n", " "), helper_str[-30:-1].replace("\n", " "),	
-                             helper_str.replace("\n", " ")), from_index])	
-                from_index = 0	
-                to_index = 0	
-                helper_str = ""	
-                current_paragraph = False	
-        else:	
-            if current_paragraph == False:	
-                from_index = i	
-                to_index = i	
-                current_paragraph = True	
-                helper_str = line	
-            else:	
-                to_index += 1	
-                helper_str += line	
-    
-def parse2(path, lines= None):
-    """
-    different version of parse function in documents generation. Used in operators activation
+
+def parse(path, lines= None):
+    """_summary_
+
+    Args:
+        path : path to the latex file
+        lines : the lidor list of relevant lines from the latex file
+
+    Returns:
+        list of dictionaries, each dictionary represents a part of the paper
     """
     if lines != None:
         file = lines
     else:
         file = read_file(path)
-
-    file.insert(0,"\\section{demo}")
+    # title=False
+    # if file[0].startswith("\\title"):
+    #     title=True
+    # if title==False:
+    if (file[0] != "\\section{demo}"):
+        file.insert(0,"\\section{demo}")
     order = receive_lines_version_1(file)
-    latex, tree, lines = latex_parsing.parse(lines)
 
+    latex, tree, lines = latex_parsing.parse(lines)
     result11,first_object_location = Connector.connect(latex, lines)
     combined_res = combine(order,result11)
+    # first_res = read_first(lines,first_object_location)
+    # first_res.extend(combined_res)
+    # combined_res=first_res
+    create_tag = createTags(combined_res)[1:]
+    create_lines_to_search = createLinesToSearch(combined_res)[1:]
 
-    first_res = read_first(lines, first_object_location)
 
-    first_res.extend(combined_res)
-    combined_res = first_res
 
-    create_tag,list_of_starts = createTags(combined_res)
+    return create_tag, create_lines_to_search
 
-    create_tag=create_tag[1:]
-    list_of_starts=list_of_starts[1:]
 
-    return list_of_starts,create_tag

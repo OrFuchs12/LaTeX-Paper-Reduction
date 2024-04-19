@@ -68,9 +68,9 @@ def get_operators(tree, path):
 
 
 
-def run_search(tree_depth, file_name, algorithm_search, models, mse_dct):
+def run_search(tree_depth, file_name,last_pages, algorithm_search, models, mse_dct, bib_path):
     print("generate graph for file:", file_name)
-    tree = new_experiment_inferstructure.generate_search_graph(tree_depth, file_name, models, mse_dct)
+    tree = new_experiment_inferstructure.generate_search_graph(tree_depth, file_name, last_pages, models, mse_dct, bib_path)
     #tree = load_search_dict('pdf_extraction\\adi_comparing\\files_for_search\\search_dict')
 
     #print(tree)
