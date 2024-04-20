@@ -1105,7 +1105,7 @@ def handle_new_operator_and_check_reduced(latex_after_operator, paper_name,itera
 
             path_to_latex = after_path
 
-            if (pages < 2 or new_number_of_pages < previous_num_of_pages): # lines > starting_lines is for the case that we get the last 2 pages after we made it shoreter
+            if (pages < 2 or new_number_of_pages < previous_num_of_pages or lines <= target): # lines > starting_lines is for the case that we get the last 2 pages after we made it shoreter
                 reduced = True
 
             return reduced, path_to_latex, last_pages_pdf
@@ -1134,7 +1134,7 @@ def simple_greedy(path_to_pdf, path_to_latex, num_of_pages,paper_name, file_name
             return -1, -1, False, -1   
              
         # define stop condition and some variables
-        target = lines - 2
+        target = max(0,lines - 3)
         starting_lines = lines
         print("begin lines:", lines)
         print("begin pages:", pages)
@@ -1218,7 +1218,7 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name, file_n
         
 
         # define stop condition and some variables
-        target = lines - 2
+        target = max(0,lines - 3)
         starting_lines = lines
         print("begin lines:", lines)
         print("begin pages:", pages)
@@ -1294,7 +1294,7 @@ def non_stop_heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_nam
             return -1, -1, False, -1
         
         # define stop condition and some variables
-        target = lines - 2
+        target = max(0,lines - 3)
         starting_lines = lines
         print("begin lines:", lines)
         print("begin pages:", pages)
@@ -1391,7 +1391,7 @@ def model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , paper_name, f
                     'num_of_object'], axis=1, inplace=True)
 
         # define stop condition and some variables
-        target = lines - 2
+        target = max(0,lines - 3)
         starting_lines = lines
         print("begin lines:", lines)
         print("begin pages:", pages)
@@ -1475,7 +1475,7 @@ def non_stop_classification_greedy(path_to_pdf, path_to_latex, models,num_of_pag
                     'num_of_object'], axis=1, inplace=True)
 
         # define stop condition and some variables
-        target = lines - 2
+        target = max(0,lines - 3)
         starting_lines = lines
         print("begin lines:", lines)
         print("begin pages:", pages)
@@ -1565,7 +1565,7 @@ def regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_pages , p
                     'num_of_object'], axis=1, inplace=True)
 
         # define stop condition and some variables
-        target = lines - 2
+        target = max(0,lines - 3)
         starting_lines = lines
         print("begin lines:", lines)
         print("begin pages:", pages)
@@ -1663,7 +1663,7 @@ def non_stop_regreession_model_greedy(path_to_pdf, path_to_latex, models,num_of_
                     'num_of_object'], axis=1, inplace=True)
 
         # define stop condition and some variables
-        target = lines - 2
+        target = max(0,lines - 3)
         starting_lines = lines
         print("begin lines:", lines)
         print("begin pages:", pages)
@@ -1774,7 +1774,7 @@ def classification_regression_greedy (path_to_pdf, path_to_latex, models_list ,n
                     'num_of_object'], axis=1, inplace=True)
 
         # define stop condition and some variables
-        target = lines - 2
+        target = max(0,lines - 3)
         starting_lines = lines
         print("begin lines:", lines)
         print("begin pages:", pages)
@@ -1872,7 +1872,7 @@ def classification_regression_greedy_v2 (path_to_pdf, path_to_latex, models_list
                     'num_of_object'], axis=1, inplace=True)
 
         # define stop condition and some variables
-        target = lines - 2
+        target = max(0,lines - 3)
         starting_lines = lines
         print("begin lines:", lines)
         print("begin pages:", pages)
