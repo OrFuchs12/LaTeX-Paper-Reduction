@@ -114,3 +114,22 @@ plt.ylabel('Value')
 plt.legend(title='Algorithm')
 plt.tight_layout()
 plt.show()
+
+final_files = ['means.csv', 'reduced_means.csv', 'intersection_means.csv']
+def concatenate_csv_files():
+    csv_files = [file for file in final_files if file.endswith('.csv')]
+
+    # Initialize an empty DataFrame to store concatenated data
+    concatenated_df = pd.DataFrame()
+
+    # Read and concatenate each CSV file
+    for file in csv_files:
+        file_path = os.path.join(csv_directory, file)
+        df = pd.read_csv(file_path)
+        concatenated_df = pd.concat([concatenated_df, df, pd.DataFrame(columns=df.columns)], ignore_index=True)
+
+
+    # Write concatenated data to a new CSV file
+    concatenated_df.to_csv(os.path.join(csv_directory,"final_resuls.csv"), index=False)
+
+concatenate_csv_files()
