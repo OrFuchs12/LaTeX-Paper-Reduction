@@ -22,7 +22,7 @@ for file_path in file_paths:
 
 
 #iterate through directories, find csv files in each directory and concat the csv by its matching name, create a new csv with the same name
-directories = 'code/~/results/code/greedy_from_machine/old_results/'
+directories = 'code/~/results/code/greedy_from_machine/old_results_v2/'
 for directory in os.listdir(directories):
     for file in os.listdir(os.path.join(directories, directory)):
         #check if the file in is file paths list
