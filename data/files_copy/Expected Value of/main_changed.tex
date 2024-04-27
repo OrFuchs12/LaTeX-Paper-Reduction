@@ -1,0 +1,725 @@
+%File: formatting-instruction.tex
+\documentclass[letterpaper]{article}
+\usepackage{aaai21}
+\usepackage{aaai21}  % DO NOT CHANGE THIS
+\usepackage{times}  % DO NOT CHANGE THIS
+\usepackage{helvet} % DO NOT CHANGE THIS
+\usepackage{courier}  % DO NOT CHANGE THIS
+\usepackage[hyphens]{url}  % DO NOT CHANGE THIS
+\usepackage{graphicx} % DO NOT CHANGE THIS
+\urlstyle{rm} % DO NOT CHANGE THIS
+\def\UrlFont{\rm}  % DO NOT CHANGE THIS
+\usepackage{natbib}  % DO NOT CHANGE THIS AND DO NOT ADD ANY OPTIONS TO IT
+\usepackage{caption} % DO NOT CHANGE THIS AND DO NOT ADD ANY OPTIONS TO IT
+\frenchspacing  % DO NOT CHANGE THIS
+\setlength{\pdfpagewidth}{8.5in}  % DO NOT CHANGE THIS
+\setlength{\pdfpageheight}{11in}  % DO NOT CHANGE THIS
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\usepackage{appendix}
+\usepackage{fancyhdr}
+
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
+
+\frenchspacing
+\setlength{\pdfpagewidth}{8.5in}
+\setlength{\pdfpageheight}{11in}
+
+\long\def\commentp#1{{\bf --P: #1--}}
+\long\def\commentr#1{{\bf --R: #1--}}
+\long\def\commentw#1{{\bf --W: #1--}}
+
+\usepackage[switch]{lineno}
+
+
+\setcounter{secnumdepth}{0}
+
+\renewcommand{\headrulewidth}{0pt}
+% \lhead{\normalsize \texttt{In} \textit{~Proceedings of the 35th Conference on Artificial Intelligence} \texttt{(AAAI 2021),}\\
+% \texttt{A Virtual Conference February 2021}}
+% \cfoot{}
+% \setlength{\voffset}{-35pt}
+% \setlength{\headsep}{25pt}
+% \thispagestyle{fancy}
+
+ %\linenumbers
+% The file aaai.sty is the style file for AAAI Press
+% proceedings, working notes, and technical reports.
+%
+\title{}
+\author{$^1$, Reuth Mirsky$^1$, \and Peter Stone$^{1,2}$
+\\ $^1$ The University of Texas at Austin
+\\ $^2$ Sony AI
+\\ \{wmacke, reuth, pstone\}@cs.utexas.edu}
+
+
+\title{Expected Value of Communication \\ for Planning in Ad Hoc Teamworks}
+\author {
+    % Authors
+    William Macke,\textsuperscript{\rm 1}
+    Reuth Mirsky, \textsuperscript{\rm 1}
+    Peter Stone \textsuperscript{\rm 1,2} \\
+}
+\affiliations {
+    % Affiliations
+    \textsuperscript{\rm 1} The University of Texas at Austin \\
+    \textsuperscript{\rm 2} Sony AI \\
+    \{wmacke,reuth,pstone\}@cs.utexas.edu
+}
+
+ \begin{document}
+
+\maketitle
+
+\begin{abstract}
+\begin{quote}
+    A desirable goal for autonomous agents is to be able to coordinate on the fly with previously unknown teammates.  Known as ad hoc teamwork, enabling such a capability has been receiving increasing attention in the research community. One of the central challenges in ad hoc teamwork is quickly recognizing the current plans of other agents and planning accordingly.  In this paper, we focus on the scenario in which teammates can communicate with one another, but only at a cost.  Thus, they must carefully balance plan recognition based on observations vs. that based on communication.
+
+    This paper proposes a new metric for evaluating how similar are two policies that a teammate may be following - the Expected Divergence Point (\textsc{edp}).
+    We then present a novel planning algorithm for ad hoc teamwork, determining which query to ask and planning accordingly. We demonstrate the effectiveness of this algorithm in a range of increasingly general communication in ad hoc teamwork problems.
+    % using several generalizations that can impact the complexity of communication in ad hoc teamwork problems.
+
+        % Communication in Ad Hoc Teamwork (\textsc{cat}) is a research area that investigates how communication can be leveraged by an agent that plans in a distributed, multi-agent collaborative environment, even if that agent does not have prior knowledge about its teammates or their plans. A major challenge in planning for \textsc{cat} is to disambiguate the goals of other agents, as they may not provide any information about their policies and preferences. This paper improves the ability of the ad hoc agent to plan and act in \textsc{cat} settings by explicitly quantifying the ambiguity in the plans of its teammates.
+
+        %, which is the point in execution in which the actor will act in a way that is only expected if it follows one of the policies, but not if it follows the second one.
+    %This metric is then used to define the value of information for knowing the goal of a teammate in terms of \textsc{edp}, and then it is extended to concretely compute the value of a query that the ad hoc agent can choose to ask.
+    % -- environment, teammates, and communication protocol.
+\end{quote}
+\end{abstract}
+
+
+
+\section{Introduction}
+Modern autonomous agents are often required to solve complex tasks in challenging settings, and to do so as part of a team. For example, service robots have been deployed in hospitals to assist medical teams in the recent pandemic outbreak. The coordination strategy of such robots cannot always be fixed a priori, as it may involve previously unmet teammates that can have a variety of behaviors. %These behaviors may encode numerous decision points for the robots that cannot be planned for in advance. Moreover,
+These robots will only be effective if they are able to work together with other teammates without the need for coordination strategies provided in advance~\cite{cakmak2012designing}.
+This motivation is the basis for ad hoc teamwork, which is defined from the perspective of a single agent, the \emph{Ego Agent}\footnote{Also referred to as the \emph{Ad Hoc Agent}}, that needs to collaborate with \emph{teammates} without any pre-coordination~\cite{stone2010ad,albrecht2018autonomous}. Without pre-coordination, only very limited knowledge about any teammate, such as that they have limited rationality or what their potential goals are, is available.
+An important capability of ad hoc teamwork is plan recognition of teammates, as their goals and plans can affect the goals and plans of the ego agent.
+%One of the main challenges when collaborating in such settings, is that planning depends on the goals and the plans of other agents.
+Inferring these goals is not trivial, as the teammates may not provide any information about their policies, and the execution of their plan might be ambiguous. Hence, it is up to the ego agent to disambiguate between potential goals.
+The first contribution of this paper is a \textbf{metric to evaluate ambiguity between two potential teammate policies} by quantifying the number of steps a teammate will take (in expectation) until it executes an action that is consistent with only one of the two policies.
+% distinct action that is expected if it follows the first policy, but not if it follows the second one.
+%This Expected Divergence Point (\textsc{edp}) gives an estimation of how long it will take for the ad hoc agent to disambiguate between two potential policies of its teammate.  Then,
+We show how this \textsc{edp} metric can be computed in practice using a Bellman update.
+
+In addition to applying a reasoning process to independently infer the goal of its teammate, the ego agent can also directly \textit{communicate} with that teammate to gain information faster than it would get by just observing. However, if such a communication channel is available, it can come with a cost, and the ego agent should appropriately decide when and what to communicate. %Previous work identified a specific variant of this problem, in which there exists a single communication channel, such that the ad hoc agent can query its teammate in a way that will disambiguate between some or all of the goals the teammate might aim towards \cite{mirskypenny}.
+For example, if the previously described medical robot can fetch different tools for a physician in a hospital, the physician would generally prefer to avoid the additional cognitive load of communicating with the robot, but may be willing to answer an occasional question so that it can be a better collaborator. We refer to this setting where the ego agent can leverage communication to collaborate with little to no knowledge about its teammate as \emph{Communication in Ad hoc Teamwork}, or \textsc{cat}~\cite{mirskypenny}.
+% In such a scenario, the medical robot from our example can fetch different tools for a physician in a hospital. The physician would normally prefer to avoid the additional cognitive load of communicating with the robot, but will answer an occasional question from it so that the robot can be a better collaborator.
+The second contribution of this paper is using \textsc{edp} in a
+%an algorithm to estimate \textbf{the value of a single query} by using \textsc{edp} to quantify how long the ad hoc agent will have to wait for the disambiguation of its teammate's plan if it chooses to query or not to query. The third contribution of this paper is a
+\textbf{novel planning algorithm for ad hoc teamwork} that reasons about the value of querying and chooses when and what to query about in the presence of previously unmet teammates.
+
+%Additionally, this paper presents an empirical evaluation that spans over \textbf{three factors that can impact the complexity of communication in ad hoc teamwork} -- environment, teammates, and communication protocol. Following the identification of these components, this paper investigates three extensions from existing work that affect each of these factors respectively -- richer environments, complex teammate representations, and complex communication protocols.
+Lastly, this paper presents empirical results showing the performance of the new \textsc{edp}-based algorithm in these complex settings, showing that it outperforms existing heuristics in terms of total number of steps required for the team to reach its goal. Moreover, the additional computations required of the \textsc{edp}-based algorithm can mostly take place prior to the execution, and hence its online execution time does not differ significantly from simpler heuristics.
+
+% The results from this work were evaluated on a simulated test-bed, namely \emph{the tool fetching domain}. The algorithm presented in that work was a means to decide when to query in such a SOMALI scenario. This paper reports our progress investigating the different factors that can affect the complexity of a SOMALI scenario: the environment, the teammates, and the communication protocol. An additional contribution is a set of heuristic algorithms for choosing when to query, that are shown to outperform previous work in these complex configurations.
+
+\section{Related Work}
+There is a vast literature on reasoning about teammates with unknown goals~\cite{fern2007decision,albrecht2018autonomous} and on communication between artificial agents~\cite{cohen1997team,decker1987distributed,pynadath2002communicative}, but significantly less works discuss the intersection between the two, and almost no work in an ad hoc teamwork setting.
+Goldman and Zilberstein \shortcite{goldman2004decentralized} formalized the problem of collaborative communicating agents as a decentralized POMDP with communication (DEC-POMDP-com).
+Communication in Ad-Hoc Teamwork (\textsc{cat}) is a related problem that shares some assumptions with DEC-POMDP-com:
+\begin{itemize}
+    \item All teammates strive to be collaborative.
+    \item The agents have a predefined communication protocol available that cannot be modified during execution.
+    \item The policies of the ego agent's teammates are set and cannot be changed.  This assumption does not mean that agents cannot react to other agents and their actions, but rather that such reactions are consistent as determined by the set policy.
+    % This assumption does not mean that one agent cannot affect another, but that these effects are consistent and cannot be modified.
+\end{itemize}
+However, these two problems make different assumptions that separate them. DEC-POMDP-com uses a single model jointly representing all plans, and this model is collaboratively controlled by multiple agents. \textsc{cat}, on the other hand, is set from the perspective of one agent with a limited knowledge about its teammates' policies (such as that all agents share the same goal and strive to be collaborative) and thus it cannot plan a priori how it might affect these teammates \cite{stone2013teaching,ravula2019ad}.
+
+In recent years there have been some works that considered communication in ad hoc teamwork \cite{barrett2014communicating,chakraborty2017coordinated}.
+% These works suggested algorithms for ad hoc agents, where teammates are assumed to share a common communication protocol, or they can test the policies of the teammates on the fly (e.g. by probing).
+These works suggested algorithms for ad hoc teamwork, where teammates either share a common communication protocol, or can test the policies of the teammates on the fly (e.g. by probing).
+These works are situated in a very restrictive multi-agent setting, namely a multi-arm bandit, where each task consists of a single choice of which arm to pull. Another recent work on multi-agent sequential plans proposed an Inverse Reinforcement Learning technique to infer teammates' goals on the fly, but it assumes that no explicit communication is available \cite{wang2020too}.
+
+With recent developments in deep learning, several works were proposed for a sub-area of multi-agent systems, where agents share information using learned communication protocols~\cite{hernandez2019survey,mordatch2018emergence,foerster2016learning}. These works make several assumptions not used in this work: that the agents can learn new communication skills, and that an agent can train with its teammates before execution. An exception to that is the work of Van Zoelen et al. \shortcite{van2020learning} where an agent learns to communicate both beliefs and goals, and applies this knowledge within human-agent teams. Their work differs from ours in the type of communication they allow.
+
+Several other metrics have been proposed in the past to evaluate the ambiguity of a domain and a plan. Worst Case Distinctiveness (\textsc{wcd}) is defined as the longest prefix that any two plans for different goals share \cite{keren2014goal}. Expected Case Distinctiveness (\textsc{ecd}) weighs the length of a path to a goal by the probability of an agent choosing that goal and takes the sum of all the weighted path lengths \cite{wayllace2017new}. Both these works only evaluate the distinctiveness between two goals with specific assumptions about how an agent plans, while \textsc{edp} evaluate the \emph{expected} case distinctiveness for \emph{any} pair of policies, which may or may not be policies to achieve two different goals.
+
+A specific type of \textsc{cat} scenarios refers to tasks where a single agent reasons about the sequential plans of other agents, and can gain additional information by querying its teammates or by changing the environment \cite{mirsky2018sequential,mirskypenny,shvo2020active}. In this paper, we focus on a specific variant of this problem known as Sequential One-shot Multi-Agent Limited Inquiry \textsc{cat} scenario, or \textsc{somali cat} \cite{mirskypenny}. Consider the use case of a service robot that is stationed in a hospital, that mainly has to retrieve supplies for physicians or nurses, and has two main goals to balance: understanding the task-specific goals of its human teammates, and understanding when it is appropriate to ask questions over acting autonomously. As the name \textsc{somali cat} implies, this scenario includes several additional assumptions: The task is episodic, one-shot, and requires a sequence of actions rather than a single action (like in the multi-armed bandit case); the environment is static, deterministic, and fully observable; the teammate is assumed to plan optimally, given that it is unaware of the ego agent's plans or costs; and there is one communication channel, where the ego agent can query as an action, and if it does, the teammate will forgo its action to reply truthfully (the communication channel is noiseless). The definition of \textsc{edp} and the algorithm presented in this paper rely on this set of assumptions as well. While previous work by the authors in \textsc{somali cat} gave effective methods for determining when to ask a query~\cite{mirskypenny}, they did not provide a principled method for determining what to query. In this work, we extend previous methods with a principled technique for constructing a query.
+% In such \textsc{somali cat} scenarios, we have additional assumptions:
+% \begin{itemize}
+%     \item The task performed requires a sequence of actions rather than a single action (like in the multi-armed bandit case).
+%     \item The task is episodic, one-shot.
+%     \item The environment is static, deterministic, fully observable.
+%     \item The teammate is assumed to plan optimally, given that it is unaware of the ad hoc agent's plans or costs.
+%     \item There is one communication channel, where the ad hoc agent can query as an action, and if it does, the teammate will forgo its action to reply truthfully (the communication channel is noiseless).
+%     \end{itemize}
+
+ %As such, we can use an existing \textsc{somali cat} environment in our empirical settings, which we present next.
+
+%%%%%%%%% Good paragraph - reuse if we can afford the space
+%  For each of these factors, we propose a more complex variant of the tool fetching domain that is still within the scope of SOMALI:
+% \begin{itemize}
+%     \item The environment is made more complex by increasing the number of decision points the ad-hoc agent might encounter, hence forcing the ad-hoc agent to reason about plans that branch faster and broader than in the original problem setup.
+%     \item The teammates are made more complex by adding a non-uniform goal preference distribution, which can shift the optimal behavior of the ad-hoc agent in response.
+%     \item The communication channel is replaced, such that instead of a uniform cost over all the possible queries the ad-hoc agent might initiate, two different cost models are considered in order to make the ad-hoc agent more judicious about its query content.
+% \end{itemize}
+% While all of these modifications are still within the scope of SOMALI, the heuristic algorithm proposed in previous work does not explicitly reason about them, which incurs a significant decrease in performance. %\commentr{Reminder: To add ``naive'' version to experiments as a baseline.}
+
+\section{Background}
+The notation and terminology we use in this paper is patterned closely after that of Albrecht and Stone~\shortcite{albrecht2017reasoning}, extended to reason about communication between agents. We define a \textsc{somali cat} problem as a tuple $C=\langle S, A_A, A_T, T, C \rangle$ where $S$ is the set of states, $A_A$ is the set of actions the ad-hoc agent can execute, $A_T$ is the set of actions the teammate can execute, $T$ is the transition function $T:S\times A_A \times A_T \times S \to [0,1]$, and $C: A_A \times A_T \rightarrow \mathbb{R}$ maps joint actions to a cost. Specifically, $A_A = O_A \cup Q$ consists of a set of actions $O_A$ that can change the state of the world, which we refer to as \emph{ontic} actions, as defined in Muise et al. \shortcite{muise2015planning}, and a set of potential \emph{queries} $Q$ it can ask. Similarly, $A_T = O_T \cup R$ is a set of ontic actions that the teammate can execute $O_T$ and the set of possible \emph{responses} $R$ to the ego agent's query.
+ Actions in $O_i$ can be selected independently from the decisions of other agents, but if the ego agent chooses to query the teammate at timestep $t$, then the action of the ego agent is some $q \in Q$ and the teammate's action must be $r \in R$. In this case, if the ego agent queries, both agents forego the opportunity to select an ontic action; the ego agent uses an action to query and the teammate uses an action to respond.
+A \emph{policy $\pi$} for agent $i$ is a distribution over tuples of states and actions, such that $\pi_{i}(s,a)$ is the probability with which agent $A_i$ executes $a \in A_i$ in state $s \in S$.
+Policy $\pi_i$ induces a \emph{trajectory} $Tr_i=\langle s^0, a_i^1, s^1, a_i^2, s^2... \rangle$.
+% Given a policy $\pi_i$, we can construct a \emph{trajectory} $Tr_i=\langle s^0, a_i^1, s^1, a_i^2, s^2... \rangle$. %A \emph{plan} for agent $i$, namely $P_i$, is defined to be an execution of a policy, which constructs a sequence of actions from $A_i$.
+The cost of a joint policy execution is the accumulated cost of the constituent joint actions of the induced trajectories.
+For simplicity, in this work we assume that all ontic actions have a joint cost of 1. Queries and responses have different costs depending on their complexity.
+% For simplicity, in this work we assume that all actions, whether they are ontic, queries, or responses, have a cost of 1 and hence for each two-agent plan of length $n$, its cost is $2n$.
+
+Additional useful notation that will be used throughout this paper is the \emph{Uniformly-Random-Optimal Policy} (or \textsc{urop}) $\hat{\pi}_{g}$, that denotes the policy that considers all plans that arrive at goal $g$ with minimal cost, samples uniformly at random from the set of these plans, and then chooses the first action of the sampled plan.
+
+In order to ground $Q$ to a discrete, finite set of potential queries, we first need to define a \emph{goal} of the teammate $g$ as the set of states in $S$ such that a set of desired properties holds (e.g., both the physician and the robot are in the right room). Given this definition, we can use a concrete set of queries $Q$ of the format: ``Is your goal in $G$?" where $G$ is a subset of possible goals. This format of queries was chosen as it can replace any type of query that disambiguates between potential goals (e.g. ``Is your goal on the right?", ``What are your next k actions?"), as long as we know how to map the query to the goals it can disambiguate.
+
+
+\section{Expected Divergence Point}
+The first major contribution of this paper is a formal way to quantify the ambiguity between two policies, based on the number of steps we expect to observe before we see an action that can only be explained by a plan that can be executed when following one policy, but not by a plan that follows the other policy. Consider 2 policies $\pi_1,\pi_2$, %:S\times A \to [0,1]$.
+and assume that policy $\pi_2$ was used to construct the trajectory $Tr_2$.  %=\langle s_0, a_1, s_1, a_2, s_2... \rangle$.
+\begin{definition}
+The \textbf{divergence point (\textsc{dp})} from $\pi_1$, or the minimal point in time such that we know $Tr_2$ was not produced by $\pi_1$, is defined as follows:
+\begin{equation*}
+    dp(\pi_1 \mid Tr_2) = min\{t \mid \pi_1(s_{t-1}, a_2^t) = 0\}
+\end{equation*}
+\end{definition}
+
+Figure~\ref{fig:edp} shows an example in which the teammate is in the light gray tile $(4,3)$ and is marked using the robot image. The goal of this agent can either be $g_1$ or $g_2$ (dark gray tiles), and the policies $\hat{\pi}_{g_1}$ and $\hat{\pi}_{g_2}$ are the \textsc{urop}s for  $g_1$ and $g_2$ respectively.
+% uniformly produces all plans that arrive at $g_1$ with minimal cost.
+If an agent were to follow the path outlined in red starting at state $(4,3)$, then the $dp$ of this path with $\hat{\pi}_{g_1}$ would be 3 as the path diverges from $\hat{\pi}_{g_1}$ at timestep 3.
+
+\begin{figure}
+    \centering
+    %\includegraphics[trim= 40 100 40 0, clip,width=\linewidth]{Figures/EDP_heatMap.pdf}
+    \includegraphics[width=\linewidth]{Figures/EDP_values3.png}
+    %removedVspace
+    \caption{Various \textsc{edp} values in a grid world with two goals. Values are presented as $\textsc{edp}(s,\hat{\pi}_{g_1} | \hat{\pi}_{g_2})/\textsc{edp}(s, \hat{\pi}_{g_2} | \hat{\pi}_{g_1})$.}%, where $\pi_{g_1}$ and $\pi_{g_2}$ are policies that consider all plans that arrive at $g_1$ and $g_2$ respectively with minimal cost, samples uniformly at random from the set of these plans, and then chooses the first action of that plan.}
+    %Note that EDP is different from the actual divergence point of any given plan. For instance, if an agent where to follow the path outlined in red starting at state $(5,4)$, then the $dp$ of this path with $\pi_G_1$ would be 3 as the path diverges from $\pi_G_1$ at timestep 3.
+    %\textbf{William - I don't think I like the way this figure looks currently, do you have any suggestions on how to improve it?}}
+    \label{fig:edp}
+\end{figure}
+
+To account for stochastic policies, where a policy will generally produce more than one potential trajectory from a state, we introduce the \emph{expected} divergence point that considers all possible trajectories constructed from $\pi_2$.
+\begin{definition}
+The \textbf{Expected Divergence Point (\textsc{edp})} of policy $\pi_1$ from $\pi_2$, starting from state $s$ is
+\begin{equation*}
+    \textsc{edp}(s, \pi_1 \mid \pi_2) = \mathbb{E}_{Tr_2}[dp(\pi_{1} \mid Tr_2)]
+\end{equation*}
+\end{definition}
+
+
+% Consider the running example from Figure~\ref{fig:edp}. This figure presents for each tile the value of $\textsc{edp}(s,\pi_{g_1} | \pi_{g_2})$ and the value of $\textsc{edp}(s, \pi_{g_2} | \pi_{g_1})$ side by side.
+% \commentr{Do we use the ACD anywhere? f we don't use it later on, we should remove it}
+% Our definition for average case distinctiveness then, is just a weighted average between the expected divergence points of two policies:
+% \begin{equation}
+%     acd_{\pi_1, \pi_2}(s) = \frac{P(\pi_2)*\textsc{edp}(s, \pi_1 | \pi_2) + P(\pi_1)*\textsc{edp}(s, \pi_2 | \pi_1)}{P(\pi_1) + P(\pi_2)}
+% \end{equation}
+
+
+\noindent Computing \textsc{edp} directly from this equation is non trivial. We therefore rewrite \textsc{edp} as the following Bellman update:
+\begin{theorem}
+\label{thm:bellman}
+\textbf{The Bellman update for \textsc{edp}} of the policies $\pi_1, \pi_2$, starting from state $s$ is:
+\begin{equation}
+\scriptsize
+\begin{split}
+    \textsc{edp} & (s, \pi_1 |  \pi_2) = [1 - \sum\limits_{a\in A'(s)}\pi_2(s, a)] + \\ &
+    \sum\limits_{a\in A'(s)}\pi_2(s,a) * \sum\limits_{s'\in S}T(s, a, s')[1 + \textsc{edp}(s', \pi_1 |  \pi_2)]
+\end{split}
+\normalsize
+\label{eq:bellman}
+\end{equation}
+where $A'(s)=\{a\in A | \pi_1(s, a) > 0\}$.
+\end{theorem}
+
+\begin{proof}
+We first define $P(dp(\pi_1 \mid Tr_2)=n)$ to be the probability of seeing $n$ steps before observing an action that $\pi_1$ will not take in state $s_{n-1}$, assuming that $Tr_2$ is some trajectory sampled from $\pi_2$. Then $\textsc{edp}$ can be written as:% the following infinite sum:
+\begin{equation}
+\scriptsize
+\label{eq:sum}
+    \textsc{edp}(s, \pi_1 \mid \pi_2) = \sum\limits_{t=1}^\infty[P(dp(\pi_1 \mid Tr_2) = t)*t]
+\normalsize
+\end{equation}
+
+Next, we compute this probability as the joint probability of the $k$-th action in $\pi_1$ being different from $a_2^k$ for all $k < n$ and $\pi_1(s_{n-1},a_1^n)=a_2^n$:
+
+% \commentr{It's not properly defined. What is the meaning of $P(\pi_1(s_0, a_2^1) = 0)$? I can see that $\pi_1(s_0, a_2^1)$ is a number, but what is the meaning of ``the probability of that number to be 0?'' either it's 0 or it's not zero. Maybe there's a different way to define this with $\pi_1(s_0, a_2^1)$ directly?}
+\begin{equation}
+\label{eq:series}
+\scriptsize
+\begin{split}
+    & P(dp(\pi_1 \mid Tr_2) = 1) = P(\pi_1(s_0, a_2^1) = 0), \\
+    & P(dp(\pi_1 \mid Tr_2) = 2) = P(\pi_1(s_0, a_2^1) \neq 0)*P(\pi_1(s_1, a_2^2) = 0), \\
+    & P(dp(\pi_1 \mid Tr_2) = 3) = P(\pi_1(s_0, a_2^1) \neq 0)*P(\pi_1(s_0, a_2^2) \neq 0) * \\ & \qquad \qquad \qquad \qquad \qquad ~~~~~~ P(\pi_1(s_1, a_2^3) = 0)
+\end{split}
+\normalsize
+\end{equation}
+and so on. Given these equations, we can rewrite the infinite summation in Equation \ref{eq:sum}:
+\begin{equation*}
+\scriptsize
+\begin{split}
+     \textsc{edp} & (s, \pi_1 | \pi_2) = \\
+     & P(\pi_1(s_0, a_2^1) = 0) + \\
+     & 2*P(\pi_1(s_0, a_2^1) \neq 0)*P(\pi_1(s_1, a_2^2) =0) + \\
+     & 3*P(\pi_1(s_0, a_2^1) \neq 0)*P(\pi_1(s_0, a_2^2) \neq 0)*P(\pi_1(s_1, a_2^3) = 0) + \ldots
+\end{split}
+\normalsize
+\end{equation*}
+
+\noindent We can factor out a $P(\pi_1(s_0, a_1) \neq 0)$ from all of the first portion of the summation to get the following:
+\begin{equation*}
+\scriptsize
+\begin{split}
+    \textsc{edp} & (s, \pi_1 | \pi_2) = \\
+    & P(\pi_1(s_0, a_2^1) = 0) + P(\pi_1(s_0, a_2^1) \neq 0) * \\
+    & [2*P(\pi_1, a_2^2 = 0) + 3*(\pi_1(s_0, a_2^2) \neq 0)*P(\pi_1(s_1, a_2^3) = 0) + \ldots]
+\end{split}
+\normalsize
+\end{equation*}
+In reverse to the transition from Equation~\ref{eq:sum} to Equation~\ref{eq:series} and by using Bayes rule, the bracketed portion can be compiled back into an infinite sum: %\commentr{TODO: do we wish to keep this computation, remove it or explain it more?}:
+\begin{equation*}
+\small
+\begin{split}
+    \textsc{edp} & (s, \pi_1 | \pi_2) = \\
+    & P(\pi_1(s_0, a^1_2) = 0) + P(\pi_1(s_0, a^1_2) \neq 0) * \\ & \sum\limits_{t=1}^\infty[(t+1) * P(dp(\pi_1 \mid Tr_2) = t+1 \mid \pi_1(s_0, a^1_2) \neq 0)]
+\end{split}
+\normalsize
+\end{equation*}
+We distribute the multiplication by $(t+1)$ inside the summation to arrive at the following:
+\begin{equation*}
+\small
+\begin{split}
+    \textsc{edp} & (s, \pi_1 | \pi_2) = \\
+    & P(\pi_1(s_0,a_2^1) = 0) + P(\pi_1(s_0, a_2^1) \neq 0) * \\ & [\sum\limits_{t=1}^\infty(t * P(dp_{\pi_1}(Tr_2) = t+1 \mid \pi_1(s_0, a_2^1) \neq 0)) + \\ & \sum\limits_{t=1}^\infty (P(dp_{\pi_1}(Tr_2) = t+1 \mid \pi_1(s_0, a_2^1) \neq 0))]
+\end{split}
+\normalsize
+\end{equation*}
+
+\noindent The second summation simplifies to 1, while the first is equivalent to the \textsc{edp} at the following state. Using this knowledge %and the transition function $T:S\times A\times S \to [0,1]$,
+we derive the following formula for \textsc{edp}:
+\begin{equation*}
+\small
+\begin{split}
+    \textsc{edp} & (s, \pi_1 |  \pi_2) = \\
+    & P(\pi_1(s_0, a_2^1) = 0) + P(\pi_1(s_0, a^2_1) \neq 0) * \\ &
+    [\sum\limits_{s'\in S}T(s,a_2^0,s')*(1+\textsc{edp}(s', \pi_1 | \pi_2))]
+\end{split}
+\normalsize
+\end{equation*}
+
+% \commentr{TODO: remove use of ceiling here}
+Remember that the term $P(\pi_1(s_0, a_2^1) \neq 0)$ is the probability of sampling a first action in $Tr_2$ that will be the same as the action taken in $s_0$ according to $\pi_1$.
+Consider the set $A'(s) = \{a\in A | \pi_1(s,a) > 0\}$, and note that $P(\pi_1(s_0, a_2^1) \neq 0)$ is the same as $\sum\limits_{a\in A'(s_0)}\pi_2(s_0, a)$.
+We therefore arrive at the Bellman update from Equation~\ref{eq:bellman}.
+\end{proof}
+
+There are a few things to note regarding \textsc{edp}. First, it is not a symmetric relation: $\textsc{edp}(s, \pi_1 | \pi_2)$ does not necessarily equal $\textsc{edp}(s, \pi_2 | \pi_1)$. For example, Figure~\ref{fig:edp} presents the value of $\textsc{edp}(s, \hat{\pi}_{g_1} | \hat{\pi}_{g_2})$ and the value of $\textsc{edp}(s, \hat{\pi}_{g_2} | \hat{\pi}_{g_1})$ side by side for each tile. In addition, neither of the $\textsc{edp}$ values necessarily equals the $\textsc{ecd}$ of this domain, as presented by Wayllace et al. \shortcite{wayllace2017new}, where $\textsc{ecd}$ estimates the probability of taking action $a$ in state $s$ as the normalized weighted probability of all goals for which $a$ is optimal from $s$.
+%% ECD Explanation
+%%%Consider the function $T_G:S\times A\times 2^G \to 2^G$ that returns the set of goals an action is optimal for in a given state and a special policy $\pi_{\textsc{ecd}}(s, a, G') = \alpha*\sum\limits_{g \in T_G(s,a,G')}P(g)$ where $\alpha$ is a normalizing factor. Then \textsc{ecd} can be defined as follows:
+%  \begin{definition}
+%  \begin{equation}
+%  \small
+%  \begin{split}
+%      \textsc{ecd} & (s, G') = \\
+%      & \sum\limits_{a\in A}\pi_{\textsc{ecd}(s, a)}*\sum\limits_{s'\in S}T(s,a,s')[1 + \textsc{ecd}(s', T_G(s, a, G'))]
+%  \end{split}
+%  \normalsize
+%  \end{equation}
+%  \end{definition}
+%%%%% End of ECD Explanation.
+ Consider tile $(7,6)$ which is colored in light gray. Assuming uniform probability over goals, the $\textsc{ecd}$ when the teammate is in this state is $1.67$, a value distinct from both the \textsc{edp} values in this state, as well as from their average.
+
+ Next, we show how \textsc{edp} can be used to compute the timesteps in which the ego agent is expected to benefit from querying, and then how this information can be used by the ego agent for planning when and what to query.
+
+% We can therefore compute \textsc{edp} of the two policies by repeated application of the Bellman update:
+% \begin{theorem}
+% \textbf{The Bellman update for \textsc{edp}} of the policies $\pi_1, \pi_2$, starting from state $s$ is:
+% \begin{equation}
+% \scriptsize
+% \begin{split}
+%     \textsc{edp} & (s, \pi_1 |  \pi_2) = [1 - \sum\limits_{a\in A'(s)}\pi_2(s, a)] + \\ &
+%     \sum\limits_{a\in A'(s)}\pi_2(s,a) * \sum\limits_{s'\in S}T(s, a, s')[1 + \textsc{edp}(s', \pi_1 |  \pi_2)]
+% \end{split}
+% \normalsize
+% \label{eq:bellman}
+% \end{equation}
+% \end{theorem}
+
+\section{Expected Zone of Querying}
+Previous work provided a means to reason about when to act in the environment and when to query, in the form of three different reasoning zones general to all \textsc{somali cat} domains~\cite{mirskypenny}. The zones that were defined with respect to querying are: %A zone is a function that takes two or more goals as input and outputs a set of timesteps in which some property holds.  %can be described as follows: %For each query that the ad-hoc agent can ask, that takes the form of ``Is your goal one of the workstations $g_1,g_2...g_N$?"% for a subset of goals $g_1,g_2...g_N\in G'$:
+\begin{description}
+\item [Zone of Information ($Z_I$)] given the location of the teammate and two of its possible goals $g_1,g_2$, $Z_I$ is the interval from the beginning of the plan up to the worst case distinctiveness of $g_1,g_2$ for recognizing the teammate's goal, as defined by Keren et al. \shortcite{keren2014goal}.
+% the interval during which there exists a shared prefix to minimal-cost plans to
+
+
+% set of timesteps from the beginning of the plan interval during which there might exist an action $a$ that the teammate can execute such that $a$ is the next action in a minimal-cost plans to both goals.
+
+% \textbf{OR: during which there is still ambiguity regarding these goals when the teammate is following the most ambiguous plan. } %Intuitively, these are all the timesteps in which the plan of the ad hoc agent can change from querying.
+Intuitively, these are the timesteps where the ego agent might gain information by querying about these goals.
+
+\item [Zone of Branching ($Z_B$)] given the location of the ego agent and two possible goals of the teammate, $Z_B$ is the interval from the worst case distinctiveness of $g_1,g_2$ for recognizing the ego agent's goal and up to the end of the episode.
+Intuitively, these are the timesteps where the ego agent might take a non-optimal action if it could not disambiguate between the two goals of its teammate.
+
+% is the interval starting when the ad hoc agent is required to commit to a specific goal to the end of the episode, which means it might take a non-optimal action if it could not disambiguate between the two possible goals of its teammate.
+
+\item [Zone of Querying ($Z_Q$)] given the locations of the ego agent, the teammate, and two possible goals of the teammate, $Z_Q$ is the intersection of $Z_I$ and $Z_B$ for these goals, where there may be a positive value in querying about the two goals instead of acting. Intuitively, these are the timesteps where the ego agent cannot distinguish between the two possible goals of the teammate and it should take different actions in each case\footnote{For the rest of the paper, when it is clear from context, we omit the state of the agents from the use of zones for brevity.}.
+\end{description}
+
+\noindent  Consider the running example from Figure~\ref{fig:edp}, and assume that this grid represents a maximal coverage task, where the agents need to go to different goals in order to cover as many goals as possible~\cite{pita2008deployed}. Consider an ego agent with the aim to go to a different goal from its teammate which is in tile $(4,3)$. The Zone of Information which depends only on the behavior of the teammate, is $Z_I(\{g_1,g_2\})=\{t \mid t \leq 5\}$, as 5 is the maximum number of steps that the teammate can take before its goal is disambiguated (e.g., if the agent moves east 4 times only its fifth action will disambiguate its goal). If the ego agent is in tile $(5,4)$, then $Z_B(\{g_1,g_2\})=\{t \mid t \geq 4\}$ and hence $Z_Q(\{g_1,g_2\})=\{4,5\}$. However, if the ego agent is in tile $(2,4)$, then $Z_B(\{g_1,g_2\})=\{t \mid t \geq 7\}$, and hence in this case $Z_Q(\{g_1,g_2\})=\emptyset$.
+% Given these zones for each subset of goals $G'$, we can identify the \textbf{Critical Querying Point (CQP)} as the first timestep inside $Z_Q(G')$, and is the first timestep in which the ad hoc agent should consider whether to query ``Is your goal one of the stations in $G'$?''. If $Z_Q(G')$ is empty, then there is no time in which this query can be useful and $CQP(G')=-1$.
+%In Figure~\ref{fig:toolFetchingDomain_a}, some of the critical querying points are $CQP(\{1\})=CQP(\{2\})=CQP(\{1,3\})=6$, as it takes the fetcher 5 timesteps to reach the toolbox and only then it enters $Z_B$ for goals 1 and 2. $CQP(\{3\})=-1$, as by the time the fetcher reaches the toolbox, the worker has already reached or passed station 3.
+%In previous work, we introduced the concepts of zones of information, branching and querying, which were based on worst case scenarios of when an agent would not know optimal actions.
+These existing definitions of zones consider the \emph{worst case} for disambiguating goals. However, the worst case might be highly uncommon, and planning when to query accordingly can induce high costs.
+Using \textsc{edp}, we now have the requirements to compute the \emph{expected case} for disambiguation of goals. We introduce definitions for expected zones: %, or the average periods of time where an agent does not know an optimal action.
+%Consider two potential goals $g_1, g_2$. We can define the following expected zones:
+\begin{definition}
+The \textbf{Expected Zone of Information $eZ_I$} given the location of the teammate and two goals $g_1, g_2$, $eZ_I$ is the expected time period during which the teammate's plan is ambiguous between $g_1$ and $g_2$:
+\begin{equation*}
+    eZ_I(s, g_1 | g_2) = \{t| t \leq \textsc{edp}(s, \hat{\pi}_{g_1} | \hat{\pi}_{g_2})\}
+\end{equation*}
+where the policies $\hat{\pi}_{g_1},\hat{\pi}_{g_2}$ are the \textsc{urop}s of the teammate for goals $g_1$ and $g_2$ respectively.
+% and uniformly at random chooses the next action from among them.
+% uniformly randomly selects from all plans that reach $g_1$, $g_2$ with minimal cost.
+% uniformly produce all plans for reaching $g_1$, $g_2$ with minimal cost.%, and $\pi_{g_2}$ is the policy for reaching $g_2$.
+
+\end{definition}
+
+\noindent Intuitively, $eZ_I$ for two goals is the set of timesteps where we don't expect to see an action that can only be executed by $g_1$ but not by $g_2$. Similarly, $eZ_B$ for two goals is the set of all timesteps where we expect that the ego agent will take a non-optimal action if it does not have perfect knowledge about the teammates true goal.
+
+\begin{definition}
+The \textbf{Expected Zone of Branching} for goals $g_1, g_2$ is the expected time period where the ego agent can take an optimal action for $g_2$ without incurring additional cost if the teammate's true goal is $g_1$:
+\begin{equation*}
+    eZ_B(s, g_1 | g_2) = \{t | t \geq \textsc{edp}(s, \hat{\pi}_{g_2} | \hat{\pi}_{g_1})\}
+\end{equation*}
+where the policies $\hat{\pi}_{g_1}$ and $\hat{\pi}_{g_2}$ are the \textsc{urop}s of the \emph{ego agent} for goals $g_1$ and $g_2$ respectively.% that produce all plans with uniform probability assuming that the teammate is reaching $g_1$, $g_2$ with minimal cost.%, and $\pi_{g_2}$ is the policy for reaching $g_2$.
+\end{definition}
+
+\begin{definition}
+The \textbf{Expected Zone of Querying}  for goals $g_1, g_2$ is the time period where the ego agent is expected to benefit from querying:
+\begin{equation*}
+    eZ_Q(s, g_1 | g_2) = eZ_B(s, g_1 | g_2) \cap eZ_I(s, g_1 | g_2)
+\end{equation*}
+\end{definition}
+In our empirical settings, we have control over the ego agent, and can therefore guarantee it will follow an optimal plan given its current knowledge about the teammate's goal. In this case, we can use the original definition of $Z_B$ instead of $eZ_B$, as they are equivalent in this setting.
+% This means that we can use the deterministic version $Z_B$ instead of $eZ_B$.
+%Notice that there is no need to define the expected zone of branching to extend the existing zone of branching, as in a \textsc{cat} problem
+
+\section{Using $eZ_Q$ for Planning}
+\label{sec:alg}
+Next, we present a planning algorithm for the ego agent that uses the value of a query to minimize the expected cost of the chosen plan. In this planning process, there are two main problems that need to be solved: determining when to query and what to query. Using the definition of $Z_Q$, we can easily determine when querying would certainly be redundant, and respectively, when a query might be useful. Once we know that a query might be beneficial, we can use $eZ_Q$ to determine what to query exactly. Notice that the conclusion might still be not to query at all. For example, consider the maximal coverage example from Figure~\ref{fig:edp}, where the teammate is in tile $(4,3)$, and the ego agent is in tile $(8,4)$. As the teammate can choose to move east, there is still ambiguity between $g_1$ and $g_2$ and the ego agent must choose between moving north or south - so according to $Z_Q$ the ego agent should query. However, if it highly unlikely that the teammate would go east, the expected gain from querying decreases significantly. Thus, even though $Z_Q$ is not empty, it is not a good strategy for the ego agent to query. %We start by defining the value of a generic query.
+%We will now present the relevant algorithms.
+ %The complete form of this algorithm can be seen in Algorithm~\ref{alg:edp}.
+
+In this section, we discuss how to use the new $eZ_Q$ to compute the value of a specific query more accurately than proposed by previous approaches
+% and address such cases.
+This information will be used in an algorithm for the ego agent that chooses the best query. %to ask (or not asking at all).
+The first step is calculating the \textsc{edp} for each pair of goals $g_1$ and $g_2$ and their corresponding \textsc{urop}s $\hat{\pi}_{g_1}$ and $\hat{\pi}_{g_2}$. %, which are the policies that that sample uniformly from the set of plans that reach $g_1$ or $g_2$ respectively with minimal cost.
+%uniformly randomly select from all plans that respectively arrve at $g_1,g_2\in G$ with minimal cost.
+% uniformly produces all plans that respectively arrive at $g_1,g_2 \in G$ with minimal cost.
+We use a modified version of the dynamic programming policy evaluation algorithm \cite{bellman1966dynamic} applied on the bellman update presented in Equation~\ref{eq:bellman} (additional details can be found in the Appendix.
+As this policy evaluation does not depend on the teammate's actions, it can be done offline prior to the plan execution, as presented in Figure~\ref{fig:edp}. Next, using these values, we can compute the value of a specific query.
+
+\subsection{Computing the Value of a Query}
+
+Given a \textsc{somali cat} domain $\langle S, A_A, A_T, T, C\rangle$, we want to
+quantify how much, in terms of expected plan cost, the ego agent can gain from asking a specific query.
+%find the query that gives us the minimum expected cost.
+Therefore, we define the value of a query as follows:
+\begin{definition}
+\textbf{Value of a Query} Let $q$ be a query with possible responses $R$, and $\mathcal{P}_g$ be the set of possible plans of both agents that arrive at goal $g$. Then the value of query $q$ is
+\begin{equation}
+    V(q) = \mathbb{E}_{p\in \mathcal{P}_g}[cost(p)] - \sum\limits_{r\in R}P(r)*\mathbb{E}_{p\in \mathcal{P}_g}[cost(p) | r]
+\label{eq:value}
+\end{equation}
+\end{definition}
+
+\noindent Computing the expected cost of this set of plans is non-trivial. We therefore define the following concept:
+\begin{definition}
+The \emph{Marginal Cost} of a plan $p$ in a \textsc{somali cat} domain with a goal $g$ ($MC_g(p)$) is the difference between the cost of $p$ and the cost of a minimal-cost plan that arrives at $g$.
+\label{def:mc}
+\end{definition}
+
+\noindent We can replace $cost(p)$ in Equation~\ref{eq:value} with $MC_g(p)$ to yield an equivalent formula that is easier to compute:
+\begin{equation}
+\small
+\begin{split}
+    V & (q) = \\
+    & (\mathbb{E}_{p\in \mathcal{P}_g}[cost(p)] - c^*_g) - (\sum\limits_{r\in R}P(r)*\mathbb{E}_{p\in \mathcal{P}_g}[cost(p) | r] - c^*_g) =\\ &
+    \mathbb{E}_{p\in \mathcal{P}_g}[MC_g(p)] - \sum\limits_{r\in R}P(r)*\mathbb{E}_{p\in \mathcal{P}_g}[MC_g(p) | r]
+    \end{split}
+    \label{eq:v_q}
+\end{equation}
+where $c^*_g$ is the minimal cost of a plan that arrives at $g$.
+
+In \textsc{somali cat},
+%By using simple algebra, substituting \emph{Marginal Cost} for cost in Definition~\ref{def:value} yields an equivalent formula. Furthermore, in \textsc{somali cat}, the expected \emph{Marginal Cost} can be easily computed:
+$\mathbb{E}_{p\in\mathcal{P}_g}[MC_g(p)]$ at state $s$ is proportional to the number of timesteps in which the ego agent doesn't know which ontic actions are optimal, or formally:
+\begin{equation*}
+    \mathbb{E}_{p\in \mathcal{P}_g}[MC_g(p)]\propto |\bigcup\limits_{g'\in G}eZ_Q(s, g' | g)|
+\end{equation*}
+
+In addition, notice that computing $V(q)$ using Equation~\ref{eq:v_q} assumes that the goal of the teammate, $g$, is known. However, the ego agent does not know the true goal $g$ ahead of time, so we need to consider the expected value of a query for each possible goal of the teammate, or $\mathbb{E}_{g\in G}[V(q) | g]$.
+%given each of the possible goals being the teammate's true goal, or $\mathbb{E}_{g\in G}[V(q) | g]$.
+
+% Given a \textsc{somali cat} domain $\langle S, A_A, A_T, T, C\rangle$, and a plan $p^*$ that has minimal cost: %, we can define the \emph{Marginal Cost} of a plan $p$
+% \begin{definition}
+% The Marginal Cost ($MC$) of a plan $p$ in a domain with a plan $p^*$ of minimal cost is $MC(p) = cost(p) - cost(p^*)$.
+% \label{def:mc}
+% \end{definition}
+
+% Intuitively, the marginal cost of a plan $p$ estimates the difference in costs between an ad hoc agent with full knowledge about the goal of its teammate, and an ad hoc agent that follows plan $p$. For example, if a plan had a cost of $50$ while the minimum cost achievable in a domain is $30$, then the marginal cost of this plan is $20$. We aim to minimize the marginal cost of plans generated by the ad hoc agent, so we define the value of a query as follows:
+% \begin{definition}
+% \textbf{Value of a Query} Let $q$ be a query with possible responses $r\in R$, $P$ be the set of plans the ad hoc agent may take with no new information, and $P_r$ be the set of plans the ad hoc agent may take given response $r$. Then the value of query $q$ is:
+% \begin{equation*}
+%     V(q) = \mathbb{E}_{p\in P}[MC(p)] - \sum\limits_{r\in R}P(r)*\mathbb{E}_{p_r \in P_r}[MC(p_r)]
+% \end{equation*}
+% \end{definition}
+
+% In \textsc{somali cat}, this value can be easily computed: the expected marginal cost of a query-less plan at state $s$ is proportional to the amount of time the ad hoc agent doesn't know which ontic actions are optimal, or in other words $\mathbb{E}_{p\in P}[MC(p)]\propto \sum\limits_{g\in G}P(g)*|\bigcup\limits_{g'\in G}eZ_Q(s, g' | g)|$. %In the Tool Fetching Domain discussed below, we assume the ad hoc agent takes the \emph{NOOP} action when it doesn't know which ontic actions are optimal, so the proportionality constant for this domain is $1$ as the ad hoc agent incurs an additional cost of $1$ for each timestep it doesn't act.
+
+
+% Given a \textsc{somali cat} problem $\langle S,A_T,A_A,T,C\rangle$, consider a query $q$ with potential answers $\{answer_1, answer_2, answer_3\}$. We define the value of a query to be as follows:
+% \begin{equation*}
+% \label{eq:value_of_q-1}
+%     V(q) = \mathbb{E}_{answer}[VoI(answer)]
+% \end{equation*}
+% where $VoI$ is the \textit{value of information}, which equals to the gain from executing a plan with minimal cost, with and without the information gained from every possible answer. This value is equivalent to the difference of \emph{Marginal Costs}, or the additional cost over the minimal possible cost in a domain, given the possible answers to the query. Remember that in this paper, we use a specific form of queries representative of many other query types -- ``Is you goal one of the goals in $G'$'' for some subset of goals $G' \subseteq G$. We now show how to formally compute the value of such queries in Algorithm~\ref{alg:optimize}.% shows this process.
+% The inputs of this algorithm are: a state $s$, a set of possible goals $G$, a subset of goals to query about $G'$, and $P$ is the ad hoc agent's current belief of the teammate's goal over $G$. Three values are computed:
+% \begin{itemize}
+%     \item The marginal cost over all plans (lines 3-6).
+%     \item The marginal cost over all plans remaining assuming that the teammate's response is ``yes, my goal is in $G'$'' (lines 7-10).
+%     \item The marginal cost over all plans remaining assuming that the teammate's response is ``no, my goal is not in $G'$'' (lines 11-14).
+% \end{itemize}
+% Thus the marginal cost of a query is the minimal cost of planning without querying (all) minus the cost of planning assuming that we either get a positive answer (pos) or a negative answer (neg). This value can now be used to estimate which query should be asked, if at all.
+
+
+% \begin{algorithm}
+% \caption{Value of a Query}
+% \begin{algorithmic}[1]
+% \Procedure{Value}{$s, G, G', eZ_Q, P$}
+% \State $value \gets 0$
+% \State $all \gets 0$
+% \State $pos \gets 0$
+% \State $neg \gets 0$
+% \For{$g \in G$}
+% \State $MC \gets |\bigcup\limits_{g'\in G}eZ_Q(s, g' | g)|$
+% \State $all \gets all + P(g)*MC$
+% \EndFor
+% \For{$g \in G'$}
+% \State $MC \gets |\bigcup\limits_{g'\in G'}eZ_Q(s, g' | g)|$
+% \State $pos \gets pos + P(g)*MC$
+% \EndFor
+% \For{$g \in G \setminus G'$}
+% \State $MC \gets |\bigcup\limits_{g'\in G \setminus G'}eZ_Q(s, g' | g)|$
+% \State $neg \gets neg + P(g)*MC$
+% \EndFor
+% \State $value \gets all - (pos + neg)$
+% \State \Return $value$
+% \EndProcedure
+% \end{algorithmic}
+% \label{alg:optimize}
+% \end{algorithm}
+
+
+% Given a \textsc{somali cat} problem $\langle S,A_T,A_A,T,C\rangle$, consider a query $q$ with potential answers $\{answer_1, answer_2, answer_3\}$. We define the value of a query to be as follows:
+% \begin{equation}
+% \label{eq:value_of_q-1}
+%     V(q) = \mathbb{E}_{answer}[VoI(answer)]
+% \end{equation}
+% where VoI is the \textit{value of information}, which equals to the gain from executing an optimal plan with and without the information gained from the answer. We now show how to formally compute it.
+
+% Consider the teammate to be moving towards a goal $g$ from a set of potential goals $G$. Assuming that the ad hoc agent will take the NOOP action whenever it does not know an optimal action, the expected marginal cost when the teammate is going to $g$ is as follows (as in this paper we use a uniform cost of 1 for all actions of both agents):
+% \begin{equation}
+%     \mathbb{E}_{p^t_g}[\textit{marginal cost}] = 2 * |\bigcup\limits_{g'\in G}eZ_Q(s, g' | g)|
+% \end{equation}
+% where $p^t_g$ is a teammate's plan that goes to $g$ and \textit{marginal cost} is the additional
+% cost of a trajectory over the optimal cost in a domain.
+
+% Since the \textit{marginal cost} is just the \textit{best cost} subtracted from the \textit{cost}, and the best cost is a constant value, then we can write the VOI for knowing that the goal is in a subset of possible goals $G'\subseteq G$ as follows
+% \begin{align*}
+%     VoI(G') = \mathbb{E}_{g\in G}[\textit{cost}] - \mathbb{E}_{g\in G'}[\textit{cost}] =\\ (\mathbb{E}_{g\in G}[\textit{cost}] -\textit{best cost}) - (\mathbb{E}_{g\in G'}[\textit{cost}] - \textit{best cost}) =\\ \mathbb{E}_{g\in G}[\textit{marginal cost}] - \mathbb{E}_{g\in G'}[\textit{marginal cost}]
+% \end{align*}
+
+% Substituting these values into Equation~\ref{eq:value_of_q-1}, we arrive at the final equation for value of a query:
+% \begin{equation}
+%     V(q) = \sum\limits_{g\in G}[P(g)*|\bigcup\limits_{g'\in G}eZ_Q(s, g' | g)|] - \sum\limits_{answer}[P(answer)*\sum\limits_{g\in answer}P(g|answer)*|\bigcup\limits_{g' \in answer}eZ_Q(s, g' | g)|]
+% \end{equation}
+% We then attempt to find the query that maximizes this value.
+
+\subsection{Choosing What to Query}
+
+% \begin{algorithm}
+% \label{alg:edp}
+% \caption{Calculate EDP}
+% \begin{algorithmic}
+% \Procedure{EDP}{policy $\pi_1$, policy $\pi_2$, state space $S$, action space $A$, transition function $T$, desired accuracy $\epsilon$}
+% \State $EDP \gets \{0 | s \in S\}$
+% \State $err \gets \infty$
+% \While{$err > \epsilon$}
+% \State $err \gets 0$
+% \For{$s \in S$}
+% \State $old \gets EDP[s]$
+% \State $EDP[s] \gets [1 - \sum\limits_{a\in A}\pi_2(s,a)*\lceil \pi_1(s,a) \rceil]$
+% \State $EDP[s] \gets EDP[s] + \sum\limits_{a \in A}[\pi_2(s, a)*\lceil \pi_1(s, a) \rceil] * \sum\limits_{s'\in S} T(s, a, s') * [1 + EDP[s']]$
+% \State $err \gets \max{(err, |EDP[s] - old|)}$
+% \EndFor
+% \EndWhile
+% \EndFor
+% \EndFor
+% \EndProcedure
+% \end{algorithmic}
+% \end{algorithm}
+
+Our policy for determining whether or not to query at each timestep is shown in Algorithm~\ref{alg:query}. It takes as input the Zone of Querying for each pair of goals, $Z_Q$, the expected Zone of Querying $eZ_Q$, the current set of possible goals $G$, the ego agents current belief of the teammates goal $P$ and the current timestep $t$. First the algorithm checks if the current timestep is within a Zone of Querying of two goals or more. If not, then the agent knows of an optimal ontic action and no querying is required. Otherwise, we then find the best possible query given $eZ_Q$, and only ask this query if its value is greater than its cost.
+% \textbf{William TODO: finish writing about algorithm}
+\begin{algorithm}[t]
+\caption{Query Policy}
+\begin{algorithmic}
+\Procedure{Query}{$Z_Q$ for each pair of goals, $eZ_Q$ for each pair of goals, $G$, $P$, current timestep $t$}
+% \If{$t \in Z_Q(g_1, g_2) \text{ for any } g_1,g_2 \in G$}
+\If{$\exists g_1,g_2\in G \textit{  s.t.  } t\in Z_Q(g_1,g_2))$}
+\State $query \gets ChooseQuery(G, eZ_Q, P)$
+\If{$value(query) - cost(query) > 0$}
+\State \Return $query$
+\EndIf
+\EndIf
+\State \Return No Query
+\EndProcedure
+\end{algorithmic}
+\label{alg:query}
+\end{algorithm}
+%%removedVspace
+
+To optimize the expected value of a chosen query, we define a binary vector $\textbf{x}$ for each possible query, such that $x_i$ is 1 if and only if $g_i$ is included in that query. We then optimize for the difference between the value of a query above and its cost over these vectors using a genetic algorithm. We use a population size of $50$ and optimize for $100$ generations. Members are selected using tournament selection, and then combined using crossover. Each bit in the two resulting members is mutated with probability $0.001$.
+% \footnote{Implementation details of the genetic algorithm can be found in a code repository that is omitted for anonymity}.
+
+
+
+\section{Experimental Setup}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.6\linewidth]{Figures/ToolFetchingDomain_MultiTools_2.pdf}
+    \caption{Example instance of the tool fetching domain. Workstations are shown by the grey boxes, toolboxes are shown by the black boxes with a T, the fetcher is shown as the gray circle labeled with an F, while the worker is shown as a gray circle labeled with a W.}
+    \label{fig:domain_example}
+\end{figure}
+
+Previous work in \textsc{somali cat} introduced an experimental domain known as the tool fetching domain~\cite{mirskypenny}. This domain consists of an ego agent, the \emph{fetcher}, attempting to meet a teammate, the \emph{worker}, at some workstation with a tool. The worker needs a specific tool depending on which station is its goal, and the worker's goal and policy are unknown to the fetcher. It is the job of the fetcher to deduce the goal of the worker based on its actions, to pick up the correct tool from a toolbox and to bring it to the correct workstation. At each timestep, the agents can execute one ontic action each. In this work, the fetcher infers the worker's true goal by setting a goal's probability to zero and normalizing the belief distribution when observing a non-optimal action for that goal. Alternatively, the fetcher can query the worker with questions of the form ``Is your goal one of the stations $g_1,g_2...g_N$?", where $g_1, \ldots, g_N \subseteq G$ is a subset of all workstations, and the worker replies truthfully. All queries are assumed to have a cost identical to moving one step, regardless of the content of the query.
+% Figure~\ref{fig:toolFetchingDomain_a} shows an example of this domain where the fetcher is following the path to the toolbox while the worker is following one of the paths to an unknown workstation.
+% \begin{figure}[h]
+%     \includegraphics[trim= 0 100 0 0, clip, width=0.4\textwidth]{Figures/ToolFetchginDomainRunningExample.pdf}
+%     \caption{Example of the tool fetching domain. $W$, $F$, and $T$ are the locations of the worker, fetcher, and toolbox respectively. The locations of the workstations are represented by the numbered squares.}
+%     \label{fig:toolFetchingDomain_a}
+% \end{figure}
+To show the benefits of our algorithm, we introduce 3 generalizations to the tool fetching domain that make the planning problem for the ego agent more complex to solve.
+%\begin{itemize}
+    \paragraph{Multiple $Z_B$s} We allow multiple toolboxes in the domain. Each toolbox contains a unique set of tools, and only one tool for each station is present in a domain. Including this generalization means that each pair of goals may have different $Z_B$ values, which makes determining query timing and content more challenging. %less trivial.
+    \paragraph{Non-uniform Probability} We allow non-uniform probability distributions for assigning the worker a goal. For instance, goals may be assigned with probability corresponding to the Boltzmann distribution over the negative of their distances. This modification means that the worker is more likely to have goals that are closer to it. Including this generalization means that querying about certain goals may be more valuable than others, and the fetcher will have to consider this distribution when deciding what to query about.
+    \paragraph{Cost Model} We allow for a more general cost model, where different queries have different costs. In particular, we consider a cost model where each query has some \emph{base cost} and an additional cost is added for each station asked, a \emph{per-station cost}. So for instance if queries have a base cost of $0.5$ and a per-station cost of $0.1$, then the query ``Is your goal station 1, 3 or 5?'' would have a cost of $0.5 + 3*0.1 = 0.8$. Including this generalization means that larger queries will cost more, and it may be more beneficial to ask smaller but less informative queries.
+%    \end{itemize}
+% First we allow multiple toolboxes in the domain. Each toolbox contains a unique set of tools, and only one tool for each station is present in a domain. Second, we allow non-uniform probability distributions for assigning the worker a goal. For instance, goals may be assigned with probability corresponding to the softmax of the negative of their distances. This means that the worker is more likely to have goals that are closer to it. Finally, we allow for a more general cost model, where different queries have different costs. In particular, we consider a cost model where each query has some \emph{base cost} and an additional cost is added for each station asked, a \emph{per-station cost}. So for instance if queries have a base cost of $0.5$ and a per-station cost of $0.1$, then the query ``Is your goal station 1, 3 or 5?'' would have a cost of $0.5 + 3*0.1 = 0.8$.
+% We consider several goal distributions for the teammate's choice of a goal: a uniform distribution over all goals, the Boltzmann distribution over the negative of the worker's distances, and the Boltzmann distribution over the worker's positive distances. Intuitively, the latter two distributions respectively define workers that are most likely to prefer workstations that are closer or farther from their initial location.
+Results used a cost of $0.5$ when initiating a query and varied the per station cost of each query.
+
+% We compare the performance of Algorithm \ref{alg:query} (\emph{$eZ_Q$ Query}) against two baseline ad hoc agents: one baseline never queries, when it is uncertain of the teammate's goal, it waits for an optimal action to become clear (\emph{Never Query}). The other baseline is the algorithm introduced by Mirsky et al. \shortcite{mirskypenny}, where the ad hoc agent chooses a random query once inside a $Z_Q$ (\emph{Baseline}). In addition, we extended \emph{Baseline} in two ways to make it choose queries in a more informed way: by accounting for the changing cost of different queries, as well as for the probability distribution over the teammate's goals (\emph{BL:Cost+Prob}) and by choosing queries that reduce the ambiguity related to the ad hoc agent's next action -- which toolbox to reach first (\emph{BL:Toolbox}).
+We compare the performance of Algorithm \ref{alg:query} (\emph{$eZ_Q$ Query}) against two baseline ego agents: one agent that never queries but always waits when it is uncertain about which action to take (\emph{Never Query}). The other baseline is the algorithm introduced by Mirsky et al. \shortcite{mirskypenny}, where the ego agent chooses a random query once inside a $Z_Q$ (\emph{Baseline}). In addition, we extended \emph{Baseline} in two ways to make it choose queries in a more informed way. First by accounting for the changing cost of different queries, as well as for the probability distribution over the teammate's goals (\emph{BL:Cost+Prob})~\cite{MackeDMAP}. The second method involves creating a set of stations that each ontic action would be optimal for, and then querying about the set with the median size of these sets. Intuitively, this method first attempts to disambiguate which toolbox to reach and then attempts to disambiguate the worker's station  (\emph{BL:Toolbox}). All methods take a NOOP action if they are uncertain of the optimal action and do not query. Additional details about the setup and the strategies can be found in the Appendix.
+
+% We compare our new planning algorithm for the ad hoc agent against several different algorithms that use $Z_Q$ for planning \emph{when} to query and then heuristically choose \emph{what} to query about:
+% \begin{itemize}
+%     \item Never Query - Never queries, but if uncertain of the teammate's goal, it waits for an optimal action to become clear.
+%     \item Random Query - Executes a random query when in a $Z_Q$. This approach was used in previous work \cite{mirskypenny}.
+%     \item BL:Cost+Prob - Executes a query when in a $Z_Q$, but accounts for the changing cost of different queries, as well as for the probability distribution over the teammate's goals.
+%     \item BL:Toolbox - Executes a query when in a $Z_Q$, but chooses queries that reduce the ambiguity related to the ad hoc agent's next action -- which toolbox to reach first.
+%     \item $eZ_Q$ Query - Times and chooses queries based on Algorithm~\ref{alg:query}.
+% \end{itemize}
+
+
+
+
+
+%\subsection{Additional Domain?}
+
+%\textbf{William TODO: Experimental setup, 50x50 grid, 20 goals, }
+
+\section{Results}
+We ran experiments in a $20\times 20$ grid, with $50$ workstations and $5$ toolboxes. Locations of the stations, toolboxes, and agents in each domain instance are chosen randomly. All results are averaged over $100$ domain instances.
+
+
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{Figures/CAT_AAAI_BoltzmannPositive.pdf}
+    %removedVspace
+    \caption{Per-station cost vs marginal cost of domain with Boltzmann distribution of the worker's distances to goals.}
+    \label{fig:dist}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{Figures/Boltzmann_Positive_hist_c0_subfigures.png}
+    %removedVspace
+    \caption{Histogram of number of queries (y-axis) executed per timestep (x-axis) by each method with the Boltzmann distribution of the worker's distances to goals and a per-station cost of 0.}
+    \label{fig:hist}
+\end{figure}
+
+Figure~\ref{fig:domain_example} shows an example of such a tool-fetching domain. We now compare the new algorithm with previous work and the heuristics described above. We demonstrate that \emph{$eZ_Q$ Query} is able to effectively leverage the additional information from our generalizations to obtain a better performance over previous work and the suggested heuristics, in terms of marginal cost (Definition \ref{def:mc}).
+
+Figure~\ref{fig:dist} shows the marginal cost averaged over 100 domain instances with different per-station costs (x-axis) when the probability distribution of the goals of the worker is the Boltzmann distribution over the worker's distances to each goal. This distribution means that the worker is more likely to choose goals that are farther from it. \emph{$eZ_Q$ Query} performs similarly to the heuristics when the per-station cost is 0, but dramatically outperforms all other methods as this value increases.
+Additional results showing \emph{$eZ_Q$ Query} under additional goal distributions can be seen in the Appendix.
+
+We also provide an analysis of how the \emph{$eZ_Q$ Query} method is achieving better performance than other methods. Figure~\ref{fig:hist} shows a histogram of the number of queries executed per timestep by each method. As shown in the histogram, \emph{$eZ_Q$ Query} tends to ask more queries in the earlier timesteps compared to \emph{BL:Toolbox} and \emph{BL:Cost+Prob}. This increase is because \emph{$eZ_Q$ Query} is focused on learning the worker's true goal with minimal cost and is better able to leverage information about the probability distribution over goals to make informed queries, and therefore finds the correct goal more quickly than other methods, but also takes longer before it knows an optimal action.
+In addition, we found that as the per-station cost increases from $0$ to $0.5$, the total number of queries executed by $eZ_Q$ query over all simulations decreases by $23\%$, showing that \emph{$eZ_Q$ Query} executes fewer queries when the cost is higher.
+
+% \textbf{William - TODO: Add info about paired t-test}
+
+% Finally Figure~\ref{fig:time} shows the relative time it takes to complete a simulation using our algorithm vs the various heuristics. \textbf{- W: TODO: Discuss this figure}
+
+Finally, there is an increased computational cost of using \emph{$eZ_Q$ Query} over other approaches and the proposed heuristics. While calculating \textsc{ed}p is expensive and takes several orders of magnitude longer than the rest of the querying algorithm (several hours per domain on average), these values
+% are independent of the teammate's behavior and
+can be computed a priori regardless of the teammate's actions. As such, the following results are under the assumption that the \textsc{edp} computation is performed in advance, and the following time measurements do not include these offline computations. %However, this assumption is reasonable provided details of the domain are available ahead of time.
+On average, all heuristic methods took $<0.23$ seconds to complete each simulation, while \emph{$eZ_Q$ Query} took on average $8.9$ seconds on an Ubuntu 16.04 LTS Intel core i7 2.5 GHz, with the genetic algorithm taking on average $6.1$ seconds to run. In practice, the increased time should not be a major detriment. If a robot is communicating with either a human or another robot, the major bottleneck is likely to be the communication channel (e.g. speech, network speed, decision making of the other agent) rather than this time. In addition, when using a genetic algorithm for optimization as we do in this paper, the \emph{$eZ_Q$ Query} computation should only grow in terms of $O(|G|^2log(|G|))$ with the number of goals (assuming that \textsc{edp} is precomputed ahead of time and that the number of members and generations do not grow with the number of goals).
+%This means that in practice a query time of 1 millisecond is not majorly beneficial over a query time of 1 second.
+
+
+
+
+% \begin{figure}
+%     \centering
+%     \includegraphics[width=\linewidth]{Figures/AAAI_InverseWorkerDist.pdf}
+%     \caption{Per station cost vs marginal cost of domain with softmax of the worker's distances to goals as distribution.}
+%     \label{fig:inv_dist}
+% \end{figure}
+
+% \begin{figure}
+%     \centering
+%     \includegraphics[width=\linewidth]{Figures/Time_Figure.pdf}
+%     \caption{Average time per simulation in seconds for various algorithms with per station cost of 0.}
+%     \label{fig:time}
+% \end{figure}
+
+\section{Discussion and Future Work}
+In this paper, we investigated a new metric to quantify ambiguity of teammate policies in ad hoc teamwork settings, by estimating the expected divergence point between different policies a teammate might posses. We then utilized this metric to construct a new ad hoc agent that reasons both about \emph{when} it is beneficial to query, but also about \emph{what} is beneficial to query about in order to reduce the ambiguity about its teammate's goal. Our empirical results show that regardless of the goal-choosing policy of the worker and a varying query cost model, \emph{$eZ_Q$ Query} remains more effective than any of the other methods tested, and even when querying is almost never beneficial, it is still able to adapt and obtain performance that is consistently better than \emph{Never Query}.
+
+The scope of this work is limited to \textsc{somali cat} problems. In addition, our current methods are designed to work in relatively simple environments with finite state spaces and a limited number of goals. However, the \textsc{edp} formalization opens up new avenues for investigating other %can be beneficial to plan for other
+complicated \textsc{somali cat} scenarios and other \textsc{cat} scenarios, such as those in which an agent can advise or share its beliefs with its teammates. We conjecture that the $eZ_Q$ algorithm can be modified relatively easily to address such challenges, as long as the ego agent remains the initiator of the communication. For instance, \textsc{edp} may be able to be calculated in domains with larger and continuous state spaces by leveraging more sophisticated RL techniques than the policy evaluation algorithm. It might be more challenging to extend this work to domains in which the teammate is the one to initiate the communication, as other works have investigated in the context of reinforcement learning agents \cite{torrey2013teaching,cui2018active}. Nonetheless, this work provides the means to investigate collaborations in ad hoc settings in new contexts, while presenting concrete solutions for planning in \textsc{somali cat} settings.
+
+\section*{Acknowledgements}
+This work has taken place in the Learning Agents Research
+Group (LARG) at UT Austin.  LARG research is supported in part by NSF
+(CPS-1739964, IIS-1724157, NRI-1925082), ONR (N00014-18-2243), FLI
+(RFP2-000), ARL, DARPA, Lockheed Martin, GM, and Bosch.  Peter Stone
+serves as the Executive Director of Sony AI America and receives
+financial compensation for this work.  The terms of this arrangement
+have been reviewed and approved by the University of Texas at Austin
+in accordance with its
+
+
+\clearpage
+\bibliography{aaai}
+\bibliographystyle{aaai21}
+
+
+
+\end{document}

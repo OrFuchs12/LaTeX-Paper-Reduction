@@ -1,0 +1,290 @@
+\section{Experiment Settings and Configurations}
+\label{appendix:exp-set}
+\subsection{Implementation Details} \label{appendix:implementation}
+
+\subsubsection{Implementation of \nls} The proposed sampler can be implemented with Numpy, Pytorch, or Jax. We further offer a ``batch version'' implementation, that draws a batch of samples in parallel on GPU. The batched sampler is useful for those tasks that require a huge number of samples to estimate the gradient with a small approximation error. 
+
+{In Section~\ref{sec:nls}, we define  vector of assignment  $x^t=(x^t_1, \dots, x^t_n)$,
+where $x_i^t$ is the assignment of variable $X_i$ in the $t$-th round of Algorithm~\ref{alg:lll-sampler}. $x^t_i=1$ denotes  variable $X_i$ takes value $1$ (or true). In the batch version, we define the matrix for a batch  of assignments. Let $b$ be the batch size, we have}
+\begin{equation*}
+x^{t}=\begin{bmatrix}
+x^t_{11} & \dots & x^t_{1n} \\
+  \vdots & \ddots & \vdots \\
+x^t_{b1} & \dots & x^t_{bn} \\
+\end{bmatrix}
+\end{equation*}
+{In the following part, we provide the detailed computation pipeline for the batch version of the proposed algorithm.} 
+
+
+
+\subsubsection{Initialization} {The first step is to sample an initial assignment of $X$ from the given the marginal probability vector $P$:}
+\begin{equation}
+ x^1_{li} = \begin{cases}
+ 1&\text{if } u_{li}> P_i,\\
+ 0 &\text{otherwise}. \\
+ \end{cases},\quad \text{ if} 1\le i\le n, 1\le l\le b
+\end{equation}
+{Here $u_{li}$ is sampled from the uniform distribution over $[0,1]$.}
+
+\subsubsection{Check Constraint Satisfaction} { The second step extract which constraint is violated. Given an assignment $x^t$ at round $t\ge 1$, tensor $W$ and matrix $b$, the computation of tensor $Z^t$ is:}
+\begin{equation*}
+Z^t_{lik} =\sum_{i=1}^n W_{ikj}  x_{lj}^t+b_{lik},
+\end{equation*}
+{The special  multiplication between tensor and matrix can be efficiently implemented with the  Einstein summation\footnote{\url{https://github.com/dgasmith/opt_einsum}}.
+%
+Note that $Z^t_{ljk}=1$ indicates for $l$-th batched assignment $x_l$, the $k$-th literal of $j$-th clause is true (takes value $1$). Next, we compute $S^t_{lj}$ as:}
+\begin{align*}
+S^t_{lj} &=1-\max_{1\le k\le K} Z_{ljk}, \quad \text{ for } 1\le j\le L, 1\le l\le b
+\end{align*}
+{Here $S^t_{lj}=1$ indicates $x_l^t$ violates $j$-th clause.
+%
+We can check $\sum_{l=1}^b\sum_{j=1}^LS^t_{lj}\neq 0$ to see if any clause is violated for the current batch of assignments, which corresponds to $\sum_{i=1}^bC(x_l)= 0$. }
+
+
+\subsubsection{Extract Variables in Violated Clauses} { We extract all the  variables that require resampling based on vector $S^t$ computed from the last step.
+The vector of the resampling indicator matrix $A^t$ can be computed as:}
+\begin{equation*}
+A^t_{li}=\mathbf{1}\left(\sum_{j=1}^L{S_{lj}^t} V_{ji}\ge 1\right),\quad \text{ for } 1\le i\le n, 1\le l\le b
+\end{equation*}
+where $\sum_{j=1}^L{S_{lj}^t} V_{ji}\ge 1$ implies $X_{li}$ requires resampling.
+
+\subsubsection{Resample} {Given the marginal probability vector $P$, resample indicator matrix $A^t$ and assignment matrix $x^t$, we draw a new random sample $x^{t+1}$. }
+\begin{equation*}
+ x_{li}^{t+1}=\begin{cases}
+ (1-A^t_{li}) x_{li}^t+A^t_{li}  &\text{if } u_{{li}}>P_i,\\
+ (1-A^t_{li}) x_{li}^t &\text{otherwise}.
+ \end{cases}\quad \text{ for } 1\le i\le n, 1\le l\le b
+\end{equation*}
+{where $u_{li}$ is drawn from the uniform distribution in $[0, 1]$. }
+
+{Since GPUs are more efficient at computing tensor, matrix, and vector operations but are slow at processing for loops. Drawing a batch of samples using the above extended computational pipeline is much faster than using a for loop over the computational pipeline in Section~\ref{sec:nls}.}
+
+The sampler is involved with one hyper-parameter $T_{\textit{tryout}}$. \nls  would terminate when it reaches $T_{\textit{tryout}}$ number of re-samples. This practice is commonly used to handle randomized programs that might run forever in rare cases. 
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.99\linewidth]{figs/learn-pipeline-crop.pdf}
+\captionof{figure}{Implementation pipeline of the \nls-CD algorithm with $m=1$. The proposed \nls can be efficiently adapted to a Pytorch-based machine learning library and enforces constraint satisfaction during learning.}\label{fig:pipeline}
+\end{figure*}
+
+
+\subsubsection{Implementation of  Algorithm~\ref{alg:main}}  We first use the Constraints $\mathcal{C}$ and parameters $\theta^t$ to build the current \nls module.  Then we draw $m$ samples from \nls module $\{\tilde{x}^j\}_{j=1}^m$ and draw from dataset randomly $m$ samples $\{x^j\}_{j=1}^m$. Continuing from that point, we compute the potential value from the two sets of inputs, i.e., $\{ \phi_{\theta}(\tilde{x}^j)\}_{j=1}^m$ and $\{ \phi_{\theta}(\tilde{x}^j)\}_{j=1}^m$. Pytorch would be slow if we compute each potential's gradient using a for-loop. To bypass this problem, we instead compute the following:
+\begin{equation} \label{eq:emp-gradient}
+\overline{\ell_{\mathcal{C}}(\theta)}= \frac{1}{m}\sum_{j=1}^m \phi_{\theta}(x^j)-\frac{1}{m}\sum_{j=1}^m \phi_{\theta}(\tilde{x}^j).
+\end{equation}
+Following that, we call the PyTorch library's gradient function, which computes exactly
+\begin{equation*}
+\begin{aligned}
+\nabla\overline{\ell_{\mathcal{C}}(\theta)}&=\nabla\left(\frac{1}{m}\sum_{j=1}^m \phi_{\theta}(x^j)-\frac{1}{m}\sum_{j=1}^m \phi_{\theta}(\tilde{x}^j)\right)=\frac{1}{m}\sum_{j=1}^m \nabla\phi_{\theta}(x^j)-\frac{1}{m}\sum_{j=1}^m \nabla\phi_{\theta}(\tilde{x}^j)
+\end{aligned}
+\end{equation*}
+Note that $\nabla\overline{\ell_{\mathcal{C}}(\theta)}$ recovers the result in Equation~\eqref{eq:gradient}. Finally, we update the parameters $\theta$. The proposed \nls module and the neural network are computed on the same GPU device. This allows us to exploit the parallel computing power of modern GPUs and remove time for the data transfer from CPU to GPU or vice versa.   See Figure~\ref{fig:pipeline} for a visualized overview of the implementation with Pytroch.
+
+
+
+
+\subsection{Learn Random K-SAT Solutions with Preference}
+\subsubsection{Task Definition}  We are given a training set $\mathcal{D}$ containing some preferred assignments $\mathcal{D}=\{x^j\}_{j=1}^N$ for the corresponding CNF formula $c_1\wedge\ldots\wedge  c_L$. We require the CNF formula to be true. This means, by the definition of CNF formulas, that every clause has to be satisfied. These clauses become our set of constraints. Under the constrained MRF model, the learning task is to maximize the log-likelihood of the assignments seen in the training set $\mathcal{D}$. The inference task is to generate valid solutions from  the learned model's distribution~\cite{DBLP:conf/aiia/DodaroP19,DBLP:conf/sac/RosaGO11}.
+
+
+% \subsubsection{A Detailed Example} [TODO]
+
+
+\subsubsection{Dataset} We denote the Boolean variables' size in $K$-SAT as the ``problem size''. We consider several datasets of different problem sizes generated from CNFGen\footnote{\url{https://github.com/MassimoLauria/cnfgen}}~\cite{DBLP:conf/sat/LauriaENV17} random $K$-SAT functions. $K$ is fixed as $5$; the number of variables and clauses are kept the same,  ranging from $10$ to $1500$. We generate $100$ different CNF formulas  for every problem size. To generate the training set $\mathcal{D}$, we use the Glucose4 solver from PySAT\footnote{\url{https://pysathq.github.io/}} library~\cite{DBLP:conf/sat/IgnatievMM18} to generate $200$ assignments randomly as the preferred assignments for every formula. 
+
+It should be pointed out that we don't consider datasets like SATLIB and SAT competitions. It is mainly because these datasets are hard instances with a much larger input space but a limited number of solutions. \nls would generally take exponential time to find these solutions, just like finding needles in a haystack. The other reasons are that using neural networks to learn these limited assignments is straightforward since we can simply hard-wire the network to memorize all the valid assignments. The main purpose of this work is to let a constrained MRF learn a representation for the underlying preference pattern, not create a neural solver that can generate valid assignments for any CNF formula. Thus, we conform to the settings of the easy formula where obtaining valid solutions is easy.
+
+
+
+
+
+
+
+
+
+\subsection{Learn Sink-Free Orientation in Undirected Graphs}
+\textbf{Task Definition} In graph theory, a \textit{sink-free} orientation of an undirected graph is a choice of orientation for each edge such that every vertex has at least one outgoing edge~\cite{DBLP:journals/combinatorics/CohnPP02}. It has wide applications in robotics routing and IoT network configuration~\cite{takahashi2009communication}.  The Constraints for this problem are that every vertex has at least one outgoing edge after orientation. As stated in~\cite{DBLP:journals/jacm/GuoJL19}, these constraints satisfy Condition~\ref{cond:extreme}.
+
+{See Figure~\ref{fig:sinkfreeex} for an example graph and one possible sink-free edge orientation. We define binary variables $X_1,\ldots, X_m$, and associate variable $X_i$ to edge $e_i$ for $1\le i\le m$. Variable $X_i$ takes value $1$ if the edge orientation is $v_i\to v_j$ where $i<j$. Otherwise, $X_i$ takes value $0$. The constraints are:}
+\begin{equation*}
+\mathcal{C}=(X_1\vee X_2)\wedge(\neg X_1\vee X_3\vee\neg X_4)\wedge(\neg X_2\vee\neg X_3\vee X_5)\wedge(X_4\vee \neg X_5)
+\end{equation*}
+{where the single constraint  $c_1=(X_1\vee X_2)$ corresponds to vertex $v_1$, constraint $c_2=(\neg X_1\vee X_3\vee\neg X_4)$ corresponds to vertex  $v_2$, constraint $c_3=(\neg X_2\vee\neg X_3\vee X_5)$  corresponds to vertex  $v_3$, and constraint $c_4=(X_4\vee \neg X_5)$ corresponds to vertex  $v_4$. The orientation assignment matrix $x$ shown in Figure~\ref{fig:sinkfreeex}(b) implies: $X_1=1,X_2=1,X_3=1,X_4=0,X_5=1$.}
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[xscale=0.15, yscale=0.15, inner sep=2pt, >=stealth]
+    \draw (0,10)  node[circle,thick,draw] (v1) {$v_1$}; 
+    \draw (10,20) node[circle,thick,draw] (v2) {$v_2$};
+    \draw (10,0)  node[circle,thick,draw] (v3) {$v_3$}; 
+    \draw (22,-5) node[thick] (v4) {\textbf{(a)} An undirected graph $G$ with its adjacency matrix $A$}; 
+    \draw (20,10) node[circle,thick,draw] (v4) {$v_4$}; 
+    \draw (36,10)  node (v5) {$A=\begin{bNiceMatrix}[
+  first-row,code-for-first-row=\normalsize,
+  first-col,code-for-first-col=\normalsize,
+]
+ &v_1 &v_2 & v_3  & v_4 \\
+v_1& 0 & 1 & 1 & 0  \\
+ v_2& 1 & 0 & 1 & 1\\
+v_3& 1 & 1 &   0 & 1 \\
+v_4& 0 & 1 & 1 & 0  \\
+\end{bNiceMatrix}$}; 
+    \draw[-,thick] (v1) -- (v2);
+    \draw[-,thick] (v1) -- (v3);
+    \draw[-,thick] (v2) -- (v3);
+    \draw[-,thick] (v4) -- (v2); 
+    \draw[-,thick] (v3) -- (v4);  
+    \draw (4,16)  node[text width = 6mm] () {$e_1$}; 
+    \draw (4,4)   node[text width = 6mm] () {$e_2$};
+    \draw (13,10) node[text width = 6mm] () {$e_3$};
+    \draw (18,16) node[text width = 6mm] () {$e_4$}; 
+    \draw (18,4)  node[text width = 6mm] () {$e_5$};
+  \end{tikzpicture}
+ \hfill
+\begin{tikzpicture}[xscale=0.15, yscale=0.15, inner sep=2pt, >=stealth]
+    \draw (0,10)  node[circle,thick,draw] (v1) {$v_1$}; 
+    \draw (10,20) node[circle,thick,draw] (v2) {$v_2$};
+    \draw (10,0)  node[circle,thick,draw] (v3) {$v_3$}; 
+    \draw (22,-5) node[thick] (v4) {\textbf{(b)} An orientation of the edges and the orientation matrix $x$}; 
+    \draw (20,10) node[circle,thick,draw] (v4) {$v_4$}; 
+     \draw (36,10)  node (v5) {$x=\begin{bNiceMatrix}[
+  first-row,code-for-first-row=\normalsize,
+  first-col,code-for-first-col=\normalsize,
+]
+ &v_1 &v_2 & v_3  & v_4 \\
+v_1& 0 & 1 & 1 & 0  \\
+ v_2& 0 & 0 & 1 & 0\\
+v_3& 0 & 0 &   0 & 1 \\
+v_4& 0 & 1 & 0 & 0  \\
+\end{bNiceMatrix}$}; 
+    \draw[->,thick] (v1) -- (v2);
+    \draw[->,thick] (v1) -- (v3);
+    \draw[->,thick] (v2) -- (v3);
+    \draw[->,thick] (v4) -- (v2); 
+    \draw[->,thick] (v3) -- (v4);  
+    \draw (4,16)  node[text width = 6mm] () {$e_1$}; 
+    \draw (4,4)   node[text width = 6mm] () {$e_2$};
+    \draw (13,10) node[text width = 6mm] () {$e_3$};
+    \draw (18,16) node[text width = 6mm] () {$e_4$}; 
+    \draw (18,4)  node[text width = 6mm] () {$e_5$};
+  \end{tikzpicture}
+\caption{{\textbf{(a)} An un-directed graph $G(V,E)$ where the vertices are $V=\{v_1,v_2,v_3,v_4\}$ and the un-directed edges are $E=\{e_1=(v_1,v_2),e_2=(v_1,v_3),e_3=(v_2,v_3),e_4=(v_2,v_4),e_5=(v_3,v_4)\}$. \textbf{(b)} A possible sink-free orientation of the edges in the graph and its matrix representation $x$, where every vertex has at least one outgoing edge. }}
+\label{fig:sinkfreeex}
+\end{figure}
+
+\subsubsection{Notations} Let  graph $G(V,E)$ be an  un-directed graph; its
+ adjacency matrix $A$ that represents graph connectivity is:
+\begin{equation}\label{eq:adjacency}
+A_{ij}=\begin{cases}
+{1}&\text{If } (v_i,v_j)\in E\\
+0&\text{otherwise}
+\end{cases}
+\end{equation}
+A possible assignment for the orientation of every edge can be represented as a matrix $x\in\{0,1\}^{|V|\times |V|}$:
+\begin{equation}\label{eq:orientation-assign}
+x_{ij}=\begin{cases}
+1& \text{if the edge orientation is } v_i\to v_j \\
+0&\text{otherwise}
+\end{cases}
+\end{equation}
+In the constrained MRF model defined in Eq.~\eqref{eq:constr_mrf_single}, the potential function of one orientation of all edges is
+\begin{equation*}
+ \phi_{\theta}(x)=\sum_{i=1}^{|V|}\sum_{j=1}^{|V|}\theta_{ij}A_{ij}x_{ij}
+\end{equation*}
+A single constraint for vertex $v_k$ is $c_k(x)=\mathbf{1}\left(\sum_{j=1}^nA_{k,j}x_{k,j}=1\right)$. If there is no ongoing edge of vertex $v_k$. The  constraint function $C(x)$ is defined as: $\prod_{i=1}^nc_k(x)$. In Algorithm~\ref{alg:lll-sampler} step 1, edge $(v_i,v_j)$ will pick the orientation $v_i\to v_j$  with probability:
+\begin{equation*}
+\frac{\exp(\theta_{ij}A_{ij}x_{ij})}{\exp(\theta_{ji}A_{ji}x_{ji})+\exp(\theta_{ij}A_{ij}x_{ij})}
+\end{equation*}
+
+
+\subsubsection{Dataset} {We use the NetworkX\footnote{https://networkx.org/} package to generate random Erdos Renyi graph with edge probability $0.55$. The problem size refers to the number of vertices in the graph, we range the problem size from 10 to 100. For each problem size, we generate 100 different random undirected graphs. We then convert the graph into CNF form using the above edge-variable conversion rule. Afterward, we follow the same processing steps as the previous problem that learn preferential solution distribution for random K-SAT. }.
+
+% \subsubsection{A Detailed Example} [TODO]
+
+\subsection{Learn Vehicle Delivery Routes}
+Given a set of locations to visit, the task is to generate a sequence to visit these locations in which each location is visited once and only once and the sequence closely resembles the trend presented in the training data.  The training data are such routes collected in the past.  
+The dataset is constructed from TSPLIB, which consists of $29$ cities in Bavaria, Germany. 
+%
+In Figure~\ref{fig:route}, we see  \nls can obtain samples of this delivery problem highly efficiently. %can also 
+
+A possible travel plan can be represented as a matrix $x\in\{0,1\}^{|V|\times |V|}$:
+\begin{equation}\label{eq:route}
+x_{ij}=\begin{cases}
+1& \text{if edge } v_i\to v_j \text{ is selected}\\
+0&\text{otherwise}
+\end{cases}
+\end{equation}
+The constraints are that every  routing plan should visit every location once and only once.
+
+Similarly, in the constrained MRF model defined in Eq.~\eqref{eq:constr_mrf_single}, the potential function of the vehicle routing plan is
+\begin{equation*}
+ \phi_{\theta}(x)=\sum_{i=1}^{|V|}\sum_{j=1}^{|V|}\theta_{ij}A_{ij}x_{ij}
+\end{equation*}
+
+
+% \subsubsection{A Detailed Example} [TODO]
+
+\subsection{Detailed Baselines Configuation} 
+In terms of sampling-based methods, we consider:
+\begin{itemize}
+\item Gibbs sampler~\cite{carter1994gibbs}, a special case of MCMC that is  widely used in training MRF models. In each step, the Gibbs algorithm samples 
+one dimension based on a conditional marginal distribution. We follow this implementation\footnote{\url{https://github.com/Fading0924/BPChain-CD/blob/master/mrf.py}}.
+    \item Weighted SAT samplers, including WAPS\footnote{\url{https://github.com/meelgroup/waps}}~\cite{DBLP:conf/tacas/GuptaSRM19}, WeightGen\footnote{\url{https://bitbucket.org/kuldeepmeel/weightgen/src/master/}}~\cite{DBLP:conf/aaai/ChakrabortyFMSV14} and XOR sampler\footnote{\url{https://cs.stanford.edu/~ermon/code/srcPAWS.zip}}~\cite{DBLP:conf/nips/ErmonGSS13,DBLP:conf/uai/DingX21}.
+    \item Uniform SAT samplers, including UniGen\footnote{\url{https://github.com/meelgroup/unigen}}~\cite{DBLP:conf/cav/SoosGM20}, QuickSampler\footnote{\url{https://github.com/RafaelTupynamba/quicksampler}}~\cite{DBLP:conf/icse/DutraLBS18}, CMSGen\footnote{\url{https://github.com/meelgroup/cmsgen}}~\cite{DBLP:conf/fmcad/GoliaSCM21} and KUS\footnote{\url{https://github.com/meelgroup/KUS}}~\cite{DBLP:conf/lpar/SharmaGRM18}.
+\end{itemize}
+Currently, there are only GPU-based SAT solvers~\cite{DBLP:conf/sat/PrevotSM21,mahmoud2022gpu} and model counters~\cite{DBLP:conf/cp/FichteHZ19}, GPU-based SAT samplers are not available by far.
+
+\subsection{Detailed Definition of Evaluation Metrics}
+In terms of evaluation metrics, we consider
+\begin{itemize}
+    \item Training time per epoch. The average time for the whole learning method  to finish one epoch with each sampler.
+    \item Validness. The learned model is adopted to generate assignments and we evaluate the percentage of generated assignments that satisfy the constraints.
+    \item  Mean Averaged Precision (MAP$@10$).  This is a ranking-oriented metric that can evaluate the closeness of  the learned MRF  distribution to the  goal distribution. If the model learns the goal distribution in the training set, then it would assign a higher potential value to those assignments in the training set than all the rest unseen assignments. Based on this principle,
+    we randomly pick two sets of inputs in those valid assignments: seen assignments from the training set  and unseen  assignments that are randomly generated. We use the value of factor potential $\phi(x)$ to rank those assignments in ascending order.  Next, we check how many preferred solutions can fall into the Top-$10$ by computing the following
+\begin{equation*}
+\text{MAP}@10=\sum_{k=1}^{10}\frac{\#\text{preferred assignments among top-} k}{k}
+\end{equation*}
+
+    \item $\log$-likelihood of assignments in the training set $\mathcal{D}$. The model that attains the highest $\log$-likelihood learns the closest  distribution to the training set.  Specifically, given a training set $\mathcal{D}=\{x^k\}_{k=1}^N$ and parameters $\theta$, the log-likelihood value is:
+\begin{equation} 
+\begin{aligned}
+{\frac{1}{N}\sum_{k=1}^N\log P_{\theta}(X=x^k|\mathcal{C})}&=\frac{1}{N}\sum_{k=1}^N\phi_\theta(x^k)- \log Z_\mathcal{C}(\theta)
+\end{aligned}
+\end{equation}
+We use the ACE algorithm to compute the approximated value of $\log Z_\mathcal{C}(\theta) $\footnote{\url{http://reasoning.cs.ucla.edu/ace/moreInformation.html}}.
+
+    \item Approximation Error of $\nabla \log Z_{\mathcal{C}}(\theta)$, that is the $L_1$ distance between the exact gradient of $ \log Z_{\mathcal{C}}(\theta)$ in Eq.~\eqref{eq:gradient} and the empirical gradient from the sampler. For small problem sizes, we enumerate all $x\in \mathcal{X}$ to get the exact gradient and draw samples $\{\tilde{x}^j\}_{j=1}^m$ with $m=2000$  from every sampler for approximation.
+    \begin{equation*}
+    \Big|\underbrace{\sum_{x\in\mathcal{X}} \frac{\exp\left( \sum_{j=1}^n\theta_jx_j\right)C(x) }{Z_\mathcal{C}(\theta)}{x_i}}_{\text{{Exact gradient term}}} \ - \ \underbrace{\sum_{j=1}^m \tilde{x}^j_i}_{\text{{Estimated gradient with sampler}}}\Big|
+    \end{equation*}
+    For fixed parameter $\theta$, the best sampler would attain the smallest approximation error.
+\end{itemize}
+
+
+
+\subsection{Hyper-parameter Settings} 
+ In the implementation of \nls, we set the maximum tryout of resampling as $T_{tryout}=1000$ for all the experiments and all the datasets.
+
+For the hyper-parameters used in learning the constrained MRF, we set the number of samples from the model to be $m=200$, the learning rate $\eta$ is configured as $0.1$ and the total learning iterations are $T_{\max}=1000$.
+
+
+
+
+\begin{figure*}[!ht]
+    \centering
+    \includegraphics[width=0.245\linewidth]{exp/sat/randkcnf_5_500_500_0001.uniform.pdf}
+    \includegraphics[width=0.245\linewidth]{exp/sat/randkcnf_5_700_700_0001.uniform.pdf}
+    \includegraphics[width=0.245\linewidth]{exp/sat/randkcnf_5_1000_1000_0001.uniform.pdf}
+    \includegraphics[width=0.245\linewidth]{exp/sat/randkcnf_5_1500_1500_0001.uniform.pdf}
+    \begin{center}
+      (a) Uniform Case.
+    \end{center}
+    \includegraphics[width=0.245\linewidth]{exp/sat/randkcnf_5_500_500_0001.weighted.pdf}
+    \includegraphics[width=0.245\linewidth]{exp/sat/randkcnf_5_700_700_0001.weighted.pdf}
+    \includegraphics[width=0.245\linewidth]{exp/sat/randkcnf_5_1000_1000_0001.weighted.pdf}
+    \includegraphics[width=0.245\linewidth]{exp/sat/randkcnf_5_1500_1500_0001.weighted.pdf}
+    \begin{center}
+      (b) Weighted Case.
+    \end{center}
+    \caption{The distribution of resampling steps in the \nls and Algorithmic-LLL~\cite{DBLP:journals/jacm/MoserT10}. Both of them get a valid sample within $T_{\mathit{tryouts}}$. \nls takes much fewer resamples than Algorithmic-LLL because it resamples all the violated clauses at every iteration while Algorithmic-LLL only resamples one of them.}\label{fig:ap:resamples}
+\end{figure*}
