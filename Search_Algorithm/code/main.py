@@ -375,10 +375,11 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
 
         mse_dct = new_experiment_inferstructure.create_dict()
         results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
-                                                                        file_name=current_path_for_tex,last_pages=path_for_pdf,
+                                                                        file_name=current_path_for_tex,last_pages=current_path_for_pdf,
                                                                         algorithm_search=search_algorithms_for_experiment.dijkstra,
-                                                                        models=models, mse_dct=mse_dct)
+                                                                        models=models, mse_dct=mse_dct , bib_path=bibliograph_path)
         print(results)
+        
         for operator in results:
             df1, lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                          bibliograph_path,
@@ -394,7 +395,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 dct = pickle.load(dct_file)
 
             original_operators_list = greedy.perform_operators(dct,  current_path_for_tex,lidor)
-
+            iter = 0
             for j in range(len(original_operators_list)):
                 first_element_new_list = original_operators_list[j]
                 if str(first_element_new_list[2]) == '1':
@@ -408,7 +409,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 print(operator)
                 if oper == operator:
                     latex_after_operator = first_element_new_list[1]
-                    current_path_for_tex = os.path.join("code/~/results/new_files/", "new.tex")
+                    current_path_for_tex = os.path.join(f"code/~/results/new_files/{paper_directory}", "new.tex")
                     f = open(current_path_for_tex, "w")
                     f.write(latex_after_operator)
                     f.close()
@@ -422,13 +423,22 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
               
                     current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
+                    lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
+                    last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
+                    current_path_for_pdf = last_pages_pdf
                     last_page_height = read_single_file.order(current_path_for_pdf)
                     cost += first_element_new_list[0]
-
+                    iter += 1
                     count_operators += 1
                     break
 
-        if (last_page_height < original_height or last_page_height == 0):
+        # if (last_page_height < original_height or last_page_height == 0):
+        #     reduced = True
+        # lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
+        # make a new pdf only with 2 last pages:
+        # last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
+        lines, pages = greedy.check_lines(current_path_for_pdf)
+        if (pages < 2 or new_number_of_pages< num_of_pages):
             reduced = True
 
         iterations = 1
@@ -964,6 +974,7 @@ def results(path_for_docs, type_of_experiment, operators_max, models, bibliograp
                 "iterations": iterations, "reduced": reduced,
                 "original_height": original_height, "last_page_height": last_page_height, "gained": gained,
                 "cost": cost, "time_taken": time_taken, "max_len_tree": len_tree, "operators_count": count_operators})
+        print(results_data[-1])
     results_df = pd.DataFrame.from_records(results_data)
     results_df.to_csv(path_for_write_csv, index=False)
 
