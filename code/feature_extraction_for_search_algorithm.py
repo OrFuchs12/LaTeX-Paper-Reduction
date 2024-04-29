@@ -203,7 +203,7 @@ def run_feature_extraction(latex_path, pdf_path, bib_path
         # except:
         #     return df
         if res == []:
-            return df
+            return df ,{} , {}, {}
         max_height = res[-1]
         # with open(path_to_save_analysis_dict, 'wb') as dct_file:
         #     pickle.dump(res, dct_file)

@@ -72,7 +72,8 @@ def run_search(tree_depth, file_name,last_pages, algorithm_search, models, mse_d
     print("generate graph for file:", file_name)
     tree = new_experiment_inferstructure.generate_search_graph(tree_depth, file_name, last_pages, models, mse_dct, bib_path)
     #tree = load_search_dict('pdf_extraction\\adi_comparing\\files_for_search\\search_dict')
-
+    if not tree:
+        return None, -1
     #print(tree)
 
     graph = create_graph_networkx(tree, tree_depth)

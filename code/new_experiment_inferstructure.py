@@ -17,6 +17,20 @@ index_for_object = {'Par':1,'Paragraph':1,'Figure':2,'CaptionFigure':3,'Table':4
 threshold_low = 10
 threshold_high = 40
 
+
+
+def generate_dictionaries(counts):
+    dict_for_indexes = {}
+    dict_for_indexes_inverse = {}
+    
+    for key, value in counts.items():
+        for i in range(1, value + 1):
+            new_key = f"{key}{i}"
+            dict_for_indexes[len(dict_for_indexes)] = key
+            dict_for_indexes_inverse[new_key] = len(dict_for_indexes_inverse)
+    
+    return dict_for_indexes, dict_for_indexes_inverse
+
 def simulating_vspace_for_prediction(value, key,operator_value,df_copy,models,prob_dict):  # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
     type = 1
     value_of_operator = 0 #to be determined
@@ -394,14 +408,15 @@ def simulating_using_vspace(value_of_operator,object_used_on,num_of_object,df_co
                       'algorithm_position_param',
                       'space_between_this_object_and_last_object', 'space_between_this_object_and_the_next_object']
 
-    dict_for_indexes = {0:'Par',1:'Par',2:'Par',3:'Par',4:'Par',5:'Par',6:'Par',7:'Par',8:'Paragraph',9:'Paragraph',10:'Figure',11:'Figure',12:'Figure',13:'Figure',14:'CaptionFigure',15:'CaptionFigure',16:'CaptionFigure',17:'CaptionFigure',18:'Table',19:'Table',20:'CaptionTable',21:'CaptionTable',22:'Section',23:'Section',24:'Section',25:'SubSection',26:'SubSection',27:'SubSection',28:'Enum',29:'Enum',30:'Enum',31:'Enum',32:'Enum',33:'Formula',34:'Formula',35:'Formula',36:'Formula',37:'Formula',38:'Algorithm',39:'Algorithm'}
-    dict_for_indexes_inverse = {'Par1':0, 'Par2':1, 'Par3':2, 'Par4':3, 'Par5':4, 'Par6':5, 'Par7':6, 'Par8':7, 'Paragraph1':8,
-                        'Paragraph2':9, 'Figure1':10, 'Figure2':11, 'Figure3':12, 'Figure4':13, 'CaptionFigure1':14,
-                        'CaptionFigure2':15, 'CaptionFigure3':16, 'CaptionFigure4':17, 'Table1':18, 'Table2':19,
-                        'CaptionTable1':20, 'CaptionTable2':21,'Section1':22, 'Section2':23, 'Section3':24,
-                        'SubSection1':25, 'SubSection2':26, 'SubSection3':27, 'Enum1':28, 'Enum2':29, 'Enum3':30,
-                        'Enum4':31, 'Enum5':32, 'Formula1':33, 'Formula2':34, 'Formula3':35, 'Formula4':36,
-                        'Formula5':37, 'Algorithm1':38, 'Algorithm2':39}
+    # dict_for_indexes = {0:'Par',1:'Par',2:'Par',3:'Par',4:'Par',5:'Par',6:'Par',7:'Par',8:'Paragraph',9:'Paragraph',10:'Figure',11:'Figure',12:'Figure',13:'Figure',14:'CaptionFigure',15:'CaptionFigure',16:'CaptionFigure',17:'CaptionFigure',18:'Table',19:'Table',20:'CaptionTable',21:'CaptionTable',22:'Section',23:'Section',24:'Section',25:'SubSection',26:'SubSection',27:'SubSection',28:'Enum',29:'Enum',30:'Enum',31:'Enum',32:'Enum',33:'Formula',34:'Formula',35:'Formula',36:'Formula',37:'Formula',38:'Algorithm',39:'Algorithm'}
+    # dict_for_indexes_inverse = {'Par1':0, 'Par2':1, 'Par3':2, 'Par4':3, 'Par5':4, 'Par6':5, 'Par7':6, 'Par8':7, 'Paragraph1':8,
+    #                     'Paragraph2':9, 'Figure1':10, 'Figure2':11, 'Figure3':12, 'Figure4':13, 'CaptionFigure1':14,
+    #                     'CaptionFigure2':15, 'CaptionFigure3':16, 'CaptionFigure4':17, 'Table1':18, 'Table2':19,
+    #                     'CaptionTable1':20, 'CaptionTable2':21,'Section1':22, 'Section2':23, 'Section3':24,
+    #                     'SubSection1':25, 'SubSection2':26, 'SubSection3':27, 'Enum1':28, 'Enum2':29, 'Enum3':30,
+    #                     'Enum4':31, 'Enum5':32, 'Formula1':33, 'Formula2':34, 'Formula3':35, 'Formula4':36,
+    #                     'Formula5':37, 'Algorithm1':38, 'Algorithm2':39}
+    dict_for_indexes, dict_for_indexes_inverse = generate_dictionaries(count_dict_of_elements)
     object_used_on_combind_with_num_of_object = object_used_on+str(num_of_object)
     #we can know the hierarchy based on
     start_remembering = False
@@ -678,6 +693,7 @@ def simulating_using_vspace(value_of_operator,object_used_on,num_of_object,df_co
     list_4 = []
     list_5 = []
     list_6 = []
+    index_of_last_element = 0
 
     for i in range(0, num_of_pars):
         list_1.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
@@ -694,8 +710,9 @@ def simulating_using_vspace(value_of_operator,object_used_on,num_of_object,df_co
 
         if (df_copy.at['single_word_in_last_line' + str(i), 'Doc0'] == 1):
             num_of_paragraphs_with_1_word_at_the_end += 1
-
-    for i in range(8, num_of_paragraphs + 8):
+    index_of_last_element = index_of_last_element + num_of_pars
+    
+    for i in range(index_of_last_element, num_of_paragraphs + index_of_last_element):
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_paragraphs_in_col_1 += 1
         else:
@@ -710,8 +727,9 @@ def simulating_using_vspace(value_of_operator,object_used_on,num_of_object,df_co
 
         if (df_copy.at['single_word_in_last_line' + str(i), 'Doc0'] == 1):
             num_of_paragraphs_with_1_word_at_the_end += 1
-
-    for i in range(28, num_of_enums + 28):
+    index_of_last_element = index_of_last_element + num_of_paragraphs
+    
+    for i in range(index_of_last_element, num_of_enums + index_of_last_element):
         list_2.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
 
         if (df_copy.at['num_of_chars' + str(i), 'Doc0'] > 0):
@@ -723,13 +741,16 @@ def simulating_using_vspace(value_of_operator,object_used_on,num_of_object,df_co
     else:
         max_lines_enum = 0
         min_lines_enum = 0
-
-    for i in range(14, num_of_captionfigures + 14):
+    index_of_last_element = index_of_last_element + num_of_enums
+    
+    for i in range(index_of_last_element, num_of_captionfigures + index_of_last_element):
         list_3.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
-
-    for i in range(20, num_of_captiontables + 20):
+    index_of_last_element = index_of_last_element + num_of_captionfigures
+    
+    for i in range(index_of_last_element, num_of_captiontables + index_of_last_element):
         list_3.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
-
+    index_of_last_element = index_of_last_element + num_of_captiontables
+    
     if (len(list_3) != 0):
         max_lines_caption = max(list_3)
         min_lines_caption = min(list_3)
@@ -737,7 +758,7 @@ def simulating_using_vspace(value_of_operator,object_used_on,num_of_object,df_co
         max_lines_caption = 0
         min_lines_caption = 0
 
-    for i in range(10, num_of_figures + 10):
+    for i in range(index_of_last_element, num_of_figures + index_of_last_element):
         list_4.append(df_copy.at['height' + str(i), 'Doc0'])
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_figures_in_col_1 += 1
@@ -752,8 +773,9 @@ def simulating_using_vspace(value_of_operator,object_used_on,num_of_object,df_co
         max_figure_y_space = 0
         min_figure_y_space = 0
         sum_space_taken_by_figures = 0
-
-    for i in range(18, num_of_tables + 18):
+    index_of_last_element = index_of_last_element + num_of_figures
+    
+    for i in range(index_of_last_element, num_of_tables + index_of_last_element):
         list_5.append(df_copy.at['height' + str(i), 'Doc0'])
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_tables_in_col_1 += 1
@@ -768,6 +790,21 @@ def simulating_using_vspace(value_of_operator,object_used_on,num_of_object,df_co
         max_table_y_space = 0
         min_table_y_space = 0
         sum_space_taken_by_tables = 0
+    index_of_last_element = index_of_last_element + num_of_tables
+
+    for i in range(index_of_last_element, num_of_formulas + index_of_last_element):
+        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
+            num_of_formulas_in_col_1 += 1
+        else:
+            num_of_formulas_in_col_2 += 1
+    index_of_last_element = index_of_last_element + num_of_formulas
+            
+    for i in range(index_of_last_element, num_of_algorithms + index_of_last_element):
+        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
+            num_of_algorithms_in_col_1 += 1
+        else:
+            num_of_algorithms_in_col_2 += 1
+    index_of_last_element = index_of_last_element + num_of_algorithms
 
     part_of_last_height = 0
     for i in range(0, 39):
@@ -791,18 +828,6 @@ def simulating_using_vspace(value_of_operator,object_used_on,num_of_object,df_co
     else:
         max_height_object = 0
         min_height_object = 0
-
-    for i in range(38, num_of_algorithms + 38):
-        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
-            num_of_algorithms_in_col_1 += 1
-        else:
-            num_of_algorithms_in_col_2 += 1
-
-    for i in range(33, num_of_formulas + 33):
-        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
-            num_of_formulas_in_col_1 += 1
-        else:
-            num_of_formulas_in_col_2 += 1
 
     last_element = list(dct_of_elements_in_order)[-1]
     get_index_of_last_element = dict_for_indexes_inverse[last_element]
@@ -950,26 +975,27 @@ def simulating_using_vspace(value_of_operator,object_used_on,num_of_object,df_co
     return dct_of_elements_in_order,count_dict_of_elements,summative_features,df_copy
 
 def simulating_using_figure_reduction(value_of_operator,object_used_on,num_of_object,df_copy,summative_features,dct_of_elements_in_order,count_dict_of_elements): # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
-    dict_for_indexes = {0: 'Par', 1: 'Par', 2: 'Par', 3: 'Par', 4: 'Par', 5: 'Par', 6: 'Par', 7: 'Par', 8: 'Paragraph',
-                        9: 'Paragraph', 10: 'Figure', 11: 'Figure', 12: 'Figure', 13: 'Figure', 14: 'CaptionFigure',
-                        15: 'CaptionFigure', 16: 'CaptionFigure', 17: 'CaptionFigure', 18: 'Table', 19: 'Table',
-                        20: 'CaptionTable', 21: 'CaptionTable', 22: 'Section', 23: 'Section', 24: 'Section',
-                        25: 'SubSection', 26: 'SubSection', 27: 'SubSection', 28: 'Enum', 29: 'Enum', 30: 'Enum',
-                        31: 'Enum', 32: 'Enum', 33: 'Formula', 34: 'Formula', 35: 'Formula', 36: 'Formula',
-                        37: 'Formula', 38: 'Algorithm', 39: 'Algorithm'}
-    dict_for_indexes_inverse = {'Par1': 0, 'Par2': 1, 'Par3': 2, 'Par4': 3, 'Par5': 4, 'Par6': 5, 'Par7': 6, 'Par8': 7,
-                                'Paragraph1': 8,
-                                'Paragraph2': 9, 'Figure1': 10, 'Figure2': 11, 'Figure3': 12, 'Figure4': 13,
-                                'CaptionFigure1': 14,
-                                'CaptionFigure2': 15, 'CaptionFigure3': 16, 'CaptionFigure4': 17, 'Table1': 18,
-                                'Table2': 19,
-                                'CaptionTable1': 20, 'CaptionTable2': 21, 'Section1': 22, 'Section2': 23,
-                                'Section3': 24,
-                                'SubSection1': 25, 'SubSection2': 26, 'SubSection3': 27, 'Enum1': 28, 'Enum2': 29,
-                                'Enum3': 30,
-                                'Enum4': 31, 'Enum5': 32, 'Formula1': 33, 'Formula2': 34, 'Formula3': 35,
-                                'Formula4': 36,
-                                'Formula5': 37, 'Algorithm1': 38, 'Algorithm2': 39}
+    # dict_for_indexes = {0: 'Par', 1: 'Par', 2: 'Par', 3: 'Par', 4: 'Par', 5: 'Par', 6: 'Par', 7: 'Par', 8: 'Paragraph',
+    #                     9: 'Paragraph', 10: 'Figure', 11: 'Figure', 12: 'Figure', 13: 'Figure', 14: 'CaptionFigure',
+    #                     15: 'CaptionFigure', 16: 'CaptionFigure', 17: 'CaptionFigure', 18: 'Table', 19: 'Table',
+    #                     20: 'CaptionTable', 21: 'CaptionTable', 22: 'Section', 23: 'Section', 24: 'Section',
+    #                     25: 'SubSection', 26: 'SubSection', 27: 'SubSection', 28: 'Enum', 29: 'Enum', 30: 'Enum',
+    #                     31: 'Enum', 32: 'Enum', 33: 'Formula', 34: 'Formula', 35: 'Formula', 36: 'Formula',
+    #                     37: 'Formula', 38: 'Algorithm', 39: 'Algorithm'}
+    # dict_for_indexes_inverse = {'Par1': 0, 'Par2': 1, 'Par3': 2, 'Par4': 3, 'Par5': 4, 'Par6': 5, 'Par7': 6, 'Par8': 7,
+    #                             'Paragraph1': 8,
+    #                             'Paragraph2': 9, 'Figure1': 10, 'Figure2': 11, 'Figure3': 12, 'Figure4': 13,
+    #                             'CaptionFigure1': 14,
+    #                             'CaptionFigure2': 15, 'CaptionFigure3': 16, 'CaptionFigure4': 17, 'Table1': 18,
+    #                             'Table2': 19,
+    #                             'CaptionTable1': 20, 'CaptionTable2': 21, 'Section1': 22, 'Section2': 23,
+    #                             'Section3': 24,
+    #                             'SubSection1': 25, 'SubSection2': 26, 'SubSection3': 27, 'Enum1': 28, 'Enum2': 29,
+    #                             'Enum3': 30,
+    #                             'Enum4': 31, 'Enum5': 32, 'Formula1': 33, 'Formula2': 34, 'Formula3': 35,
+    #                             'Formula4': 36,
+    #                             'Formula5': 37, 'Algorithm1': 38, 'Algorithm2': 39}
+    dict_for_indexes, dict_for_indexes_inverse = generate_dictionaries(count_dict_of_elements)
     object_used_on_combind_with_num_of_object = object_used_on + str(num_of_object)
     # we can know the hierarchy based on
     start_remembering = False
@@ -1253,6 +1279,8 @@ def simulating_using_figure_reduction(value_of_operator,object_used_on,num_of_ob
     list_5 = []
     list_6 = []
 
+    index_of_last_element = 0
+    
     for i in range(0, num_of_pars):
         list_1.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
@@ -1268,8 +1296,9 @@ def simulating_using_figure_reduction(value_of_operator,object_used_on,num_of_ob
 
         if (df_copy.at['single_word_in_last_line' + str(i), 'Doc0'] == 1):
             num_of_paragraphs_with_1_word_at_the_end += 1
-
-    for i in range(8, num_of_paragraphs + 8):
+    index_of_last_element = num_of_pars
+    
+    for i in range(index_of_last_element, num_of_paragraphs + index_of_last_element):
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_paragraphs_in_col_1 += 1
         else:
@@ -1284,8 +1313,9 @@ def simulating_using_figure_reduction(value_of_operator,object_used_on,num_of_ob
 
         if (df_copy.at['single_word_in_last_line' + str(i), 'Doc0'] == 1):
             num_of_paragraphs_with_1_word_at_the_end += 1
+    index_of_last_element = num_of_paragraphs + index_of_last_element
 
-    for i in range(28, num_of_enums + 28):
+    for i in range(index_of_last_element, num_of_enums + index_of_last_element):
         list_2.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
 
         if (df_copy.at['num_of_chars' + str(i), 'Doc0'] > 0):
@@ -1297,12 +1327,15 @@ def simulating_using_figure_reduction(value_of_operator,object_used_on,num_of_ob
     else:
         max_lines_enum = 0
         min_lines_enum = 0
+    index_of_last_element = num_of_enums + index_of_last_element
 
-    for i in range(14, num_of_captionfigures + 14):
+    for i in range(index_of_last_element, num_of_captionfigures + index_of_last_element):
         list_3.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
+    index_of_last_element = num_of_captionfigures + index_of_last_element
 
-    for i in range(20, num_of_captiontables + 20):
+    for i in range(index_of_last_element, num_of_captiontables + index_of_last_element):
         list_3.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
+    index_of_last_element = num_of_captiontables + index_of_last_element
 
     if (len(list_3) != 0):
         max_lines_caption = max(list_3)
@@ -1311,12 +1344,13 @@ def simulating_using_figure_reduction(value_of_operator,object_used_on,num_of_ob
         max_lines_caption = 0
         min_lines_caption = 0
 
-    for i in range(10, num_of_figures + 10):
+    for i in range(index_of_last_element, num_of_figures + index_of_last_element):
         list_4.append(df_copy.at['height' + str(i), 'Doc0'])
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_figures_in_col_1 += 1
         else:
             num_of_figures_in_col_2 += 1
+    index_of_last_element = num_of_figures + index_of_last_element
 
     if (len(list_4) != 0):
         max_figure_y_space = max(list_4)
@@ -1327,12 +1361,13 @@ def simulating_using_figure_reduction(value_of_operator,object_used_on,num_of_ob
         min_figure_y_space = 0
         sum_space_taken_by_figures = 0
 
-    for i in range(18, num_of_tables + 18):
+    for i in range(index_of_last_element, num_of_tables + index_of_last_element):
         list_5.append(df_copy.at['height' + str(i), 'Doc0'])
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_tables_in_col_1 += 1
         else:
             num_of_tables_in_col_2 += 1
+    index_of_last_element = num_of_tables + index_of_last_element
 
     if (len(list_5) != 0):
         max_table_y_space = max(list_5)
@@ -1342,9 +1377,23 @@ def simulating_using_figure_reduction(value_of_operator,object_used_on,num_of_ob
         max_table_y_space = 0
         min_table_y_space = 0
         sum_space_taken_by_tables = 0
+        
+    for i in range(index_of_last_element, num_of_formulas + index_of_last_element):
+        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
+            num_of_formulas_in_col_1 += 1
+        else:
+            num_of_formulas_in_col_2 += 1
+    index_of_last_element = num_of_formulas + index_of_last_element
+        
+    for i in range(index_of_last_element, num_of_algorithms + index_of_last_element):
+        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
+            num_of_algorithms_in_col_1 += 1
+        else:
+            num_of_algorithms_in_col_2 += 1
+    index_of_last_element = num_of_algorithms + index_of_last_element
 
     part_of_last_height = 0
-    for i in range(0, 39):
+    for i in range(0, index_of_last_element):
         if (df_copy.at['height' + str(i), 'Doc0'] > 0):
             list_6.append(df_copy.at['height' + str(i), 'Doc0'])
             sum_space_taken += df_copy.at['height' + str(i), 'Doc0']
@@ -1367,18 +1416,6 @@ def simulating_using_figure_reduction(value_of_operator,object_used_on,num_of_ob
     else:
         max_height_object = 0
         min_height_object = 0
-
-    for i in range(38, num_of_algorithms + 38):
-        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
-            num_of_algorithms_in_col_1 += 1
-        else:
-            num_of_algorithms_in_col_2 += 1
-
-    for i in range(33, num_of_formulas + 33):
-        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
-            num_of_formulas_in_col_1 += 1
-        else:
-            num_of_formulas_in_col_2 += 1
 
     last_element = list(dct_of_elements_in_order)[-1]
     get_index_of_last_element = dict_for_indexes_inverse[last_element]
@@ -1518,7 +1555,6 @@ def simulating_using_figure_reduction(value_of_operator,object_used_on,num_of_ob
     if (new_ending_y < df_copy.at['ending_y_of_doc', 'Doc0']):
         df_copy.at['ending_y_of_doc', 'Doc0'] = new_ending_y
 
-
     # df_copy = df_copy.T
     # df_copy.to_csv('example_test_for_me_1_4_2023_2.csv')
     # sys.exit()
@@ -1526,26 +1562,27 @@ def simulating_using_figure_reduction(value_of_operator,object_used_on,num_of_ob
     return dct_of_elements_in_order, count_dict_of_elements, summative_features, df_copy
 
 def simulating_using_table_reduction(value_of_operator,object_used_on,num_of_object,df_copy,summative_features,dct_of_elements_in_order,count_dict_of_elements): # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
-    dict_for_indexes = {0: 'Par', 1: 'Par', 2: 'Par', 3: 'Par', 4: 'Par', 5: 'Par', 6: 'Par', 7: 'Par', 8: 'Paragraph',
-                        9: 'Paragraph', 10: 'Figure', 11: 'Figure', 12: 'Figure', 13: 'Figure', 14: 'CaptionFigure',
-                        15: 'CaptionFigure', 16: 'CaptionFigure', 17: 'CaptionFigure', 18: 'Table', 19: 'Table',
-                        20: 'CaptionTable', 21: 'CaptionTable', 22: 'Section', 23: 'Section', 24: 'Section',
-                        25: 'SubSection', 26: 'SubSection', 27: 'SubSection', 28: 'Enum', 29: 'Enum', 30: 'Enum',
-                        31: 'Enum', 32: 'Enum', 33: 'Formula', 34: 'Formula', 35: 'Formula', 36: 'Formula',
-                        37: 'Formula', 38: 'Algorithm', 39: 'Algorithm'}
-    dict_for_indexes_inverse = {'Par1': 0, 'Par2': 1, 'Par3': 2, 'Par4': 3, 'Par5': 4, 'Par6': 5, 'Par7': 6, 'Par8': 7,
-                                'Paragraph1': 8,
-                                'Paragraph2': 9, 'Figure1': 10, 'Figure2': 11, 'Figure3': 12, 'Figure4': 13,
-                                'CaptionFigure1': 14,
-                                'CaptionFigure2': 15, 'CaptionFigure3': 16, 'CaptionFigure4': 17, 'Table1': 18,
-                                'Table2': 19,
-                                'CaptionTable1': 20, 'CaptionTable2': 21, 'Section1': 22, 'Section2': 23,
-                                'Section3': 24,
-                                'SubSection1': 25, 'SubSection2': 26, 'SubSection3': 27, 'Enum1': 28, 'Enum2': 29,
-                                'Enum3': 30,
-                                'Enum4': 31, 'Enum5': 32, 'Formula1': 33, 'Formula2': 34, 'Formula3': 35,
-                                'Formula4': 36,
-                                'Formula5': 37, 'Algorithm1': 38, 'Algorithm2': 39}
+    # dict_for_indexes = {0: 'Par', 1: 'Par', 2: 'Par', 3: 'Par', 4: 'Par', 5: 'Par', 6: 'Par', 7: 'Par', 8: 'Paragraph',
+    #                     9: 'Paragraph', 10: 'Figure', 11: 'Figure', 12: 'Figure', 13: 'Figure', 14: 'CaptionFigure',
+    #                     15: 'CaptionFigure', 16: 'CaptionFigure', 17: 'CaptionFigure', 18: 'Table', 19: 'Table',
+    #                     20: 'CaptionTable', 21: 'CaptionTable', 22: 'Section', 23: 'Section', 24: 'Section',
+    #                     25: 'SubSection', 26: 'SubSection', 27: 'SubSection', 28: 'Enum', 29: 'Enum', 30: 'Enum',
+    #                     31: 'Enum', 32: 'Enum', 33: 'Formula', 34: 'Formula', 35: 'Formula', 36: 'Formula',
+    #                     37: 'Formula', 38: 'Algorithm', 39: 'Algorithm'}
+    # dict_for_indexes_inverse = {'Par1': 0, 'Par2': 1, 'Par3': 2, 'Par4': 3, 'Par5': 4, 'Par6': 5, 'Par7': 6, 'Par8': 7,
+    #                             'Paragraph1': 8,
+    #                             'Paragraph2': 9, 'Figure1': 10, 'Figure2': 11, 'Figure3': 12, 'Figure4': 13,
+    #                             'CaptionFigure1': 14,
+    #                             'CaptionFigure2': 15, 'CaptionFigure3': 16, 'CaptionFigure4': 17, 'Table1': 18,
+    #                             'Table2': 19,
+    #                             'CaptionTable1': 20, 'CaptionTable2': 21, 'Section1': 22, 'Section2': 23,
+    #                             'Section3': 24,
+    #                             'SubSection1': 25, 'SubSection2': 26, 'SubSection3': 27, 'Enum1': 28, 'Enum2': 29,
+    #                             'Enum3': 30,
+    #                             'Enum4': 31, 'Enum5': 32, 'Formula1': 33, 'Formula2': 34, 'Formula3': 35,
+    #                             'Formula4': 36,
+    #                             'Formula5': 37, 'Algorithm1': 38, 'Algorithm2': 39}
+    dict_for_indexes, dict_for_indexes_inverse = generate_dictionaries(count_dict_of_elements)
     object_used_on_combind_with_num_of_object = object_used_on + str(num_of_object)
     # we can know the hierarchy based on
     start_remembering = False
@@ -1828,6 +1865,7 @@ def simulating_using_table_reduction(value_of_operator,object_used_on,num_of_obj
     list_4 = []
     list_5 = []
     list_6 = []
+    index_of_last_element = 0
 
     for i in range(0, num_of_pars):
         list_1.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
@@ -1844,8 +1882,9 @@ def simulating_using_table_reduction(value_of_operator,object_used_on,num_of_obj
 
         if (df_copy.at['single_word_in_last_line' + str(i), 'Doc0'] == 1):
             num_of_paragraphs_with_1_word_at_the_end += 1
-
-    for i in range(8, num_of_paragraphs + 8):
+    index_of_last_element = num_of_pars
+    
+    for i in range(index_of_last_element, num_of_paragraphs+ index_of_last_element):
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_paragraphs_in_col_1 += 1
         else:
@@ -1860,8 +1899,9 @@ def simulating_using_table_reduction(value_of_operator,object_used_on,num_of_obj
 
         if (df_copy.at['single_word_in_last_line' + str(i), 'Doc0'] == 1):
             num_of_paragraphs_with_1_word_at_the_end += 1
-
-    for i in range(28, num_of_enums + 28):
+    index_of_last_element = num_of_paragraphs + index_of_last_element
+    
+    for i in range(index_of_last_element, num_of_enums + index_of_last_element):
         list_2.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
 
         if (df_copy.at['num_of_chars' + str(i), 'Doc0'] > 0):
@@ -1873,12 +1913,15 @@ def simulating_using_table_reduction(value_of_operator,object_used_on,num_of_obj
     else:
         max_lines_enum = 0
         min_lines_enum = 0
-
-    for i in range(14, num_of_captionfigures + 14):
+    index_of_last_element = num_of_enums + index_of_last_element
+    
+    for i in range(index_of_last_element, num_of_captionfigures + index_of_last_element):
         list_3.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
+    index_of_last_element = num_of_captionfigures + index_of_last_element
 
-    for i in range(20, num_of_captiontables + 20):
+    for i in range(index_of_last_element, num_of_captiontables + index_of_last_element):
         list_3.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
+    index_of_last_element = num_of_captiontables + index_of_last_element
 
     if (len(list_3) != 0):
         max_lines_caption = max(list_3)
@@ -1887,7 +1930,7 @@ def simulating_using_table_reduction(value_of_operator,object_used_on,num_of_obj
         max_lines_caption = 0
         min_lines_caption = 0
 
-    for i in range(10, num_of_figures + 10):
+    for i in range(index_of_last_element, num_of_figures + index_of_last_element):
         list_4.append(df_copy.at['height' + str(i), 'Doc0'])
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_figures_in_col_1 += 1
@@ -1902,8 +1945,9 @@ def simulating_using_table_reduction(value_of_operator,object_used_on,num_of_obj
         max_figure_y_space = 0
         min_figure_y_space = 0
         sum_space_taken_by_figures = 0
+    index_of_last_element = num_of_figures + index_of_last_element
 
-    for i in range(18, num_of_tables + 18):
+    for i in range(index_of_last_element, num_of_tables + index_of_last_element):
         list_5.append(df_copy.at['height' + str(i), 'Doc0'])
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_tables_in_col_1 += 1
@@ -1918,9 +1962,24 @@ def simulating_using_table_reduction(value_of_operator,object_used_on,num_of_obj
         max_table_y_space = 0
         min_table_y_space = 0
         sum_space_taken_by_tables = 0
-
+    index_of_last_element = num_of_tables + index_of_last_element
     part_of_last_height = 0
-    for i in range(0, 39):
+
+    for i in range(index_of_last_element, num_of_formulas + index_of_last_element):
+        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
+            num_of_formulas_in_col_1 += 1
+        else:
+            num_of_formulas_in_col_2 += 1
+    index_of_last_element = num_of_formulas + index_of_last_element
+
+    for i in range(index_of_last_element, num_of_algorithms + index_of_last_element):
+        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
+            num_of_algorithms_in_col_1 += 1
+        else:
+            num_of_algorithms_in_col_2 += 1
+    index_of_last_element = num_of_algorithms + index_of_last_element
+    
+    for i in range(0, index_of_last_element):
         if (df_copy.at['height' + str(i), 'Doc0'] > 0):
             list_6.append(df_copy.at['height' + str(i), 'Doc0'])
             sum_space_taken += df_copy.at['height' + str(i), 'Doc0']
@@ -1944,17 +2003,7 @@ def simulating_using_table_reduction(value_of_operator,object_used_on,num_of_obj
         max_height_object = 0
         min_height_object = 0
 
-    for i in range(38, num_of_algorithms + 38):
-        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
-            num_of_algorithms_in_col_1 += 1
-        else:
-            num_of_algorithms_in_col_2 += 1
 
-    for i in range(33, num_of_formulas + 33):
-        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
-            num_of_formulas_in_col_1 += 1
-        else:
-            num_of_formulas_in_col_2 += 1
 
     last_element = list(dct_of_elements_in_order)[-1]
     get_index_of_last_element = dict_for_indexes_inverse[last_element]
@@ -2102,26 +2151,27 @@ def simulating_using_table_reduction(value_of_operator,object_used_on,num_of_obj
     return dct_of_elements_in_order,count_dict_of_elements,summative_features,df_copy
 
 def simulating_using_algorithm_reduction(value_of_operator,object_used_on,num_of_object,df_copy,summative_features,dct_of_elements_in_order,count_dict_of_elements): # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
-    dict_for_indexes = {0: 'Par', 1: 'Par', 2: 'Par', 3: 'Par', 4: 'Par', 5: 'Par', 6: 'Par', 7: 'Par', 8: 'Paragraph',
-                        9: 'Paragraph', 10: 'Figure', 11: 'Figure', 12: 'Figure', 13: 'Figure', 14: 'CaptionFigure',
-                        15: 'CaptionFigure', 16: 'CaptionFigure', 17: 'CaptionFigure', 18: 'Table', 19: 'Table',
-                        20: 'CaptionTable', 21: 'CaptionTable', 22: 'Section', 23: 'Section', 24: 'Section',
-                        25: 'SubSection', 26: 'SubSection', 27: 'SubSection', 28: 'Enum', 29: 'Enum', 30: 'Enum',
-                        31: 'Enum', 32: 'Enum', 33: 'Formula', 34: 'Formula', 35: 'Formula', 36: 'Formula',
-                        37: 'Formula', 38: 'Algorithm', 39: 'Algorithm'}
-    dict_for_indexes_inverse = {'Par1': 0, 'Par2': 1, 'Par3': 2, 'Par4': 3, 'Par5': 4, 'Par6': 5, 'Par7': 6, 'Par8': 7,
-                                'Paragraph1': 8,
-                                'Paragraph2': 9, 'Figure1': 10, 'Figure2': 11, 'Figure3': 12, 'Figure4': 13,
-                                'CaptionFigure1': 14,
-                                'CaptionFigure2': 15, 'CaptionFigure3': 16, 'CaptionFigure4': 17, 'Table1': 18,
-                                'Table2': 19,
-                                'CaptionTable1': 20, 'CaptionTable2': 21, 'Section1': 22, 'Section2': 23,
-                                'Section3': 24,
-                                'SubSection1': 25, 'SubSection2': 26, 'SubSection3': 27, 'Enum1': 28, 'Enum2': 29,
-                                'Enum3': 30,
-                                'Enum4': 31, 'Enum5': 32, 'Formula1': 33, 'Formula2': 34, 'Formula3': 35,
-                                'Formula4': 36,
-                                'Formula5': 37, 'Algorithm1': 38, 'Algorithm2': 39}
+    # dict_for_indexes = {0: 'Par', 1: 'Par', 2: 'Par', 3: 'Par', 4: 'Par', 5: 'Par', 6: 'Par', 7: 'Par', 8: 'Paragraph',
+    #                     9: 'Paragraph', 10: 'Figure', 11: 'Figure', 12: 'Figure', 13: 'Figure', 14: 'CaptionFigure',
+    #                     15: 'CaptionFigure', 16: 'CaptionFigure', 17: 'CaptionFigure', 18: 'Table', 19: 'Table',
+    #                     20: 'CaptionTable', 21: 'CaptionTable', 22: 'Section', 23: 'Section', 24: 'Section',
+    #                     25: 'SubSection', 26: 'SubSection', 27: 'SubSection', 28: 'Enum', 29: 'Enum', 30: 'Enum',
+    #                     31: 'Enum', 32: 'Enum', 33: 'Formula', 34: 'Formula', 35: 'Formula', 36: 'Formula',
+    #                     37: 'Formula', 38: 'Algorithm', 39: 'Algorithm'}
+    # dict_for_indexes_inverse = {'Par1': 0, 'Par2': 1, 'Par3': 2, 'Par4': 3, 'Par5': 4, 'Par6': 5, 'Par7': 6, 'Par8': 7,
+    #                             'Paragraph1': 8,
+    #                             'Paragraph2': 9, 'Figure1': 10, 'Figure2': 11, 'Figure3': 12, 'Figure4': 13,
+    #                             'CaptionFigure1': 14,
+    #                             'CaptionFigure2': 15, 'CaptionFigure3': 16, 'CaptionFigure4': 17, 'Table1': 18,
+    #                             'Table2': 19,
+    #                             'CaptionTable1': 20, 'CaptionTable2': 21, 'Section1': 22, 'Section2': 23,
+    #                             'Section3': 24,
+    #                             'SubSection1': 25, 'SubSection2': 26, 'SubSection3': 27, 'Enum1': 28, 'Enum2': 29,
+    #                             'Enum3': 30,
+    #                             'Enum4': 31, 'Enum5': 32, 'Formula1': 33, 'Formula2': 34, 'Formula3': 35,
+    #                             'Formula4': 36,
+    #                             'Formula5': 37, 'Algorithm1': 38, 'Algorithm2': 39}
+    dict_for_indexes, dict_for_indexes_inverse = generate_dictionaries(count_dict_of_elements)
     object_used_on_combind_with_num_of_object = object_used_on + str(num_of_object)
     # we can know the hierarchy based on
     start_remembering = False
@@ -2401,6 +2451,7 @@ def simulating_using_algorithm_reduction(value_of_operator,object_used_on,num_of
     list_4 = []
     list_5 = []
     list_6 = []
+    index_of_last_element = 0
 
     for i in range(0, num_of_pars):
         list_1.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
@@ -2417,8 +2468,9 @@ def simulating_using_algorithm_reduction(value_of_operator,object_used_on,num_of
 
         if (df_copy.at['single_word_in_last_line' + str(i), 'Doc0'] == 1):
             num_of_paragraphs_with_1_word_at_the_end += 1
+    index_of_last_element = num_of_pars
 
-    for i in range(8, num_of_paragraphs + 8):
+    for i in range(index_of_last_element, num_of_paragraphs + index_of_last_element):
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_paragraphs_in_col_1 += 1
         else:
@@ -2433,8 +2485,9 @@ def simulating_using_algorithm_reduction(value_of_operator,object_used_on,num_of
 
         if (df_copy.at['single_word_in_last_line' + str(i), 'Doc0'] == 1):
             num_of_paragraphs_with_1_word_at_the_end += 1
+    index_of_last_element = num_of_paragraphs + index_of_last_element
 
-    for i in range(28, num_of_enums + 28):
+    for i in range(index_of_last_element, num_of_enums + index_of_last_element):
         list_2.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
 
         if (df_copy.at['num_of_chars' + str(i), 'Doc0'] > 0):
@@ -2446,12 +2499,15 @@ def simulating_using_algorithm_reduction(value_of_operator,object_used_on,num_of
     else:
         max_lines_enum = 0
         min_lines_enum = 0
+    index_of_last_element = num_of_enums + index_of_last_element
 
-    for i in range(14, num_of_captionfigures + 14):
+    for i in range(index_of_last_element, num_of_captionfigures + index_of_last_element):
         list_3.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
+    index_of_last_element = num_of_captionfigures + index_of_last_element
 
-    for i in range(20, num_of_captiontables + 20):
+    for i in range(index_of_last_element, num_of_captiontables + index_of_last_element):
         list_3.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
+    index_of_last_element = num_of_captiontables + index_of_last_element
 
     if (len(list_3) != 0):
         max_lines_caption = max(list_3)
@@ -2460,7 +2516,7 @@ def simulating_using_algorithm_reduction(value_of_operator,object_used_on,num_of
         max_lines_caption = 0
         min_lines_caption = 0
 
-    for i in range(10, num_of_figures + 10):
+    for i in range(index_of_last_element, num_of_figures + index_of_last_element):
         list_4.append(df_copy.at['height' + str(i), 'Doc0'])
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_figures_in_col_1 += 1
@@ -2475,13 +2531,15 @@ def simulating_using_algorithm_reduction(value_of_operator,object_used_on,num_of
         max_figure_y_space = 0
         min_figure_y_space = 0
         sum_space_taken_by_figures = 0
+    index_of_last_element = num_of_figures + index_of_last_element
 
-    for i in range(18, num_of_tables + 18):
+    for i in range(index_of_last_element, num_of_tables + index_of_last_element):
         list_5.append(df_copy.at['height' + str(i), 'Doc0'])
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_tables_in_col_1 += 1
         else:
             num_of_tables_in_col_2 += 1
+    index_of_last_element = num_of_tables + index_of_last_element
 
     if (len(list_5) != 0):
         max_table_y_space = max(list_5)
@@ -2491,9 +2549,23 @@ def simulating_using_algorithm_reduction(value_of_operator,object_used_on,num_of
         max_table_y_space = 0
         min_table_y_space = 0
         sum_space_taken_by_tables = 0
+        
+    for i in range(index_of_last_element, num_of_formulas + index_of_last_element):
+        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
+            num_of_formulas_in_col_1 += 1
+        else:
+            num_of_formulas_in_col_2 += 1
+    index_of_last_element = num_of_formulas + index_of_last_element
+        
+    for i in range(index_of_last_element, num_of_algorithms + index_of_last_element):
+        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
+            num_of_algorithms_in_col_1 += 1
+        else:
+            num_of_algorithms_in_col_2 += 1
+    index_of_last_element = num_of_algorithms + index_of_last_element
 
     part_of_last_height = 0
-    for i in range(0, 39):
+    for i in range(0, index_of_last_element):
         if (df_copy.at['height' + str(i), 'Doc0'] > 0):
             list_6.append(df_copy.at['height' + str(i), 'Doc0'])
             sum_space_taken += df_copy.at['height' + str(i), 'Doc0']
@@ -2516,18 +2588,6 @@ def simulating_using_algorithm_reduction(value_of_operator,object_used_on,num_of
     else:
         max_height_object = 0
         min_height_object = 0
-
-    for i in range(38, num_of_algorithms + 38):
-        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
-            num_of_algorithms_in_col_1 += 1
-        else:
-            num_of_algorithms_in_col_2 += 1
-
-    for i in range(33, num_of_formulas + 33):
-        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
-            num_of_formulas_in_col_1 += 1
-        else:
-            num_of_formulas_in_col_2 += 1
 
     last_element = list(dct_of_elements_in_order)[-1]
     get_index_of_last_element = dict_for_indexes_inverse[last_element]
@@ -2675,26 +2735,27 @@ def simulating_using_algorithm_reduction(value_of_operator,object_used_on,num_of
     return dct_of_elements_in_order, count_dict_of_elements, summative_features, df_copy
 
 def simulating_using_enum_operator(value_of_operator,object_used_on,num_of_object,df_copy,summative_features,dct_of_elements_in_order,count_dict_of_elements): # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
-    dict_for_indexes = {0: 'Par', 1: 'Par', 2: 'Par', 3: 'Par', 4: 'Par', 5: 'Par', 6: 'Par', 7: 'Par', 8: 'Paragraph',
-                        9: 'Paragraph', 10: 'Figure', 11: 'Figure', 12: 'Figure', 13: 'Figure', 14: 'CaptionFigure',
-                        15: 'CaptionFigure', 16: 'CaptionFigure', 17: 'CaptionFigure', 18: 'Table', 19: 'Table',
-                        20: 'CaptionTable', 21: 'CaptionTable', 22: 'Section', 23: 'Section', 24: 'Section',
-                        25: 'SubSection', 26: 'SubSection', 27: 'SubSection', 28: 'Enum', 29: 'Enum', 30: 'Enum',
-                        31: 'Enum', 32: 'Enum', 33: 'Formula', 34: 'Formula', 35: 'Formula', 36: 'Formula',
-                        37: 'Formula', 38: 'Algorithm', 39: 'Algorithm'}
-    dict_for_indexes_inverse = {'Par1': 0, 'Par2': 1, 'Par3': 2, 'Par4': 3, 'Par5': 4, 'Par6': 5, 'Par7': 6, 'Par8': 7,
-                                'Paragraph1': 8,
-                                'Paragraph2': 9, 'Figure1': 10, 'Figure2': 11, 'Figure3': 12, 'Figure4': 13,
-                                'CaptionFigure1': 14,
-                                'CaptionFigure2': 15, 'CaptionFigure3': 16, 'CaptionFigure4': 17, 'Table1': 18,
-                                'Table2': 19,
-                                'CaptionTable1': 20, 'CaptionTable2': 21, 'Section1': 22, 'Section2': 23,
-                                'Section3': 24,
-                                'SubSection1': 25, 'SubSection2': 26, 'SubSection3': 27, 'Enum1': 28, 'Enum2': 29,
-                                'Enum3': 30,
-                                'Enum4': 31, 'Enum5': 32, 'Formula1': 33, 'Formula2': 34, 'Formula3': 35,
-                                'Formula4': 36,
-                                'Formula5': 37, 'Algorithm1': 38, 'Algorithm2': 39}
+    # dict_for_indexes = {0: 'Par', 1: 'Par', 2: 'Par', 3: 'Par', 4: 'Par', 5: 'Par', 6: 'Par', 7: 'Par', 8: 'Paragraph',
+    #                     9: 'Paragraph', 10: 'Figure', 11: 'Figure', 12: 'Figure', 13: 'Figure', 14: 'CaptionFigure',
+    #                     15: 'CaptionFigure', 16: 'CaptionFigure', 17: 'CaptionFigure', 18: 'Table', 19: 'Table',
+    #                     20: 'CaptionTable', 21: 'CaptionTable', 22: 'Section', 23: 'Section', 24: 'Section',
+    #                     25: 'SubSection', 26: 'SubSection', 27: 'SubSection', 28: 'Enum', 29: 'Enum', 30: 'Enum',
+    #                     31: 'Enum', 32: 'Enum', 33: 'Formula', 34: 'Formula', 35: 'Formula', 36: 'Formula',
+    #                     37: 'Formula', 38: 'Algorithm', 39: 'Algorithm'}
+    # dict_for_indexes_inverse = {'Par1': 0, 'Par2': 1, 'Par3': 2, 'Par4': 3, 'Par5': 4, 'Par6': 5, 'Par7': 6, 'Par8': 7,
+    #                             'Paragraph1': 8,
+    #                             'Paragraph2': 9, 'Figure1': 10, 'Figure2': 11, 'Figure3': 12, 'Figure4': 13,
+    #                             'CaptionFigure1': 14,
+    #                             'CaptionFigure2': 15, 'CaptionFigure3': 16, 'CaptionFigure4': 17, 'Table1': 18,
+    #                             'Table2': 19,
+    #                             'CaptionTable1': 20, 'CaptionTable2': 21, 'Section1': 22, 'Section2': 23,
+    #                             'Section3': 24,
+    #                             'SubSection1': 25, 'SubSection2': 26, 'SubSection3': 27, 'Enum1': 28, 'Enum2': 29,
+    #                             'Enum3': 30,
+    #                             'Enum4': 31, 'Enum5': 32, 'Formula1': 33, 'Formula2': 34, 'Formula3': 35,
+    #                             'Formula4': 36,
+    #                             'Formula5': 37, 'Algorithm1': 38, 'Algorithm2': 39}
+    dict_for_indexes, dict_for_indexes_inverse = generate_dictionaries(count_dict_of_elements)
     object_used_on_combind_with_num_of_object = object_used_on + str(num_of_object)
     # we can know the hierarchy based on
     start_remembering = False
@@ -3147,6 +3208,8 @@ def simulating_using_enum_operator(value_of_operator,object_used_on,num_of_objec
     list_4 = []
     list_5 = []
     list_6 = []
+    
+    index_of_last_element = 0
 
     for i in range(0, num_of_pars):
         list_1.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
@@ -3163,8 +3226,9 @@ def simulating_using_enum_operator(value_of_operator,object_used_on,num_of_objec
 
         if (df_copy.at['single_word_in_last_line' + str(i), 'Doc0'] == 1):
             num_of_paragraphs_with_1_word_at_the_end += 1
+    index_of_last_element = num_of_pars
 
-    for i in range(8, num_of_paragraphs + 8):
+    for i in range(index_of_last_element, num_of_paragraphs + index_of_last_element):
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_paragraphs_in_col_1 += 1
         else:
@@ -3179,8 +3243,9 @@ def simulating_using_enum_operator(value_of_operator,object_used_on,num_of_objec
 
         if (df_copy.at['single_word_in_last_line' + str(i), 'Doc0'] == 1):
             num_of_paragraphs_with_1_word_at_the_end += 1
+    index_of_last_element = num_of_paragraphs + index_of_last_element
 
-    for i in range(28, num_of_enums + 28):
+    for i in range(index_of_last_element, num_of_enums + index_of_last_element):
         list_2.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
 
         if (df_copy.at['num_of_chars' + str(i), 'Doc0'] > 0):
@@ -3192,12 +3257,15 @@ def simulating_using_enum_operator(value_of_operator,object_used_on,num_of_objec
     else:
         max_lines_enum = 0
         min_lines_enum = 0
+    index_of_last_element = num_of_enums + index_of_last_element
 
-    for i in range(14, num_of_captionfigures + 14):
+    for i in range(index_of_last_element, num_of_captionfigures + index_of_last_element):
         list_3.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
+    index_of_last_element = num_of_captionfigures + index_of_last_element
 
-    for i in range(20, num_of_captiontables + 20):
+    for i in range(index_of_last_element, num_of_captiontables + index_of_last_element):
         list_3.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
+    index_of_last_element = num_of_captiontables + index_of_last_element
 
     if (len(list_3) != 0):
         max_lines_caption = max(list_3)
@@ -3206,7 +3274,7 @@ def simulating_using_enum_operator(value_of_operator,object_used_on,num_of_objec
         max_lines_caption = 0
         min_lines_caption = 0
 
-    for i in range(10, num_of_figures + 10):
+    for i in range(index_of_last_element, num_of_figures + index_of_last_element):
         list_4.append(df_copy.at['height' + str(i), 'Doc0'])
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_figures_in_col_1 += 1
@@ -3221,8 +3289,9 @@ def simulating_using_enum_operator(value_of_operator,object_used_on,num_of_objec
         max_figure_y_space = 0
         min_figure_y_space = 0
         sum_space_taken_by_figures = 0
+    index_of_last_element = num_of_figures + index_of_last_element
 
-    for i in range(18, num_of_tables + 18):
+    for i in range(index_of_last_element, num_of_tables + index_of_last_element):
         list_5.append(df_copy.at['height' + str(i), 'Doc0'])
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_tables_in_col_1 += 1
@@ -3237,9 +3306,24 @@ def simulating_using_enum_operator(value_of_operator,object_used_on,num_of_objec
         max_table_y_space = 0
         min_table_y_space = 0
         sum_space_taken_by_tables = 0
+    index_of_last_element = num_of_tables + index_of_last_element
+
+    for i in range(index_of_last_element, num_of_formulas + index_of_last_element):
+        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
+            num_of_formulas_in_col_1 += 1
+        else:
+            num_of_formulas_in_col_2 += 1
+    index_of_last_element = num_of_formulas + index_of_last_element
+            
+    for i in range(index_of_last_element, num_of_algorithms + index_of_last_element):
+        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
+            num_of_algorithms_in_col_1 += 1
+        else:
+            num_of_algorithms_in_col_2 += 1
+    index_of_last_element = num_of_algorithms + index_of_last_element
 
     part_of_last_height = 0
-    for i in range(0, 39):
+    for i in range(0, index_of_last_element):
         if (df_copy.at['height' + str(i), 'Doc0'] > 0):
             list_6.append(df_copy.at['height' + str(i), 'Doc0'])
             sum_space_taken += df_copy.at['height' + str(i), 'Doc0']
@@ -3262,18 +3346,6 @@ def simulating_using_enum_operator(value_of_operator,object_used_on,num_of_objec
     else:
         max_height_object = 0
         min_height_object = 0
-
-    for i in range(38, num_of_algorithms + 38):
-        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
-            num_of_algorithms_in_col_1 += 1
-        else:
-            num_of_algorithms_in_col_2 += 1
-
-    for i in range(33, num_of_formulas + 33):
-        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
-            num_of_formulas_in_col_1 += 1
-        else:
-            num_of_formulas_in_col_2 += 1
 
     last_element = list(new_dct_of_elements_in_order)[-1]
     get_index_of_last_element = dict_for_indexes_inverse[last_element]
@@ -3421,26 +3493,27 @@ def simulating_using_enum_operator(value_of_operator,object_used_on,num_of_objec
     return new_dct_of_elements_in_order,count_dict_of_elements,summative_features,df_copy
 
 def simulating_using_paragraph_tag_removal_operator(value_of_operator,object_used_on,num_of_object,df_copy,summative_features,dct_of_elements_in_order,count_dict_of_elements): # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
-    dict_for_indexes = {0: 'Par', 1: 'Par', 2: 'Par', 3: 'Par', 4: 'Par', 5: 'Par', 6: 'Par', 7: 'Par', 8: 'Paragraph',
-                        9: 'Paragraph', 10: 'Figure', 11: 'Figure', 12: 'Figure', 13: 'Figure', 14: 'CaptionFigure',
-                        15: 'CaptionFigure', 16: 'CaptionFigure', 17: 'CaptionFigure', 18: 'Table', 19: 'Table',
-                        20: 'CaptionTable', 21: 'CaptionTable', 22: 'Section', 23: 'Section', 24: 'Section',
-                        25: 'SubSection', 26: 'SubSection', 27: 'SubSection', 28: 'Enum', 29: 'Enum', 30: 'Enum',
-                        31: 'Enum', 32: 'Enum', 33: 'Formula', 34: 'Formula', 35: 'Formula', 36: 'Formula',
-                        37: 'Formula', 38: 'Algorithm', 39: 'Algorithm'}
-    dict_for_indexes_inverse = {'Par1': 0, 'Par2': 1, 'Par3': 2, 'Par4': 3, 'Par5': 4, 'Par6': 5, 'Par7': 6, 'Par8': 7,
-                                'Paragraph1': 8,
-                                'Paragraph2': 9, 'Figure1': 10, 'Figure2': 11, 'Figure3': 12, 'Figure4': 13,
-                                'CaptionFigure1': 14,
-                                'CaptionFigure2': 15, 'CaptionFigure3': 16, 'CaptionFigure4': 17, 'Table1': 18,
-                                'Table2': 19,
-                                'CaptionTable1': 20, 'CaptionTable2': 21, 'Section1': 22, 'Section2': 23,
-                                'Section3': 24,
-                                'SubSection1': 25, 'SubSection2': 26, 'SubSection3': 27, 'Enum1': 28, 'Enum2': 29,
-                                'Enum3': 30,
-                                'Enum4': 31, 'Enum5': 32, 'Formula1': 33, 'Formula2': 34, 'Formula3': 35,
-                                'Formula4': 36,
-                                'Formula5': 37, 'Algorithm1': 38, 'Algorithm2': 39}
+    # dict_for_indexes = {0: 'Par', 1: 'Par', 2: 'Par', 3: 'Par', 4: 'Par', 5: 'Par', 6: 'Par', 7: 'Par', 8: 'Paragraph',
+    #                     9: 'Paragraph', 10: 'Figure', 11: 'Figure', 12: 'Figure', 13: 'Figure', 14: 'CaptionFigure',
+    #                     15: 'CaptionFigure', 16: 'CaptionFigure', 17: 'CaptionFigure', 18: 'Table', 19: 'Table',
+    #                     20: 'CaptionTable', 21: 'CaptionTable', 22: 'Section', 23: 'Section', 24: 'Section',
+    #                     25: 'SubSection', 26: 'SubSection', 27: 'SubSection', 28: 'Enum', 29: 'Enum', 30: 'Enum',
+    #                     31: 'Enum', 32: 'Enum', 33: 'Formula', 34: 'Formula', 35: 'Formula', 36: 'Formula',
+    #                     37: 'Formula', 38: 'Algorithm', 39: 'Algorithm'}
+    # dict_for_indexes_inverse = {'Par1': 0, 'Par2': 1, 'Par3': 2, 'Par4': 3, 'Par5': 4, 'Par6': 5, 'Par7': 6, 'Par8': 7,
+    #                             'Paragraph1': 8,
+    #                             'Paragraph2': 9, 'Figure1': 10, 'Figure2': 11, 'Figure3': 12, 'Figure4': 13,
+    #                             'CaptionFigure1': 14,
+    #                             'CaptionFigure2': 15, 'CaptionFigure3': 16, 'CaptionFigure4': 17, 'Table1': 18,
+    #                             'Table2': 19,
+    #                             'CaptionTable1': 20, 'CaptionTable2': 21, 'Section1': 22, 'Section2': 23,
+    #                             'Section3': 24,
+    #                             'SubSection1': 25, 'SubSection2': 26, 'SubSection3': 27, 'Enum1': 28, 'Enum2': 29,
+    #                             'Enum3': 30,
+    #                             'Enum4': 31, 'Enum5': 32, 'Formula1': 33, 'Formula2': 34, 'Formula3': 35,
+    #                             'Formula4': 36,
+    #                             'Formula5': 37, 'Algorithm1': 38, 'Algorithm2': 39}
+    dict_for_indexes, dict_for_indexes_inverse = generate_dictionaries(count_dict_of_elements)
     object_used_on_combind_with_num_of_object = object_used_on + str(num_of_object)
     # we can know the hierarchy based on
     start_remembering = False
@@ -3843,6 +3916,7 @@ def simulating_using_paragraph_tag_removal_operator(value_of_operator,object_use
     list_4 = []
     list_5 = []
     list_6 = []
+    index_of_last_element = 0
 
     for i in range(0, num_of_pars):
         list_1.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
@@ -3859,8 +3933,9 @@ def simulating_using_paragraph_tag_removal_operator(value_of_operator,object_use
 
         if (df_copy.at['single_word_in_last_line' + str(i), 'Doc0'] == 1):
             num_of_paragraphs_with_1_word_at_the_end += 1
+    index_of_last_element = num_of_pars
 
-    for i in range(8, num_of_paragraphs + 8):
+    for i in range(index_of_last_element, num_of_paragraphs + index_of_last_element):
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_paragraphs_in_col_1 += 1
         else:
@@ -3875,8 +3950,9 @@ def simulating_using_paragraph_tag_removal_operator(value_of_operator,object_use
 
         if (df_copy.at['single_word_in_last_line' + str(i), 'Doc0'] == 1):
             num_of_paragraphs_with_1_word_at_the_end += 1
+    index_of_last_element = num_of_paragraphs + index_of_last_element
 
-    for i in range(28, num_of_enums + 28):
+    for i in range(index_of_last_element, num_of_enums + index_of_last_element):
         list_2.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
 
         if (df_copy.at['num_of_chars' + str(i), 'Doc0'] > 0):
@@ -3888,12 +3964,15 @@ def simulating_using_paragraph_tag_removal_operator(value_of_operator,object_use
     else:
         max_lines_enum = 0
         min_lines_enum = 0
+    index_of_last_element = num_of_enums + index_of_last_element
 
-    for i in range(14, num_of_captionfigures + 14):
+    for i in range(index_of_last_element, num_of_captionfigures + index_of_last_element):
         list_3.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
+    index_of_last_element = num_of_captionfigures + index_of_last_element
 
-    for i in range(20, num_of_captiontables + 20):
+    for i in range(index_of_last_element, num_of_captiontables + index_of_last_element):
         list_3.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
+    index_of_last_element = num_of_captiontables + index_of_last_element
 
     if (len(list_3) != 0):
         max_lines_caption = max(list_3)
@@ -3902,7 +3981,7 @@ def simulating_using_paragraph_tag_removal_operator(value_of_operator,object_use
         max_lines_caption = 0
         min_lines_caption = 0
 
-    for i in range(10, num_of_figures + 10):
+    for i in range(index_of_last_element, num_of_figures + index_of_last_element):
         list_4.append(df_copy.at['height' + str(i), 'Doc0'])
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_figures_in_col_1 += 1
@@ -3917,8 +3996,9 @@ def simulating_using_paragraph_tag_removal_operator(value_of_operator,object_use
         max_figure_y_space = 0
         min_figure_y_space = 0
         sum_space_taken_by_figures = 0
+    index_of_last_element = num_of_figures + index_of_last_element
 
-    for i in range(18, num_of_tables + 18):
+    for i in range(index_of_last_element, num_of_tables + index_of_last_element):
         list_5.append(df_copy.at['height' + str(i), 'Doc0'])
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_tables_in_col_1 += 1
@@ -3933,9 +4013,24 @@ def simulating_using_paragraph_tag_removal_operator(value_of_operator,object_use
         max_table_y_space = 0
         min_table_y_space = 0
         sum_space_taken_by_tables = 0
+    index_of_last_element = num_of_tables + index_of_last_element
+    
+    for i in range(index_of_last_element, num_of_formulas + index_of_last_element):
+        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
+            num_of_formulas_in_col_1 += 1
+        else:
+            num_of_formulas_in_col_2 += 1
+    index_of_last_element = num_of_formulas + index_of_last_element
+    
+    for i in range(index_of_last_element, num_of_algorithms + index_of_last_element):
+        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
+            num_of_algorithms_in_col_1 += 1
+        else:
+            num_of_algorithms_in_col_2 += 1
+    index_of_last_element = num_of_algorithms + index_of_last_element
 
     part_of_last_height = 0
-    for i in range(0, 39):
+    for i in range(0, index_of_last_element):
         if (df_copy.at['height' + str(i), 'Doc0'] > 0):
             list_6.append(df_copy.at['height' + str(i), 'Doc0'])
             sum_space_taken += df_copy.at['height' + str(i), 'Doc0']
@@ -3958,18 +4053,6 @@ def simulating_using_paragraph_tag_removal_operator(value_of_operator,object_use
     else:
         max_height_object = 0
         min_height_object = 0
-
-    for i in range(38, num_of_algorithms + 38):
-        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
-            num_of_algorithms_in_col_1 += 1
-        else:
-            num_of_algorithms_in_col_2 += 1
-
-    for i in range(33, num_of_formulas + 33):
-        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
-            num_of_formulas_in_col_1 += 1
-        else:
-            num_of_formulas_in_col_2 += 1
 
     last_element = list(new_dct_of_elements_in_order)[-1]
     get_index_of_last_element = dict_for_indexes_inverse[last_element]
@@ -4117,26 +4200,27 @@ def simulating_using_paragraph_tag_removal_operator(value_of_operator,object_use
     return new_dct_of_elements_in_order,count_dict_of_elements,summative_features,df_copy
 
 def simulating_using_combining_pars_operator(value_of_operator,object_used_on,num_of_object,df_copy,summative_features,dct_of_elements_in_order,count_dict_of_elements): # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
-    dict_for_indexes = {0: 'Par', 1: 'Par', 2: 'Par', 3: 'Par', 4: 'Par', 5: 'Par', 6: 'Par', 7: 'Par', 8: 'Paragraph',
-                        9: 'Paragraph', 10: 'Figure', 11: 'Figure', 12: 'Figure', 13: 'Figure', 14: 'CaptionFigure',
-                        15: 'CaptionFigure', 16: 'CaptionFigure', 17: 'CaptionFigure', 18: 'Table', 19: 'Table',
-                        20: 'CaptionTable', 21: 'CaptionTable', 22: 'Section', 23: 'Section', 24: 'Section',
-                        25: 'SubSection', 26: 'SubSection', 27: 'SubSection', 28: 'Enum', 29: 'Enum', 30: 'Enum',
-                        31: 'Enum', 32: 'Enum', 33: 'Formula', 34: 'Formula', 35: 'Formula', 36: 'Formula',
-                        37: 'Formula', 38: 'Algorithm', 39: 'Algorithm'}
-    dict_for_indexes_inverse = {'Par1': 0, 'Par2': 1, 'Par3': 2, 'Par4': 3, 'Par5': 4, 'Par6': 5, 'Par7': 6, 'Par8': 7,
-                                'Paragraph1': 8,
-                                'Paragraph2': 9, 'Figure1': 10, 'Figure2': 11, 'Figure3': 12, 'Figure4': 13,
-                                'CaptionFigure1': 14,
-                                'CaptionFigure2': 15, 'CaptionFigure3': 16, 'CaptionFigure4': 17, 'Table1': 18,
-                                'Table2': 19,
-                                'CaptionTable1': 20, 'CaptionTable2': 21, 'Section1': 22, 'Section2': 23,
-                                'Section3': 24,
-                                'SubSection1': 25, 'SubSection2': 26, 'SubSection3': 27, 'Enum1': 28, 'Enum2': 29,
-                                'Enum3': 30,
-                                'Enum4': 31, 'Enum5': 32, 'Formula1': 33, 'Formula2': 34, 'Formula3': 35,
-                                'Formula4': 36,
-                                'Formula5': 37, 'Algorithm1': 38, 'Algorithm2': 39}
+    # dict_for_indexes = {0: 'Par', 1: 'Par', 2: 'Par', 3: 'Par', 4: 'Par', 5: 'Par', 6: 'Par', 7: 'Par', 8: 'Paragraph',
+    #                     9: 'Paragraph', 10: 'Figure', 11: 'Figure', 12: 'Figure', 13: 'Figure', 14: 'CaptionFigure',
+    #                     15: 'CaptionFigure', 16: 'CaptionFigure', 17: 'CaptionFigure', 18: 'Table', 19: 'Table',
+    #                     20: 'CaptionTable', 21: 'CaptionTable', 22: 'Section', 23: 'Section', 24: 'Section',
+    #                     25: 'SubSection', 26: 'SubSection', 27: 'SubSection', 28: 'Enum', 29: 'Enum', 30: 'Enum',
+    #                     31: 'Enum', 32: 'Enum', 33: 'Formula', 34: 'Formula', 35: 'Formula', 36: 'Formula',
+    #                     37: 'Formula', 38: 'Algorithm', 39: 'Algorithm'}
+    # dict_for_indexes_inverse = {'Par1': 0, 'Par2': 1, 'Par3': 2, 'Par4': 3, 'Par5': 4, 'Par6': 5, 'Par7': 6, 'Par8': 7,
+    #                             'Paragraph1': 8,
+    #                             'Paragraph2': 9, 'Figure1': 10, 'Figure2': 11, 'Figure3': 12, 'Figure4': 13,
+    #                             'CaptionFigure1': 14,
+    #                             'CaptionFigure2': 15, 'CaptionFigure3': 16, 'CaptionFigure4': 17, 'Table1': 18,
+    #                             'Table2': 19,
+    #                             'CaptionTable1': 20, 'CaptionTable2': 21, 'Section1': 22, 'Section2': 23,
+    #                             'Section3': 24,
+    #                             'SubSection1': 25, 'SubSection2': 26, 'SubSection3': 27, 'Enum1': 28, 'Enum2': 29,
+    #                             'Enum3': 30,
+    #                             'Enum4': 31, 'Enum5': 32, 'Formula1': 33, 'Formula2': 34, 'Formula3': 35,
+    #                             'Formula4': 36,
+    #                             'Formula5': 37, 'Algorithm1': 38, 'Algorithm2': 39}
+    dict_for_indexes, dict_for_indexes_inverse = generate_dictionaries(count_dict_of_elements)
     object_used_on_combind_with_num_of_object = object_used_on + str(int(num_of_object)-1) #we will want the first object so it will be easy to find the next one
     # we can know the hierarchy based on
     start_remembering = False
@@ -4595,6 +4679,7 @@ def simulating_using_combining_pars_operator(value_of_operator,object_used_on,nu
     list_4 = []
     list_5 = []
     list_6 = []
+    index_of_last_element = 0
 
     for i in range(0, num_of_pars):
         list_1.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
@@ -4611,8 +4696,9 @@ def simulating_using_combining_pars_operator(value_of_operator,object_used_on,nu
 
         if (df_copy.at['single_word_in_last_line' + str(i), 'Doc0'] == 1):
             num_of_paragraphs_with_1_word_at_the_end += 1
+    index_of_last_element = num_of_pars
 
-    for i in range(8, num_of_paragraphs + 8):
+    for i in range(index_of_last_element, num_of_paragraphs + index_of_last_element):
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_paragraphs_in_col_1 += 1
         else:
@@ -4627,8 +4713,9 @@ def simulating_using_combining_pars_operator(value_of_operator,object_used_on,nu
 
         if (df_copy.at['single_word_in_last_line' + str(i), 'Doc0'] == 1):
             num_of_paragraphs_with_1_word_at_the_end += 1
+    index_of_last_element = num_of_paragraphs + index_of_last_element
 
-    for i in range(28, num_of_enums + 28):
+    for i in range(index_of_last_element, num_of_enums + index_of_last_element):
         list_2.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
 
         if (df_copy.at['num_of_chars' + str(i), 'Doc0'] > 0):
@@ -4640,11 +4727,13 @@ def simulating_using_combining_pars_operator(value_of_operator,object_used_on,nu
     else:
         max_lines_enum = 0
         min_lines_enum = 0
+    index_of_last_element = num_of_enums + index_of_last_element
 
-    for i in range(14, num_of_captionfigures + 14):
+    for i in range(index_of_last_element, num_of_captionfigures + index_of_last_element):
         list_3.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
+    index_of_last_element = num_of_captionfigures + index_of_last_element
 
-    for i in range(20, num_of_captiontables + 20):
+    for i in range(index_of_last_element, num_of_captiontables + index_of_last_element):
         list_3.append(df_copy.at['number_of_lines' + str(i), 'Doc0'])
 
     if (len(list_3) != 0):
@@ -4653,8 +4742,9 @@ def simulating_using_combining_pars_operator(value_of_operator,object_used_on,nu
     else:
         max_lines_caption = 0
         min_lines_caption = 0
+    index_of_last_element = num_of_captiontables + index_of_last_element
 
-    for i in range(10, num_of_figures + 10):
+    for i in range(index_of_last_element, num_of_figures + index_of_last_element):
         list_4.append(df_copy.at['height' + str(i), 'Doc0'])
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_figures_in_col_1 += 1
@@ -4669,13 +4759,15 @@ def simulating_using_combining_pars_operator(value_of_operator,object_used_on,nu
         max_figure_y_space = 0
         min_figure_y_space = 0
         sum_space_taken_by_figures = 0
+    index_of_last_element = num_of_figures + index_of_last_element
 
-    for i in range(18, num_of_tables + 18):
+    for i in range(index_of_last_element, num_of_tables + index_of_last_element):
         list_5.append(df_copy.at['height' + str(i), 'Doc0'])
         if (df_copy.at['column' + str(i), 'Doc0'] == 0):
             num_of_tables_in_col_1 += 1
         else:
             num_of_tables_in_col_2 += 1
+    index_of_last_element = num_of_tables + index_of_last_element
 
     if (len(list_5) != 0):
         max_table_y_space = max(list_5)
@@ -4686,8 +4778,22 @@ def simulating_using_combining_pars_operator(value_of_operator,object_used_on,nu
         min_table_y_space = 0
         sum_space_taken_by_tables = 0
 
+    for i in range(index_of_last_element, num_of_formulas + index_of_last_element):
+        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
+            num_of_formulas_in_col_1 += 1
+        else:
+            num_of_formulas_in_col_2 += 1
+    index_of_last_element = num_of_formulas + index_of_last_element
+
+    for i in range(index_of_last_element, num_of_algorithms + index_of_last_element):
+        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
+            num_of_algorithms_in_col_1 += 1
+        else:
+            num_of_algorithms_in_col_2 += 1
+    index_of_last_element = num_of_algorithms + index_of_last_element
+
     part_of_last_height = 0
-    for i in range(0, 39):
+    for i in range(0, index_of_last_element):
         if (df_copy.at['height' + str(i), 'Doc0'] > 0):
             list_6.append(df_copy.at['height' + str(i), 'Doc0'])
             sum_space_taken += df_copy.at['height' + str(i), 'Doc0']
@@ -4710,18 +4816,6 @@ def simulating_using_combining_pars_operator(value_of_operator,object_used_on,nu
     else:
         max_height_object = 0
         min_height_object = 0
-
-    for i in range(38, num_of_algorithms + 38):
-        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
-            num_of_algorithms_in_col_1 += 1
-        else:
-            num_of_algorithms_in_col_2 += 1
-
-    for i in range(33, num_of_formulas + 33):
-        if (df_copy.at['column' + str(i), 'Doc0'] == 0):
-            num_of_formulas_in_col_1 += 1
-        else:
-            num_of_formulas_in_col_2 += 1
 
     last_element = list(new_dct_of_elements_in_order)[-1]
     get_index_of_last_element = dict_for_indexes_inverse[last_element]

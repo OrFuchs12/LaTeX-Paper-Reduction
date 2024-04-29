@@ -434,8 +434,8 @@ def parse(path, lines= None):
         file.insert(0,"\\section{demo}")
     order = receive_lines_version_1(file)
 
-    latex, tree, lines = latex_parsing.parse(lines)
-    result11,first_object_location = Connector.connect(latex, lines)
+    latex, tree, lines = latex_parsing.parse(file)
+    result11,first_object_location = Connector.connect(latex, file)
     combined_res = combine(order,result11)
     # first_res = read_first(lines,first_object_location)
     # first_res.extend(combined_res)

@@ -84,13 +84,13 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
     if type_of_experiment == "greedy-separate":
         operators_activated = 0
         operators_done = []
-        index = 0
         cost = 0
         current_path_for_tex = path_for_tex
         iterations = 1
         last_page_height = original_height
         current_path_for_pdf = path_for_pdf
         gained = 0
+        prediction = None
         reduced = False
         start = time.time()
         len_tree = -1
@@ -112,7 +112,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
 
             operators_list = greedy.perform_operators(dct, current_path_for_tex, lidor)
             found = False
-            
+            index = 0
+
             while found == False and index != len(operators_list):
                 if str(operators_list[index][2]) == '1':
                     oper = (str(operators_list[index][2]), str(operators_list[index][3]), str(operators_list[index][4]),
@@ -127,7 +128,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
 
                 except Exception as e:
                     index += 1
-                if prediction > 0:
+                if prediction and prediction > 0:
                     found = True
                     operators_done.append(oper)
                 else:
@@ -307,11 +308,14 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         start = time.time()
         mse_dct = new_experiment_inferstructure.create_dict()
         max_len_tree = 0
+        iter = 0
         for i in range(operators_max):
             results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
                                                                             file_name=current_path_for_tex, last_pages=current_path_for_pdf,
                                                                             algorithm_search=search_algorithms_for_experiment.dijkstra,
                                                                             models=models, mse_dct=mse_dct, bib_path=bibliograph_path)
+            if not results:
+                break
             first_element = results[0]
             max_len_tree = max(max_len_tree, len_tree)
             df1, lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
@@ -328,7 +332,6 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 dct = pickle.load(dct_file)
 
             original_operators_list = greedy.perform_operators(dct,  current_path_for_tex,lidor)
-            iter = 0
             for j in range(len(original_operators_list)):
                 first_element_new_list = original_operators_list[j]
                 if str(first_element_new_list[2]) == '1':
@@ -367,8 +370,6 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     if (pages < 2 or new_number_of_pages< num_of_pages):
                         reduced = True
                         operators_activated += 1
-
-                    
                         break
                     iter += 1
                     current_path_for_pdf = last_pages_pdf
@@ -394,7 +395,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
                                                                         file_name=current_path_for_tex,last_pages=current_path_for_pdf,
                                                                         algorithm_search=search_algorithms_for_experiment.dijkstra,
-                                                                        models=models, mse_dct=mse_dct , bib_path=bibliograph_path)
+                                                                      models=models, mse_dct=mse_dct , bib_path=bibliograph_path)
         print(results)
         
         for operator in results:
@@ -822,6 +823,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                                                                             file_name=current_path_for_tex,last_pages=current_path_for_pdf,
                                                                             algorithm_search=search_algorithms_for_experiment.dijkstra,
                                                                             models=models, mse_dct=mse_dct, bib_path=bibliograph_path)
+            if not results:
+                break
 
         end = time.time()
         time_taken = end - start
@@ -923,6 +926,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                                                                                 file_name=current_path_for_tex,last_pages=current_path_for_pdf,
                                                                                 algorithm_search=search_algorithms_for_experiment.dijkstra,
                                                                                 models=models, mse_dct=mse_dct, bib_path=bibliograph_path)
+                if not results:
+                    break
 
         end = time.time()
         time_taken = end - start

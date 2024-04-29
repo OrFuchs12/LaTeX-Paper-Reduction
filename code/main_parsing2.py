@@ -469,7 +469,7 @@ def parse(path, lines= None):
     if (file[0] != "\\section{demo}"):
         file.insert(0,"\\section{demo}")
     order = receive_lines_version_1(file)
-    latex, tree, lines = latex_parsing.parse(lines)
+    latex, tree, lines = latex_parsing.parse(file)
     result11,first_object_location = Connector.connect(latex, lines)
     combined_res = combine(order,result11)
     # first_res = read_first(lines,first_object_location)
@@ -501,7 +501,7 @@ def parse2_lidor(path, lines= None):
     if (file[0] != "\\section{demo}"):
         file.insert(0,"\\section{demo}")
     order = receive_lines_version_1(file)
-    latex, tree, lines = latex_parsing.parse(lines)
+    latex, tree, lines = latex_parsing.parse(file)
 
     result11,first_object_location = Connector.connect(latex, lines)
     combined_res = combine(order,result11)
@@ -530,7 +530,7 @@ def parse3_lidor(path, lines= None):
     # if title==False:
     file.insert(0,"\\section{demo}")
     order = receive_lines_version_1(file)
-    latex, tree, lines = latex_parsing.parse(lines)
+    latex, tree, lines = latex_parsing.parse(file)
     # print(latex)
     # print("---------------")
     # print(tree)
