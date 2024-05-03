@@ -5175,7 +5175,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
 
     if not depth_added:
         print("can not build tree")
-        return
+        return dict_based_tree_levels, 0
 
     to_expand = [1]
     to_remember = {1: (copy.deepcopy(summative_features), copy.deepcopy(dct_of_elements_in_order), copy.deepcopy(count_dict_of_elements))}
@@ -5442,7 +5442,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
     # print("depth 2:",len(dict_based_tree_levels[100]))
     # print("depth 3:",len(dict_based_tree_levels[5206]))
 
-    return dict_based_tree_levels
+    return dict_based_tree_levels, current_depth
 
 
 def create_dict():
@@ -5632,7 +5632,7 @@ if __name__ == "__main__":
     models = reload_models.load_regression_models_cat(models_path_cat)
     
     s_time = time.time()
-    tree = generate_search_graph(4, "411_3", models, dct)
+    tree, current_depth= generate_search_graph(4, "411_3", models, dct)
     print("total time:", time.time() - s_time)
 
     # with open('pdf_extraction\\adi_comparing\\files_for_search\\search_dict', 'wb') as f:

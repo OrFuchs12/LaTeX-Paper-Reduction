@@ -70,9 +70,9 @@ def get_operators(tree, path):
 
 def run_search(tree_depth, file_name,last_pages, algorithm_search, models, mse_dct, bib_path):
     print("generate graph for file:", file_name)
-    tree = new_experiment_inferstructure.generate_search_graph(tree_depth, file_name, last_pages, models, mse_dct, bib_path)
+    tree, current_depth = new_experiment_inferstructure.generate_search_graph(tree_depth, file_name, last_pages, models, mse_dct, bib_path)
     #tree = load_search_dict('pdf_extraction\\adi_comparing\\files_for_search\\search_dict')
-    if not tree:
+    if not tree or current_depth < tree_depth:
         return None, -1
     #print(tree)
 
