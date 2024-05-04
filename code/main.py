@@ -184,7 +184,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         gained = 0
         reduced = False
         start = time.time()
-        len_tree = -1
+        len_tree = -1        
+        iter = 0
 
         df1, lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                      bibliograph_path,
@@ -217,7 +218,6 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         count_operators = 0
         new_operators_list = original_operators_list
         check_index = 0
-        iter = 0
         while count_operators < operators_max:
             if count_operators != 0:
                 df1,lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
@@ -390,65 +390,66 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         count_operators = 0
         reduced = False
         start = time.time()
+        iter = 0
+
 
         mse_dct = new_experiment_inferstructure.create_dict()
         results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
                                                                         file_name=current_path_for_tex,last_pages=current_path_for_pdf,
                                                                         algorithm_search=search_algorithms_for_experiment.dijkstra,
                                                                       models=models, mse_dct=mse_dct , bib_path=bibliograph_path)
-        print(results)
-        
-        for operator in results:
-            df1, lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
-                                                         bibliograph_path,
-                                                         "code/~/results/dct0",
-                                                          "code/~/results/dct0",
-                                                         "test", pd.DataFrame())   
-            df1 = df1.T
-            df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
-                      'num_of_object'], axis=1, inplace=True)
+        if results:    
+            print(results)
+            for operator in results:
+                df1, lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
+                                                            bibliograph_path,
+                                                            "code/~/results/dct0",
+                                                            "code/~/results/dct0",
+                                                            "test", pd.DataFrame())   
+                df1 = df1.T
+                df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
+                        'num_of_object'], axis=1, inplace=True)
 
-            with open( "code/~/results/dct0",
-                      'rb') as dct_file:
-                dct = pickle.load(dct_file)
+                with open( "code/~/results/dct0",
+                        'rb') as dct_file:
+                    dct = pickle.load(dct_file)
 
-            original_operators_list = greedy.perform_operators(dct,  current_path_for_tex,lidor)
-            iter = 0
-            for j in range(len(original_operators_list)):
-                first_element_new_list = original_operators_list[j]
-                if str(first_element_new_list[2]) == '1':
-                    oper = (
-                        str(first_element_new_list[2]), str(first_element_new_list[3]), str(first_element_new_list[4]),
-                        first_element_new_list[5])
-                else:
-                    oper = (str(first_element_new_list[2]), str(first_element_new_list[3]), first_element_new_list[5])
+                original_operators_list = greedy.perform_operators(dct,  current_path_for_tex,lidor)
+                for j in range(len(original_operators_list)):
+                    first_element_new_list = original_operators_list[j]
+                    if str(first_element_new_list[2]) == '1':
+                        oper = (
+                            str(first_element_new_list[2]), str(first_element_new_list[3]), str(first_element_new_list[4]),
+                            first_element_new_list[5])
+                    else:
+                        oper = (str(first_element_new_list[2]), str(first_element_new_list[3]), first_element_new_list[5])
 
-                print(f"oper:{oper}")
-                print(operator)
-                if oper == operator:
-                    latex_after_operator = first_element_new_list[1]
-                    current_path_for_tex = os.path.join(f"code/~/results/new_files/{paper_directory}", "new_3.tex")
-                    f = open(current_path_for_tex, "w")
-                    f.write(latex_after_operator)
-                    f.close()
+                    print(f"oper:{oper}")
+                    print(operator)
+                    if oper == operator:
+                        latex_after_operator = first_element_new_list[1]
+                        current_path_for_tex = os.path.join(f"code/~/results/new_files/{paper_directory}", "new_3.tex")
+                        f = open(current_path_for_tex, "w")
+                        f.write(latex_after_operator)
+                        f.close()
 
-                    # cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
-                    # os.system(cmd_line_act)
-                    dir_path = os.path.join("code/~/results/new_files", paper_directory)
+                        # cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
+                        # os.system(cmd_line_act)
+                        dir_path = os.path.join("code/~/results/new_files", paper_directory)
 
-                    # base_name = os.path.basename(after_path)
-                    # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
-                    subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
-              
-                    current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
-                    lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
-                    last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
-                    current_path_for_pdf = last_pages_pdf
-                    last_page_height = read_single_file.order(current_path_for_pdf)
-                    cost += first_element_new_list[0]
-                    iter += 1
-                    count_operators += 1
-                    break
+                        # base_name = os.path.basename(after_path)
+                        # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+                        subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
+                
+                        current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
+                        lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
+                        last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
+                        current_path_for_pdf = last_pages_pdf
+                        last_page_height = read_single_file.order(current_path_for_pdf)
+                        cost += first_element_new_list[0]
+                        iter += 1
+                        count_operators += 1
+                        break
 
         # if (last_page_height < original_height or last_page_height == 0):
         #     reduced = True
@@ -480,6 +481,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         start = time.time()
         len_tree = -1
         count_operators = 0
+        iter=0
+
         df1 , lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                      bibliograph_path,
                                                     "code/~/results/dct0",
@@ -494,7 +497,6 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 dct = pickle.load(dct_file)
 
         operators_list = greedy.perform_operators(dct, current_path_for_tex, lidor)
-        iter=0
         while reduced == False and has_more_operators_to_check_greedy(operators_done,
                                                                       operators_list) == True and iterations < 10:
             iterations += 1
@@ -754,77 +756,78 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                                                                         algorithm_search=search_algorithms_for_experiment.dijkstra,
                                                                         models=models, mse_dct=mse_dct, bib_path=bibliograph_path)
         iter = 0
-        while reduced == False and has_more_operators_to_check(operators_done, results) == True and iterations < 10:
+        if results:
+            while reduced == False and has_more_operators_to_check(operators_done, results) == True and iterations < 10:
 
-            iterations += 1
-            for operator in results:
+                iterations += 1
+                for operator in results:
 
-                df1 , lidor= features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
-                                                             bibliograph_path,
-                                                             "code/~/results/dct0",
-                                                             "code/~/results/dct0",
-                                                             "test", pd.DataFrame())
-                df1 = df1.T
-                df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
-                          'num_of_object'], axis=1, inplace=True)
+                    df1 , lidor= features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
+                                                                bibliograph_path,
+                                                                "code/~/results/dct0",
+                                                                "code/~/results/dct0",
+                                                                "test", pd.DataFrame())
+                    df1 = df1.T
+                    df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
+                            'num_of_object'], axis=1, inplace=True)
 
-                with open("code/~/results/dct0",
-                          'rb') as dct_file:
-                    dct = pickle.load(dct_file)
+                    with open("code/~/results/dct0",
+                            'rb') as dct_file:
+                        dct = pickle.load(dct_file)
 
-                original_operators_list = greedy.perform_operators(dct,  current_path_for_tex, lidor)
+                    original_operators_list = greedy.perform_operators(dct,  current_path_for_tex, lidor)
 
-                for j in range(len(original_operators_list)):
-                    first_element_new_list = original_operators_list[j]
-                    if str(first_element_new_list[2]) == '1':
-                        oper = (
-                            str(first_element_new_list[2]), str(first_element_new_list[3]),
-                            str(first_element_new_list[4]),
-                            first_element_new_list[5])
-                    else:
-                        oper = (
-                            str(first_element_new_list[2]), str(first_element_new_list[3]), first_element_new_list[5])
+                    for j in range(len(original_operators_list)):
+                        first_element_new_list = original_operators_list[j]
+                        if str(first_element_new_list[2]) == '1':
+                            oper = (
+                                str(first_element_new_list[2]), str(first_element_new_list[3]),
+                                str(first_element_new_list[4]),
+                                first_element_new_list[5])
+                        else:
+                            oper = (
+                                str(first_element_new_list[2]), str(first_element_new_list[3]), first_element_new_list[5])
 
-                    if oper == operator:
-                        operators_done.append(oper)
-                        latex_after_operator = first_element_new_list[1]
-                        current_path_for_tex = os.path.join(f"code/~/results/new_files/{paper_directory}", "new_7.tex")
-                        f = open(current_path_for_tex, "w")
-                        f.write(latex_after_operator)
-                        f.close()
+                        if oper == operator:
+                            operators_done.append(oper)
+                            latex_after_operator = first_element_new_list[1]
+                            current_path_for_tex = os.path.join(f"code/~/results/new_files/{paper_directory}", "new_7.tex")
+                            f = open(current_path_for_tex, "w")
+                            f.write(latex_after_operator)
+                            f.close()
 
-                        # cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
-                        # os.system(cmd_line_act)
-                        dir_path = os.path.join("code/~/results/new_files", paper_directory)
-                        subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
+                            # cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
+                            # os.system(cmd_line_act)
+                            dir_path = os.path.join("code/~/results/new_files", paper_directory)
+                            subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
 
-                        current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
-                        lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
-                        # make a new pdf only with 2 last pages:
-                        last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
-                        last_page_height = read_single_file.order(last_pages_pdf)
-                        
-                        current_path_for_pdf = last_pages_pdf
-                        cost += first_element_new_list[0]
-                        iter += 1
+                            current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
+                            lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
+                            # make a new pdf only with 2 last pages:
+                            last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
+                            last_page_height = read_single_file.order(last_pages_pdf)
+                            
+                            current_path_for_pdf = last_pages_pdf
+                            cost += first_element_new_list[0]
+                            iter += 1
 
-                        count_operators += 1
+                            count_operators += 1
+                            break
+                    lines, pages = greedy.check_lines(current_path_for_pdf)
+                    if (pages < 2 or new_number_of_pages< num_of_pages):
+                        reduced = True
                         break
                 lines, pages = greedy.check_lines(current_path_for_pdf)
                 if (pages < 2 or new_number_of_pages< num_of_pages):
                     reduced = True
+            
                     break
-            lines, pages = greedy.check_lines(current_path_for_pdf)
-            if (pages < 2 or new_number_of_pages< num_of_pages):
-                reduced = True
-           
-                break
-            results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
-                                                                            file_name=current_path_for_tex,last_pages=current_path_for_pdf,
-                                                                            algorithm_search=search_algorithms_for_experiment.dijkstra,
-                                                                            models=models, mse_dct=mse_dct, bib_path=bibliograph_path)
-            if not results:
-                break
+                results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
+                                                                                file_name=current_path_for_tex,last_pages=current_path_for_pdf,
+                                                                                algorithm_search=search_algorithms_for_experiment.dijkstra,
+                                                                                models=models, mse_dct=mse_dct, bib_path=bibliograph_path)
+                if not results:
+                    break
 
         end = time.time()
         time_taken = end - start
@@ -849,85 +852,86 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                                                                         algorithm_search=search_algorithms_for_experiment.dijkstra,
                                                                         models=models, mse_dct=mse_dct , bib_path=bibliograph_path)
         iter=0
-        while reduced == False and has_more_operators_to_check(operators_done, results) == True and iterations < 10:
-            iterations += 1
-            for i in range(operators_max):
-                first_element = results[i]
-                if first_element in operators_done:
-                    continue
+        if results:
+            while reduced == False and has_more_operators_to_check(operators_done, results) == True and iterations < 10:
+                iterations += 1
+                for i in range(operators_max):
+                    first_element = results[i]
+                    if first_element in operators_done:
+                        continue
 
-                max_len_tree = max(max_len_tree, len_tree)
-                df1,lidor= features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
-                                                             bibliograph_path,
-                                                             "code/~/results/dct0",
-                                                             "code/~/results/dct0",
-                                                             "test", pd.DataFrame())
-                df1 = df1.T
-                df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
-                          'num_of_object'], axis=1, inplace=True)
+                    max_len_tree = max(max_len_tree, len_tree)
+                    df1,lidor= features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
+                                                                bibliograph_path,
+                                                                "code/~/results/dct0",
+                                                                "code/~/results/dct0",
+                                                                "test", pd.DataFrame())
+                    df1 = df1.T
+                    df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
+                            'num_of_object'], axis=1, inplace=True)
 
-                with open("code/~/results/dct0",
-                          'rb') as dct_file:
-                    dct = pickle.load(dct_file)
+                    with open("code/~/results/dct0",
+                            'rb') as dct_file:
+                        dct = pickle.load(dct_file)
 
-                original_operators_list = greedy.perform_operators(dct,  current_path_for_tex, lidor)
+                    original_operators_list = greedy.perform_operators(dct,  current_path_for_tex, lidor)
 
-                for j in range(len(original_operators_list)):
-                    first_element_new_list = original_operators_list[j]
-                    if str(first_element_new_list[2]) == '1':
-                        oper = (
-                            str(first_element_new_list[2]), str(first_element_new_list[3]),
-                            str(first_element_new_list[4]),
-                            first_element_new_list[5])
-                    else:
-                        oper = (
-                            str(first_element_new_list[2]), str(first_element_new_list[3]), first_element_new_list[5])
+                    for j in range(len(original_operators_list)):
+                        first_element_new_list = original_operators_list[j]
+                        if str(first_element_new_list[2]) == '1':
+                            oper = (
+                                str(first_element_new_list[2]), str(first_element_new_list[3]),
+                                str(first_element_new_list[4]),
+                                first_element_new_list[5])
+                        else:
+                            oper = (
+                                str(first_element_new_list[2]), str(first_element_new_list[3]), first_element_new_list[5])
 
-                    if oper == first_element:
-                        found = True
-                        operators_done.append(oper)
-                        latex_after_operator = first_element_new_list[1]
-                        current_path_for_tex = os.path.join(f"code/~/results/new_files/{paper_directory}", "new_6.tex")
-                        f = open(current_path_for_tex, "w")
-                        f.write(latex_after_operator)
-                        f.close()
+                        if oper == first_element:
+                            found = True
+                            operators_done.append(oper)
+                            latex_after_operator = first_element_new_list[1]
+                            current_path_for_tex = os.path.join(f"code/~/results/new_files/{paper_directory}", "new_6.tex")
+                            f = open(current_path_for_tex, "w")
+                            f.write(latex_after_operator)
+                            f.close()
 
-                        # cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
-                        # os.system(cmd_line_act)
-                        dir_path = os.path.join("code/~/results/new_files", paper_directory)
-                        # base_name = os.path.basename(after_path)
-                        # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
-                        subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
-                    
+                            # cmd_line_act = 'tectonic -X compile ' + current_path_for_tex
+                            # os.system(cmd_line_act)
+                            dir_path = os.path.join("code/~/results/new_files", paper_directory)
+                            # base_name = os.path.basename(after_path)
+                            # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
+                            subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
+                        
 
-                        current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
-                        lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
-                        # make a new pdf only with 2 last pages:
-                        last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
-                        last_page_height = read_single_file.order(last_pages_pdf)
-                        lines, pages = greedy.check_lines(last_pages_pdf)
-                        current_path_for_pdf=last_pages_pdf
-                        cost += first_element_new_list[0]
-                        iter += 1
-                        if (pages < 2 or new_number_of_pages< num_of_pages):
-                            reduced = True
-                            count_operators += 1
-    
-                            break
+                            current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
+                            lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
+                            # make a new pdf only with 2 last pages:
+                            last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
+                            last_page_height = read_single_file.order(last_pages_pdf)
+                            lines, pages = greedy.check_lines(last_pages_pdf)
+                            current_path_for_pdf=last_pages_pdf
+                            cost += first_element_new_list[0]
+                            iter += 1
+                            if (pages < 2 or new_number_of_pages< num_of_pages):
+                                reduced = True
+                                count_operators += 1
+        
+                                break
 
-                # if (last_page_height == 0):
-                #     break
+                    # if (last_page_height == 0):
+                    #     break
 
-                if found == False:
-                    operators_done.append(first_element)
-                    continue
+                    if found == False:
+                        operators_done.append(first_element)
+                        continue
 
-                results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
-                                                                                file_name=current_path_for_tex,last_pages=current_path_for_pdf,
-                                                                                algorithm_search=search_algorithms_for_experiment.dijkstra,
-                                                                                models=models, mse_dct=mse_dct, bib_path=bibliograph_path)
-                if not results:
-                    break
+                    results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
+                                                                                    file_name=current_path_for_tex,last_pages=current_path_for_pdf,
+                                                                                    algorithm_search=search_algorithms_for_experiment.dijkstra,
+                                                                                    models=models, mse_dct=mse_dct, bib_path=bibliograph_path)
+                    if not results:
+                        break
 
         end = time.time()
         time_taken = end - start
@@ -1014,15 +1018,23 @@ def results(path_for_docs, type_of_experiment, operators_max, models, bibliograp
     # if pages < 2:
     #     # print("Less then 2 pages")
     #     return {}
-
-        original_height, last_page_height, gained, time_taken, reduced, cost, iterations, len_tree, count_operators = experiment_on_document(
-                path_to_latex, type_of_experiment, last_pages_pdf_path, operators_max, models,paper_directory, bibliograph_path,num_of_pages)
-        results_data.append(
-                {"docName": paper_directory, "experiment_type": type_of_experiment, "operators_max": operators_max,
-                "iterations": iterations, "reduced": reduced,
-                "original_height": original_height, "last_page_height": last_page_height, "gained": gained,
-                "cost": cost, "time_taken": time_taken, "max_len_tree": len_tree, "operators_count": count_operators})
-        print(results_data[-1])
+        try:
+            original_height, last_page_height, gained, time_taken, reduced, cost, iterations, len_tree, count_operators = experiment_on_document(
+                    path_to_latex, type_of_experiment, last_pages_pdf_path, operators_max, models,paper_directory, bibliograph_path,num_of_pages)
+            results_data.append(
+                    {"docName": paper_directory, "experiment_type": type_of_experiment, "operators_max": operators_max,
+                    "iterations": iterations, "reduced": reduced,
+                    "original_height": original_height, "last_page_height": last_page_height, "gained": gained,
+                    "cost": cost, "time_taken": time_taken, "max_len_tree": len_tree, "operators_count": count_operators})
+            print(results_data[-1])
+        except Exception as e:
+            print(f"Error in {paper_directory}: {e}")
+            #move the directory to 'code/~/results/error_files' directory
+            source_dir = os.path.join("code/~/results/new_files", paper_directory)
+            destination_dir = os.path.join("code/~/results/error_files_" + str(type_of_experiment), paper_directory)
+            os.makedirs(destination_dir, exist_ok=True)
+            shutil.move(source_dir, destination_dir)
+            continue
     results_df = pd.DataFrame.from_records(results_data)
     results_df.to_csv(path_for_write_csv, index=False)
 
