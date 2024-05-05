@@ -128,6 +128,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
 
                 except Exception as e:
                     index += 1
+                    continue
                 if prediction and prediction > 0:
                     found = True
                     operators_done.append(oper)
@@ -517,6 +518,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
 
                     except Exception as e:
                         index += 1
+                        continue
                     if prediction > 0:
                         found = True
 
@@ -855,6 +857,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         if results:
             while reduced == False and has_more_operators_to_check(operators_done, results) == True and iterations < 10:
                 iterations += 1
+                if not results:
+                    break
                 for i in range(operators_max):
                     first_element = results[i]
                     if first_element in operators_done:
@@ -875,7 +879,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                         dct = pickle.load(dct_file)
 
                     original_operators_list = greedy.perform_operators(dct,  current_path_for_tex, lidor)
-
+                    found = False
                     for j in range(len(original_operators_list)):
                         first_element_new_list = original_operators_list[j]
                         if str(first_element_new_list[2]) == '1':
@@ -1029,11 +1033,8 @@ def results(path_for_docs, type_of_experiment, operators_max, models, bibliograp
             print(results_data[-1])
         except Exception as e:
             print(f"Error in {paper_directory}: {e}")
-            #move the directory to 'code/~/results/error_files' directory
-            source_dir = os.path.join("code/~/results/new_files", paper_directory)
-            destination_dir = os.path.join("code/~/results/error_files_" + str(type_of_experiment), paper_directory)
-            os.makedirs(destination_dir, exist_ok=True)
-            shutil.move(source_dir, destination_dir)
+            with open("code/~/results/error_files.txt", "a") as f:
+                f.write(f"{paper_directory}, {type_of_experiment}, {e}\n")
             continue
     results_df = pd.DataFrame.from_records(results_data)
     results_df.to_csv(path_for_write_csv, index=False)
