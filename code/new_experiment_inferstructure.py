@@ -31,7 +31,7 @@ def generate_dictionaries(counts):
     
     return dict_for_indexes, dict_for_indexes_inverse
 
-def simulating_vspace_for_prediction(value, key,operator_value,df_copy,models,prob_dict):  # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
+def simulating_vspace_for_prediction(value, key,operator_value,df_copy,models,prob_dict, operators_list):  # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
     type = 1
     value_of_operator = 0 #to be determined
     object_used_on = ''.join([i for i in key if not i.isdigit()])
@@ -84,22 +84,22 @@ def simulating_vspace_for_prediction(value, key,operator_value,df_copy,models,pr
         model_to_predict = (str(type), str(operator_value), str(index_for_object[object_used_on]), str(num_of_object))
 
         if model_to_predict not in models:
-            return -1,-1,-1,-1,-1,-1,-1
+            return -1,-1,-1,-1,-1,-1,-1, -1
         
         prediction = models[model_to_predict].predict(df_to_pred.to_numpy())[0]
         probability = float(prob_dict[model_to_predict])
         #print(prediction)
-
-        if prediction * probability < threshold_low or prediction * probability > threshold_high:
-            return -1,-1,-1,-1,-1,-1,-1
+        cost  = get_cost(operators_list, model_to_predict)
+        if prediction * probability < threshold_low or prediction * probability > threshold_high or cost == -1:
+            return -1,-1,-1,-1,-1,-1,-1,-1
 
         
         #return the prediction and confidance
-        return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy
+        return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy,cost
     else:
-        return -1,-1,-1,-1,-1,-1,-1
+        return -1,-1,-1,-1,-1,-1,-1, -1
 
-def simulating_figure_reduction_for_prediction(value, key,operator_value,df_copy,models,prob_dict):  # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
+def simulating_figure_reduction_for_prediction(value, key,operator_value,df_copy,models,prob_dict, operators_list):  # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
     type = 2
     value_of_operator = 0
     object_used_on = ''.join([i for i in key if not i.isdigit()])
@@ -127,19 +127,20 @@ def simulating_figure_reduction_for_prediction(value, key,operator_value,df_copy
     model_to_predict = (str(type), str(value_of_operator), str(num_of_object))
 
     if model_to_predict not in models:
-        return -1,-1,-1,-1,-1,-1,-1
+        return -1,-1,-1,-1,-1,-1,-1, -1
     
     prediction = models[model_to_predict].predict(df_to_pred.to_numpy())[0]
     probability = float(prob_dict[model_to_predict])
     #print(prediction)
+    cost  = get_cost(operators_list, model_to_predict)
 
-    if prediction * probability < threshold_low or prediction * probability > threshold_high:
-        return -1,-1,-1,-1,-1,-1,-1
+    if prediction * probability < threshold_low or prediction * probability > threshold_high or cost == -1:
+        return -1,-1,-1,-1,-1,-1,-1, -1
 
     #return the prediction and confidance
-    return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy
+    return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy, cost
 
-def simulating_algo_reduction_for_prediction(value, key,operator_value,df_copy,models,prob_dict):  # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
+def simulating_algo_reduction_for_prediction(value, key,operator_value,df_copy,models,prob_dict, operators_list):  # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
     type = 3
     value_of_operator = 0
     object_used_on = ''.join([i for i in key if not i.isdigit()])
@@ -167,18 +168,19 @@ def simulating_algo_reduction_for_prediction(value, key,operator_value,df_copy,m
     model_to_predict = (str(type), str(value_of_operator), str(num_of_object))
 
     if model_to_predict not in models:
-        return -1,-1,-1,-1,-1,-1,-1
+        return -1,-1,-1,-1,-1,-1,-1, -1
     
     prediction = models[model_to_predict].predict(df_to_pred.to_numpy())[0]
     probability = float(prob_dict[model_to_predict])
     #print(prediction)
+    cost  = get_cost(operators_list, model_to_predict)
 
-    if prediction * probability < threshold_low or prediction * probability > threshold_high:
-        return -1,-1,-1,-1,-1,-1,-1
+    if prediction * probability < threshold_low or prediction * probability > threshold_high or cost == -1:
+        return -1,-1,-1,-1,-1,-1,-1, -1
     #return the prediction and confidance
-    return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy
+    return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy, cost
 
-def simulating_enum_operator_for_prediction(value, key,operator_value,df_copy,models,prob_dict):  # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
+def simulating_enum_operator_for_prediction(value, key,operator_value,df_copy,models,prob_dict, operators_list):  # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
     type = 4
     value_of_operator = 0
     object_used_on = ''.join([i for i in key if not i.isdigit()])
@@ -206,18 +208,19 @@ def simulating_enum_operator_for_prediction(value, key,operator_value,df_copy,mo
     model_to_predict = (str(type), str(value_of_operator), str(num_of_object))
 
     if model_to_predict not in models:
-        return -1,-1,-1,-1,-1,-1,-1
+        return -1,-1,-1,-1,-1,-1,-1, -1
     
     prediction = models[model_to_predict].predict(df_to_pred.to_numpy())[0]
     probability = float(prob_dict[model_to_predict])
     #print(prediction)
+    cost  = get_cost(operators_list, model_to_predict)
 
-    if prediction * probability < threshold_low or prediction * probability > threshold_high:
-        return -1,-1,-1,-1,-1,-1,-1
+    if prediction * probability < threshold_low or prediction * probability > threshold_high or cost == -1:
+        return -1,-1,-1,-1,-1,-1,-1, -1
     #return the prediction and confidance
-    return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy
+    return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy, cost
 
-def simulating_paragraph_tag_operator_for_prediction(value, key,operator_value,df_copy,models,prob_dict):  # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
+def simulating_paragraph_tag_operator_for_prediction(value, key,operator_value,df_copy,models,prob_dict, operators_list):  # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
     type = 5
     value_of_operator = 0
     object_used_on = ''.join([i for i in key if not i.isdigit()])
@@ -245,18 +248,19 @@ def simulating_paragraph_tag_operator_for_prediction(value, key,operator_value,d
     model_to_predict = (str(type), str(value_of_operator), str(num_of_object))
 
     if model_to_predict not in models:
-        return -1,-1,-1,-1,-1,-1,-1
+        return -1,-1,-1,-1,-1,-1,-1, -1
     
     prediction = models[model_to_predict].predict(df_to_pred.to_numpy())[0]
     probability = float(prob_dict[model_to_predict])
     #print(prediction)
+    cost  = get_cost(operators_list, model_to_predict)
 
-    if prediction * probability < threshold_low or prediction * probability > threshold_high:
-        return -1,-1,-1,-1,-1,-1,-1
+    if prediction * probability < threshold_low or prediction * probability > threshold_high or cost == -1:
+        return -1,-1,-1,-1,-1,-1,-1, -1
     #return the prediction and confidance
-    return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy
+    return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy, cost
 
-def simulating_combine_paragraphs_for_prediction(value,key_1, key_2,operator_value,df_copy,models,prob_dict):  # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
+def simulating_combine_paragraphs_for_prediction(value,key_1, key_2,operator_value,df_copy,models,prob_dict, operators_list):  # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
     type = 6
     value_of_operator = 0
     object_used_on = ''.join([i for i in key_2 if not i.isdigit()])
@@ -284,18 +288,19 @@ def simulating_combine_paragraphs_for_prediction(value,key_1, key_2,operator_val
     model_to_predict = (str(type), str(value_of_operator), str(num_of_object))
 
     if model_to_predict not in models:
-        return -1,-1,-1,-1,-1,-1,-1
+        return -1,-1,-1,-1,-1,-1,-1, -1
     
     prediction = models[model_to_predict].predict(df_to_pred.to_numpy())[0]
     probability = float(prob_dict[model_to_predict])
     #print(prediction)
+    cost  = get_cost(operators_list, model_to_predict)
 
-    if prediction * probability < threshold_low or prediction * probability > threshold_high:
-        return -1,-1,-1,-1,-1,-1,-1
+    if prediction * probability < threshold_low or prediction * probability > threshold_high or cost == -1:
+        return -1,-1,-1,-1,-1,-1,-1, -1
     #return the prediction and confidance
-    return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy
+    return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy, cost
 
-def simulating_table_reduction_for_prediction(value, key,operator_value,df_copy,models,prob_dict):  # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
+def simulating_table_reduction_for_prediction(value, key,operator_value,df_copy,models,prob_dict, operators_list):  # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
     type = 7
     value_of_operator = 0
     object_used_on = ''.join([i for i in key if not i.isdigit()])
@@ -323,16 +328,17 @@ def simulating_table_reduction_for_prediction(value, key,operator_value,df_copy,
     model_to_predict = (str(type), str(value_of_operator), str(num_of_object))
 
     if model_to_predict not in models:
-        return -1,-1,-1,-1,-1,-1,-1
+        return -1,-1,-1,-1,-1,-1,-1, -1
     
     prediction = models[model_to_predict].predict(df_to_pred.to_numpy())[0]
     probability = float(prob_dict[model_to_predict])
     #print(prediction)
+    cost  = get_cost(operators_list, model_to_predict)
 
-    if prediction * probability < threshold_low or prediction * probability > threshold_high:
-        return -1,-1,-1,-1,-1,-1,-1
+    if prediction * probability < threshold_low or prediction * probability > threshold_high or cost == -1:
+        return -1,-1,-1,-1,-1,-1,-1, -1
     #return the prediction and confidance
-    return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy
+    return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy, cost
 
 # def simulating_tag_removal_for_prediction(value, key,operator_value,df_copy):  # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
 #     type = 8
@@ -5062,10 +5068,23 @@ def check_valid_operator(list_of_used_operators, new_operator):
 
     return False
 
+def get_cost(operators_list, current_operator):
+    for op in operators_list:
+        if str(op[2]) == '1':
+            oper = (
+                str(op[2]), str(op[3]), str(op[4]),
+                op[5])
+        else:
+            oper = (str(op[2]), str(op[3]), op[5])
+        if oper == current_operator:
+            return op[0] #cost
+    return -1
 
 
 
-def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_dict,bib_path):
+
+
+def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_dict,bib_path, operators_list= None):
 
     DEPTH_OF_TREE = depth_graph
 
@@ -5119,7 +5138,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
         #vspace has 4 options so we will iterate 4 times:
         for iteration in range(1,5):
             df_copy = base_df.copy(deep=True)
-            prediction,confidance,type,value_of_operator,object_used_on,num_of_object,df_copy = simulating_vspace_for_prediction(value,key,iteration,df_copy, models,prob_dict)
+            prediction,confidance,type,value_of_operator,object_used_on,num_of_object,df_copy, cost = simulating_vspace_for_prediction(value,key,iteration,df_copy, models,prob_dict, operators_list)
             if (prediction == -1 and confidance == -1 and df_copy == -1):
                 continue
 
@@ -5135,7 +5154,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
             #print("heyFigure")
             for iteration in range(0,5):
                 df_copy = base_df.copy(deep=True)
-                prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy = simulating_figure_reduction_for_prediction(value, key, iteration, df_copy, models,prob_dict)
+                prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy, cost = simulating_figure_reduction_for_prediction(value, key, iteration, df_copy, models,prob_dict, operators_list)
                 #print(prediction)
                 #print(confidance)
                 
@@ -5153,7 +5172,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
         if(key.startswith('Table')):
             for iteration in range(0,4):
                 df_copy = base_df.copy(deep=True)
-                prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy = simulating_table_reduction_for_prediction(value, key, iteration, df_copy, models,prob_dict)
+                prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy, cost = simulating_table_reduction_for_prediction(value, key, iteration, df_copy, models,prob_dict, operators_list)
                 if (prediction == -1 and confidance == -1 and df_copy == -1):
                     continue
 
@@ -5167,7 +5186,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
         if (key.startswith('Algorithm')):
             for iteration in range(0, 1):
                 df_copy = base_df.copy(deep=True)
-                prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy = simulating_algo_reduction_for_prediction(value, key, iteration, df_copy, models,prob_dict)
+                prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy, cost = simulating_algo_reduction_for_prediction(value, key, iteration, df_copy, models,prob_dict, operators_list)
                 if (prediction == -1 and confidance == -1 and df_copy == -1):
                     continue
 
@@ -5185,7 +5204,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
             found_enum = True
             for iteration in range(0, 1):
                 df_copy = base_df.copy(deep=True)
-                prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy = simulating_enum_operator_for_prediction(value, key, iteration, df_copy, models,prob_dict)
+                prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy, cost = simulating_enum_operator_for_prediction(value, key, iteration, df_copy, models,prob_dict, operators_list)
                 if (prediction == -1 and confidance == -1 and df_copy == -1):
                     continue
 
@@ -5199,7 +5218,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
         if (key.startswith('Paragraph')):
             for iteration in range(0, 1):
                 df_copy = base_df.copy(deep=True)
-                prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy = simulating_paragraph_tag_operator_for_prediction(value, key, iteration, df_copy, models,prob_dict)
+                prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy, cost = simulating_paragraph_tag_operator_for_prediction(value, key, iteration, df_copy, models,prob_dict, operators_list)
                 if (prediction == -1 and confidance == -1 and df_copy == -1):
                     continue
 
@@ -5220,8 +5239,8 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                 key_2 = key
                 for iteration in range(0, 1):
                     df_copy = base_df.copy(deep=True)
-                    prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy = simulating_combine_paragraphs_for_prediction(
-                        value, key_1,key_2, iteration, df_copy, models,prob_dict)
+                    prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy, cost = simulating_combine_paragraphs_for_prediction(
+                        value, key_1,key_2, iteration, df_copy, models,prob_dict, operators_list)
                     if (prediction == -1 and confidance == -1 and df_copy == -1):
                         continue
 
@@ -5313,7 +5332,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                     #vspace has 4 options so we will iterate 4 times:
                     for iteration in range(1,5):
                         df_copy = base_df.copy(deep=True)
-                        prediction,confidance,type,value_of_operator,object_used_on,num_of_object,df_copy = simulating_vspace_for_prediction(value,key,iteration,df_copy, models,prob_dict)
+                        prediction,confidance,type,value_of_operator,object_used_on,num_of_object,df_copy, cost = simulating_vspace_for_prediction(value,key,iteration,df_copy, models,prob_dict, operators_list)
                         if (prediction == -1 and confidance == -1 and df_copy == -1):
                             continue
 
@@ -5331,7 +5350,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                     if(key.startswith('Figure')):
                         for iteration in range(0,5):
                             df_copy = base_df.copy(deep=True)
-                            prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy = simulating_figure_reduction_for_prediction(value, key, iteration, df_copy, models,prob_dict)
+                            prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy, cost = simulating_figure_reduction_for_prediction(value, key, iteration, df_copy, models,prob_dict, operators_list)
                             if (prediction == -1 and confidance == -1 and df_copy == -1):
                                 continue
                             
@@ -5349,7 +5368,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                     if(key.startswith('Table')):
                         for iteration in range(0,4):
                             df_copy = base_df.copy(deep=True)
-                            prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy = simulating_table_reduction_for_prediction(value, key, iteration, df_copy, models,prob_dict)
+                            prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy, cost = simulating_table_reduction_for_prediction(value, key, iteration, df_copy, models,prob_dict, operators_list)
                             if (prediction == -1 and confidance == -1 and df_copy == -1):
                                 continue
 
@@ -5366,7 +5385,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                     if (key.startswith('Algorithm')):
                         for iteration in range(0, 1):
                             df_copy = base_df.copy(deep=True)
-                            prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy = simulating_algo_reduction_for_prediction(value, key, iteration, df_copy, models,prob_dict)
+                            prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy, cost = simulating_algo_reduction_for_prediction(value, key, iteration, df_copy, models,prob_dict, operators_list)
                             if (prediction == -1 and confidance == -1 and df_copy == -1):
                                 continue
 
@@ -5387,7 +5406,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                         found_enum = True
                         for iteration in range(0, 1):
                             df_copy = base_df.copy(deep=True)
-                            prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy = simulating_enum_operator_for_prediction(value, key, iteration, df_copy, models,prob_dict)
+                            prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy, cost = simulating_enum_operator_for_prediction(value, key, iteration, df_copy, models,prob_dict, operators_list)
                             if (prediction == -1 and confidance == -1 and df_copy == -1):
                                 continue
 
@@ -5404,7 +5423,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                     if (key.startswith('Paragraph')):
                         for iteration in range(0, 1):
                             df_copy = base_df.copy(deep=True)
-                            prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy = simulating_paragraph_tag_operator_for_prediction(value, key, iteration, df_copy, models,prob_dict)
+                            prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy, cost = simulating_paragraph_tag_operator_for_prediction(value, key, iteration, df_copy, models,prob_dict, operators_list)
                             if (prediction == -1 and confidance == -1 and df_copy == -1):
                                 continue
 
@@ -5428,8 +5447,8 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                             key_2 = key
                             for iteration in range(0, 1):
                                 df_copy = base_df.copy(deep=True)
-                                prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy = simulating_combine_paragraphs_for_prediction(
-                                    value, key_1,key_2, iteration, df_copy, models,prob_dict)
+                                prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy, cost = simulating_combine_paragraphs_for_prediction(
+                                    value, key_1,key_2, iteration, df_copy, models,prob_dict, operators_list)
                                 if (prediction == -1 and confidance == -1 and df_copy == -1):
                                     continue
 

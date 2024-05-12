@@ -16,6 +16,8 @@ import new_experiment_inferstructure
 import subprocess
 import shutil
 import handle_full_paper
+import Last_2_pages_rows_extract        
+import traceback
 
 # Read list to memory
 def read_list(path):
@@ -311,14 +313,6 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         max_len_tree = 0
         iter = 0
         for i in range(operators_max):
-            results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
-                                                                            file_name=current_path_for_tex, last_pages=current_path_for_pdf,
-                                                                            algorithm_search=search_algorithms_for_experiment.dijkstra,
-                                                                            models=models, mse_dct=mse_dct, bib_path=bibliograph_path)
-            if not results:
-                break
-            first_element = results[0]
-            max_len_tree = max(max_len_tree, len_tree)
             df1, lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                          bibliograph_path,
                                                          "code/~/results/dct0",
@@ -333,6 +327,15 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 dct = pickle.load(dct_file)
 
             original_operators_list = greedy.perform_operators(dct,  current_path_for_tex,lidor)
+            results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
+                                                                            file_name=current_path_for_tex, last_pages=current_path_for_pdf,
+                                                                            algorithm_search=search_algorithms_for_experiment.dijkstra,
+                                                                            models=models, mse_dct=mse_dct, bib_path=bibliograph_path, operators_list=original_operators_list)
+            if not results:
+                break
+            first_element = results[0]
+            max_len_tree = max(max_len_tree, len_tree)
+
             for j in range(len(original_operators_list)):
                 first_element_new_list = original_operators_list[j]
                 if str(first_element_new_list[2]) == '1':
@@ -393,12 +396,24 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         start = time.time()
         iter = 0
 
+        df1, lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
+                                                    bibliograph_path,
+                                                    "code/~/results/dct0",
+                                                    "code/~/results/dct0",
+                                                    "test", pd.DataFrame())   
+        df1 = df1.T
+        df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
+                'num_of_object'], axis=1, inplace=True)
 
+        with open( "code/~/results/dct0",'rb') as dct_file:
+            dct = pickle.load(dct_file)
+
+        original_operators_list = greedy.perform_operators(dct,  current_path_for_tex,lidor)
         mse_dct = new_experiment_inferstructure.create_dict()
         results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
                                                                         file_name=current_path_for_tex,last_pages=current_path_for_pdf,
                                                                         algorithm_search=search_algorithms_for_experiment.dijkstra,
-                                                                      models=models, mse_dct=mse_dct , bib_path=bibliograph_path)
+                                                                      models=models, mse_dct=mse_dct , bib_path=bibliograph_path, operators_list=original_operators_list)
         if results:    
             print(results)
             for operator in results:
@@ -752,11 +767,27 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         start = time.time()
 
         operators_done = []
+        
+        
+        df1 , lidor= features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
+                                            bibliograph_path,
+                                            "code/~/results/dct0",
+                                            "code/~/results/dct0",
+                                            "test", pd.DataFrame())
+        df1 = df1.T
+        df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
+                'num_of_object'], axis=1, inplace=True)
+
+        with open("code/~/results/dct0",
+                'rb') as dct_file:
+            dct = pickle.load(dct_file)
+
+        original_operators_list = greedy.perform_operators(dct,  current_path_for_tex, lidor)
         mse_dct = new_experiment_inferstructure.create_dict()
         results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
                                                                         file_name=current_path_for_tex,last_pages=current_path_for_pdf,
                                                                         algorithm_search=search_algorithms_for_experiment.dijkstra,
-                                                                        models=models, mse_dct=mse_dct, bib_path=bibliograph_path)
+                                                                        models=models, mse_dct=mse_dct, bib_path=bibliograph_path, operators_list=original_operators_list)
         iter = 0
         if results:
             while reduced == False and has_more_operators_to_check(operators_done, results) == True and iterations < 10:
@@ -849,10 +880,25 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         mse_dct = new_experiment_inferstructure.create_dict()
         max_len_tree = 0
         operators_done = []
+        
+        df1,lidor= features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
+                                            bibliograph_path,
+                                            "code/~/results/dct0",
+                                            "code/~/results/dct0",
+                                            "test", pd.DataFrame())
+        df1 = df1.T
+        df1.drop(['herustica', 'binary_class', 'lines_we_gained', 'y_gained', 'type', 'value', 'object_used_on',
+                'num_of_object'], axis=1, inplace=True)
+
+        with open("code/~/results/dct0",
+                'rb') as dct_file:
+            dct = pickle.load(dct_file)
+
+        original_operators_list = greedy.perform_operators(dct,  current_path_for_tex, lidor)
         results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
                                                                         file_name=current_path_for_tex,last_pages=current_path_for_pdf,
                                                                         algorithm_search=search_algorithms_for_experiment.dijkstra,
-                                                                        models=models, mse_dct=mse_dct , bib_path=bibliograph_path)
+                                                                        models=models, mse_dct=mse_dct , bib_path=bibliograph_path, operators_list=original_operators_list)
         iter=0
         if results:
             while reduced == False and has_more_operators_to_check(operators_done, results) == True and iterations < 10:
@@ -1032,6 +1078,7 @@ def results(path_for_docs, type_of_experiment, operators_max, models, bibliograp
                     "cost": cost, "time_taken": time_taken, "max_len_tree": len_tree, "operators_count": count_operators})
             print(results_data[-1])
         except Exception as e:
+            traceback.print_exc()
             print(f"Error in {paper_directory}: {e}")
             with open("code/~/results/error_files.txt", "a") as f:
                 f.write(f"{paper_directory}, {type_of_experiment}, {e}\n")

@@ -20,6 +20,7 @@ def create_graph_networkx(dct, depth):
     nodes = []
     edges = []
     last_node_id = len(dct) + 1
+    alpha = 0.2
 
     for key, value in dct.items():
         nodes.append(key)
@@ -68,9 +69,9 @@ def get_operators(tree, path):
 
 
 
-def run_search(tree_depth, file_name,last_pages, algorithm_search, models, mse_dct, bib_path):
+def run_search(tree_depth, file_name,last_pages, algorithm_search, models, mse_dct, bib_path, operators_list=None):
     print("generate graph for file:", file_name)
-    tree, current_depth = new_experiment_inferstructure.generate_search_graph(tree_depth, file_name, last_pages, models, mse_dct, bib_path)
+    tree, current_depth = new_experiment_inferstructure.generate_search_graph(tree_depth, file_name, last_pages, models, mse_dct, bib_path, operators_list)
     #tree = load_search_dict('pdf_extraction\\adi_comparing\\files_for_search\\search_dict')
     if not tree or current_depth < tree_depth:
         return None, -1
