@@ -38,6 +38,8 @@ def has_more_operators_to_check(activated, to_activate):
     :param to_activate: list of operators to activate
     :return: true if there are more operators to activate
     """
+    if not to_activate:
+        return False
     for operator in to_activate:
         if operator not in activated:
             return True
@@ -858,7 +860,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
                                                                                 file_name=current_path_for_tex,last_pages=current_path_for_pdf,
                                                                                 algorithm_search=search_algorithms_for_experiment.dijkstra,
-                                                                                models=models, mse_dct=mse_dct, bib_path=bibliograph_path)
+                                                                                models=models, mse_dct=mse_dct, bib_path=bibliograph_path, operators_list=original_operators_list)
                 if not results:
                     break
 
@@ -979,7 +981,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
                                                                                     file_name=current_path_for_tex,last_pages=current_path_for_pdf,
                                                                                     algorithm_search=search_algorithms_for_experiment.dijkstra,
-                                                                                    models=models, mse_dct=mse_dct, bib_path=bibliograph_path)
+                                                                                    models=models, mse_dct=mse_dct, bib_path=bibliograph_path, operators_list=original_operators_list)
                     if not results:
                         break
 
