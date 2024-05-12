@@ -5146,7 +5146,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
             used_operators.append((str(type), str(iteration), str(index_for_object[object_used_on]), num_of_object))
             depth_added = True
 
-            dict_based_tree_levels[depth].append([prediction,confidance,type,value_of_operator,object_used_on,num_of_object,df_copy,node_id,used_operators])
+            dict_based_tree_levels[depth].append([prediction,confidance,type,value_of_operator,object_used_on,num_of_object,df_copy,node_id,used_operators, cost])
             dict_based_tree_levels[node_id] = []
             node_id+=1
         #figure and table have 5 sizes
@@ -5165,7 +5165,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                 used_operators.append((str(type), str(value_of_operator), num_of_object))
                 depth_added = True
 
-                dict_based_tree_levels[depth].append([prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators])
+                dict_based_tree_levels[depth].append([prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators, cost])
                 dict_based_tree_levels[node_id] = []
                 node_id+=1
         #table have 4 sizes:
@@ -5180,7 +5180,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                 used_operators.append((str(type), str(value_of_operator), num_of_object))
                 depth_added = True
 
-                dict_based_tree_levels[depth].append([prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators])
+                dict_based_tree_levels[depth].append([prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators, cost])
                 dict_based_tree_levels[node_id] = []
                 node_id+=1
         if (key.startswith('Algorithm')):
@@ -5195,7 +5195,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                 depth_added = True
 
                 dict_based_tree_levels[depth].append(
-                    [prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators])
+                    [prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators, cost])
                 dict_based_tree_levels[node_id] = []
                 node_id+=1
         if(found_enum and key.startswith('Enum')): #good if there is no seperate enums, which makes no sense but yeah
@@ -5212,7 +5212,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                 used_operators.append((str(type), str(value_of_operator), num_of_object))
                 depth_added = True
 
-                dict_based_tree_levels[depth].append([prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators])
+                dict_based_tree_levels[depth].append([prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators, cost])
                 dict_based_tree_levels[node_id] = []
                 node_id+=1
         if (key.startswith('Paragraph')):
@@ -5227,7 +5227,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                 depth_added = True
 
                 dict_based_tree_levels[depth].append(
-                    [prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators])
+                    [prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators, cost])
                 dict_based_tree_levels[node_id] = []
                 node_id+=1
         new_key_for_par = ''.join(i for i in key if not i.isdigit())
@@ -5249,7 +5249,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                     depth_added = True
 
                     dict_based_tree_levels[depth].append(
-                        [prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators])
+                        [prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators, cost])
                     dict_based_tree_levels[node_id] = []
                     node_id+=1
                 key_1 = key
@@ -5342,7 +5342,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                             continue
                         used_operators.append(candidate)
 
-                        dict_based_tree_levels[depth].append([prediction,confidance,type,value_of_operator,object_used_on,num_of_object,df_copy,node_id,used_operators])
+                        dict_based_tree_levels[depth].append([prediction,confidance,type,value_of_operator,object_used_on,num_of_object,df_copy,node_id,used_operators, cost])
                         depth_added = True
                         dict_based_tree_levels[node_id] = []
                         node_id+=1
@@ -5360,7 +5360,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                                 continue
                             used_operators.append(candidate)
 
-                            dict_based_tree_levels[depth].append([prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators])
+                            dict_based_tree_levels[depth].append([prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators, cost])
                             depth_added = True
                             dict_based_tree_levels[node_id] = []
                             node_id+=1
@@ -5378,7 +5378,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                                 continue
                             used_operators.append(candidate)
 
-                            dict_based_tree_levels[depth].append([prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators])
+                            dict_based_tree_levels[depth].append([prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators, cost])
                             depth_added = True
                             dict_based_tree_levels[node_id] = []
                             node_id+=1
@@ -5396,7 +5396,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                             used_operators.append(candidate)
 
                             dict_based_tree_levels[depth].append(
-                                [prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators])
+                                [prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators, cost])
                             depth_added = True
                             dict_based_tree_levels[node_id] = []
                             node_id+=1
@@ -5416,7 +5416,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                                 continue
                             used_operators.append(candidate)
 
-                            dict_based_tree_levels[depth].append([prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators])
+                            dict_based_tree_levels[depth].append([prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators, cost])
                             depth_added = True
                             dict_based_tree_levels[node_id] = []
                             node_id+=1
@@ -5434,7 +5434,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                             used_operators.append(candidate)
 
                             dict_based_tree_levels[depth].append(
-                                [prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators])
+                                [prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators, cost])
                             depth_added = True
                             dict_based_tree_levels[node_id] = []
                             node_id+=1
@@ -5459,7 +5459,7 @@ def generate_search_graph(depth_graph, file_name,last_pages_pdf, models, prob_di
                                 used_operators.append(candidate)
 
                                 dict_based_tree_levels[depth].append(
-                                    [prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators])
+                                    [prediction, confidance, type, value_of_operator, object_used_on, num_of_object, df_copy,node_id,used_operators, cost])
                                 depth_added = True
                                 dict_based_tree_levels[node_id] = []
                                 node_id+=1
