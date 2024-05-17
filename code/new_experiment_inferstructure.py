@@ -5700,16 +5700,27 @@ def create_dict():
                 ('8', '1', '4'): '3710.38'}
 
     #now lets get the min and max and then normalize:
-    values = mse_dict.values()
-    res = [eval(i) for i in values]
-    scalar = MinMaxScaler()
-    res = np.reshape(res, (-1, 1))
-    normalized_arr = scalar.fit_transform(res)
+    # values = mse_dict.values()
+    # res = [eval(i) for i in values]
+    # scalar = MinMaxScaler()
+    # res = np.reshape(res, (-1, 1))
+    # normalized_arr = scalar.fit_transform(res)
+    # normalized_mse_dict = {}
+    # index = 0
+    # for key in mse_dict.keys():
+    #     normalized_mse_dict[key] = str(normalized_arr[index][0])
+    #     index+=1
+    # return normalized_mse_dict
+    values = list(mse_dict.values())
+    res = [float(i) for i in values]
+    min_mse = min(res)
+    max_mse = max(res)
+
     normalized_mse_dict = {}
-    index = 0
-    for key in mse_dict.keys():
-        normalized_mse_dict[key] = str(normalized_arr[index][0])
-        index+=1
+    for key, mse in mse_dict.items():
+        normalized_prob = 1 - (float(mse) - min_mse) / (max_mse - min_mse)
+        normalized_mse_dict[key] = str(normalized_prob)
+
     return normalized_mse_dict
 
 

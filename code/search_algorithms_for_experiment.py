@@ -20,14 +20,14 @@ def create_graph_networkx(dct, depth):
     nodes = []
     edges = []
     last_node_id = len(dct) + 1
-    alpha = 0.2
+    alpha = 1
 
     for key, value in dct.items():
         nodes.append(key)
         if value:
             for neighbor in value:
                 if neighbor[0]>0:
-                    edges.append((key, neighbor[7], alpha * neighbor[0] * neighbor[1]+ (1-alpha) * neighbor[9] ))
+                    edges.append((key, neighbor[7], (alpha * (1/(neighbor[0] * neighbor[1])))+ ((1-alpha) * neighbor[9]) ))
                 
                 if len(neighbor[8]) == depth:
                     edges.append((neighbor[7], last_node_id, 0))
