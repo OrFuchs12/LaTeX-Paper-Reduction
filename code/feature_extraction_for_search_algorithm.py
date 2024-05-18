@@ -691,8 +691,8 @@ def run_feature_extraction(latex_path, pdf_path, bib_path
                     else:
                         dct[object_name]['space_between_this_object_and_last_object'] = abs(
                             last_object['Last_line_bbox'][1] - object['First_line_bbox'][0])
-                    dct[last_object_name]['space_between_this_object_and_the_next_object'] = dct[object_name][
-                        'space_between_this_object_and_last_object']
+                dct[last_object_name]['space_between_this_object_and_the_next_object'] = dct[object_name][
+                    'space_between_this_object_and_last_object']
 
             if (dct[object_name]['height'] >= 0):
                 sum_space_taken += dct[object_name]['height']
