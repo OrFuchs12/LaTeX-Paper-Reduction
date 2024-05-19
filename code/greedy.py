@@ -46,7 +46,19 @@ def is_par(lst, index):
 
 
 def combine_two_paragraphs(lst, index_1, index_2):
-    lst[index_1] = lst[index_1].replace("\n", " ") + lst.pop(index_2)
+    # lst[index_1] = lst[index_1].replace("\n", " ") + lst.pop(index_2)
+    # return lst
+    # Start removing newlines from index_2 backward until a non-newline is found above it
+    orig_2 = index_2
+    while index_2 > index_1 + 1 and lst[index_2 - 1] == '\n':
+        del lst[index_2 - 1]
+        index_2 -= 1
+    #remove \n from lst[index_2 - 1]
+    lst[index_2 - 1] = lst[index_2 - 1].replace("\n", " ")
+    
+    # Combine the paragraphs by replacing the newline with a space
+    lst[index_2 - 1] += " " + lst.pop(index_2)
+    
     return lst
 
 def extract_adjustbox_width(latex_command):

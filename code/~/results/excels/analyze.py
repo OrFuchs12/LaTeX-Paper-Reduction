@@ -44,7 +44,7 @@ means = {}
 for df, file_path in zip(dfs, file_paths):
     file_name = os.path.basename(file_path).split('.')[0]
     #tmp df without name
-    tmp_df = df.drop(columns=['docName'])
+    tmp_df = df.drop(columns=['docName', 'original_height','last_page_height','gained'])
     means[file_name] = tmp_df.mean()
 
 modified_means = {}
@@ -60,7 +60,7 @@ print('means csv file created! ')
 reduced_means = {}
 for key, df in zip(means.keys(), dfs):
     reduced_df = df[df['reduced'].astype(bool)] 
-    tmp_reduced_df = reduced_df.drop(columns=['docName'])
+    tmp_reduced_df = reduced_df.drop(columns=['docName', 'original_height','last_page_height','gained'])
     reduced_means[key] = tmp_reduced_df.mean()
 
 modified_reduced_means = {}
@@ -90,7 +90,7 @@ for df, file_path in zip(dfs, file_paths):
 intersection_means = {}
 for file_path, common_df in common_rows.items():
     # Calculate mean for the common rows in each DataFrame
-    tmp_common_df = common_df.drop(columns=['docName'])
+    tmp_common_df = common_df.drop(columns=['docName', 'original_height','last_page_height','gained'])
     intersection_means[file_path] = tmp_common_df.mean()
 
 modified_intersection_means = {}
