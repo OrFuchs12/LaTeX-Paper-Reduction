@@ -99,6 +99,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         start = time.time()
         len_tree = -1
         iter = 0
+        compilations = 0
+        operators_applied = 0
         for i in range(operators_max):
 
             df1 , lidor= features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
@@ -153,7 +155,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     # base_name = os.path.basename(after_path)
                     # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
                 subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
-                
+                compilations += 1
+                operators_applied += 1
 
                 current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
                 lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
@@ -191,6 +194,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         start = time.time()
         len_tree = -1        
         iter = 0
+        compilations = 0
+        operators_applied = 0
 
         df1, lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                      bibliograph_path,
@@ -277,6 +282,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     # base_name = os.path.basename(after_path)
                     # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
                 subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
+                compilations += 1
+                operators_applied += operators_max
                 
                 current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
                 lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
@@ -314,6 +321,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         mse_dct = new_experiment_inferstructure.create_dict()
         max_len_tree = 0
         iter = 0
+        compilations = 0
+        operators_applied = 0
         for i in range(operators_max):
             df1, lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                          bibliograph_path,
@@ -329,7 +338,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 dct = pickle.load(dct_file)
 
             original_operators_list = greedy.perform_operators(dct,  current_path_for_tex,lidor)
-            results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
+            results, len_tree ,current_depth = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
                                                                             file_name=current_path_for_tex, last_pages=current_path_for_pdf,
                                                                             algorithm_search=search_algorithms_for_experiment.dijkstra,
                                                                             models=models, mse_dct=mse_dct, bib_path=bibliograph_path, operators_list=original_operators_list)
@@ -361,7 +370,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     # base_name = os.path.basename(after_path)
                     # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
                     subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
-                
+                    compilations += 1
+                    operators_applied += 1
 
                     current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
                      #todo check why this takes so long
@@ -397,6 +407,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         reduced = False
         start = time.time()
         iter = 0
+        compilations = 0
+        operators_applied = 0
 
         df1, lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                     bibliograph_path,
@@ -412,7 +424,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
 
         original_operators_list = greedy.perform_operators(dct,  current_path_for_tex,lidor)
         mse_dct = new_experiment_inferstructure.create_dict()
-        results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
+        results, len_tree,current_depth = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
                                                                         file_name=current_path_for_tex,last_pages=current_path_for_pdf,
                                                                         algorithm_search=search_algorithms_for_experiment.dijkstra,
                                                                       models=models, mse_dct=mse_dct , bib_path=bibliograph_path, operators_list=original_operators_list)
@@ -458,7 +470,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                         # base_name = os.path.basename(after_path)
                         # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
                         subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
-                
+                        compilations += 1
+                        operators_applied += operators_max
                         current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
                         lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
                         last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
@@ -500,6 +513,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         len_tree = -1
         count_operators = 0
         iter=0
+        compilations = 0
+        operators_applied = 0
 
         df1 , lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                      bibliograph_path,
@@ -557,7 +572,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     # base_name = os.path.basename(after_path)
                     # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
                     subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
-              
+                    compilations +=1
+                    operators_applied +=1
 
                     current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
                     cost += operators_list[index][0]
@@ -589,6 +605,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     dct = pickle.load(dct_file)
 
                 operators_list = greedy.perform_operators(dct,  current_path_for_tex, lidor)
+                index=0
 
         operators_activated = count_operators
         end = time.time()
@@ -609,6 +626,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         start = time.time()
         count_operators = 0
         len_tree = -1
+        compilations = 0
+        operators_applied = 0
 
         df1 , lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                      bibliograph_path,
@@ -708,7 +727,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     # base_name = os.path.basename(after_path)
                     # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
                     subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
-              
+                    compilations += 1
+                    operators_applied += operators_max
 
 
                     current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
@@ -767,9 +787,9 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         count_operators = 0
         reduced = False
         start = time.time()
-
         operators_done = []
-        
+        compilations = 0
+        operators_applied = 0
         
         df1 , lidor= features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                             bibliograph_path,
@@ -786,10 +806,11 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
 
         original_operators_list = greedy.perform_operators(dct,  current_path_for_tex, lidor)
         mse_dct = new_experiment_inferstructure.create_dict()
-        results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
+        results, len_tree ,current_depth = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
                                                                         file_name=current_path_for_tex,last_pages=current_path_for_pdf,
                                                                         algorithm_search=search_algorithms_for_experiment.dijkstra,
-                                                                        models=models, mse_dct=mse_dct, bib_path=bibliograph_path, operators_list=original_operators_list)
+                                                                     models=models, mse_dct=mse_dct, bib_path=bibliograph_path, operators_list=original_operators_list)
+
         iter = 0
         if results:
             while reduced == False and has_more_operators_to_check(operators_done, results) == True and iterations < 10:
@@ -835,7 +856,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                             # os.system(cmd_line_act)
                             dir_path = os.path.join("code/~/results/new_files", paper_directory)
                             subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
-
+                            compilations += 1
+                            operators_applied += operators_max
                             current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
                             lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
                             # make a new pdf only with 2 last pages:
@@ -855,9 +877,11 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 lines, pages = greedy.check_lines(current_path_for_pdf)
                 if (pages < 2 or new_number_of_pages< num_of_pages):
                     reduced = True
-            
                     break
-                results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
+                if current_depth<operators_max and current_depth!=0:
+                    operators_applied -= operators_max-current_depth
+                    break
+                results, len_tree ,current_depth = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
                                                                                 file_name=current_path_for_tex,last_pages=current_path_for_pdf,
                                                                                 algorithm_search=search_algorithms_for_experiment.dijkstra,
                                                                                 models=models, mse_dct=mse_dct, bib_path=bibliograph_path, operators_list=original_operators_list)
@@ -882,6 +906,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         mse_dct = new_experiment_inferstructure.create_dict()
         max_len_tree = 0
         operators_done = []
+        compilations = 0
+        operators_applied = 0
         
         df1,lidor= features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                             bibliograph_path,
@@ -897,7 +923,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
             dct = pickle.load(dct_file)
 
         original_operators_list = greedy.perform_operators(dct,  current_path_for_tex, lidor)
-        results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
+        results, len_tree,current_depth = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
                                                                         file_name=current_path_for_tex,last_pages=current_path_for_pdf,
                                                                         algorithm_search=search_algorithms_for_experiment.dijkstra,
                                                                         models=models, mse_dct=mse_dct , bib_path=bibliograph_path, operators_list=original_operators_list)
@@ -908,7 +934,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 if not results:
                     break
                 for i in range(operators_max):
-                    first_element = results[i]
+                    first_element = results[0]
                     if first_element in operators_done:
                         continue
 
@@ -954,7 +980,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                             # base_name = os.path.basename(after_path)
                             # subprocess.run(['pdflatex.exe', base_name], cwd=dir_path) #On windows
                             subprocess.run(['pdflatex', '-interaction=nonstopmode', os.path.basename(current_path_for_tex)], cwd=dir_path) #On mac
-                        
+                            compilations += 1
+                            operators_applied += 1
 
                             current_path_for_pdf = current_path_for_tex.split(".tex")[0] + ".pdf"
                             lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
@@ -978,7 +1005,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                         operators_done.append(first_element)
                         continue
 
-                    results, len_tree = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
+                    results, len_tree ,current_depth = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
                                                                                     file_name=current_path_for_tex,last_pages=current_path_for_pdf,
                                                                                     algorithm_search=search_algorithms_for_experiment.dijkstra,
                                                                                     models=models, mse_dct=mse_dct, bib_path=bibliograph_path, operators_list=original_operators_list)
@@ -992,7 +1019,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         len_tree = max_len_tree
 
     return (
-        original_height, last_page_height, gained, time_taken, reduced, cost, iterations, len_tree, operators_activated)
+        original_height, last_page_height, gained, time_taken, reduced, cost, iterations, len_tree, compilations,operators_applied)
 
 
 def results(path_for_docs, type_of_experiment, operators_max, models, bibliograph_path):
@@ -1071,13 +1098,13 @@ def results(path_for_docs, type_of_experiment, operators_max, models, bibliograp
     #     # print("Less then 2 pages")
     #     return {}
         try:
-            original_height, last_page_height, gained, time_taken, reduced, cost, iterations, len_tree, count_operators = experiment_on_document(
+            original_height, last_page_height, gained, time_taken, reduced, cost, iterations, len_tree, compilations,operators_applied = experiment_on_document(
                     path_to_latex, type_of_experiment, last_pages_pdf_path, operators_max, models,paper_directory, bibliograph_path,num_of_pages)
             results_data.append(
                     {"docName": paper_directory, "experiment_type": type_of_experiment, "operators_max": operators_max,
                     "iterations": iterations, "reduced": reduced,
                     "original_height": original_height, "last_page_height": last_page_height, "gained": gained,
-                    "cost": cost, "time_taken": time_taken, "max_len_tree": len_tree, "operators_count": count_operators})
+                    "cost": cost, "time_taken": time_taken, "max_len_tree": len_tree, "compilations": compilations,"operators_applied":operators_applied})
             print(results_data[-1])
         except Exception as e:
             traceback.print_exc()
@@ -1131,3 +1158,5 @@ if __name__ == "__main__":
     # writing results to csv
     # results_df = pd.DataFrame.from_records(results_data)
     # results_df.to_csv(path_for_write_csv, index=False)
+    ###fdfdfdfd
+    #FDD

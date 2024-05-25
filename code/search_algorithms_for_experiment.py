@@ -73,10 +73,13 @@ def run_search(tree_depth, file_name,last_pages, algorithm_search, models, mse_d
     print("generate graph for file:", file_name)
     tree, current_depth = new_experiment_inferstructure.generate_search_graph(tree_depth, file_name, last_pages, models, mse_dct, bib_path, operators_list)
     #tree = load_search_dict('pdf_extraction\\adi_comparing\\files_for_search\\search_dict')
-    if not tree or current_depth < tree_depth:
-        return None, -1
+    if not tree :
+        return None, -1,-1
     #print(tree)
-
+    if current_depth==0:
+        return None, -1,-1
+    if current_depth < tree_depth:
+        tree_depth = current_depth
     graph = create_graph_networkx(tree, tree_depth)
     path = algorithm_search(graph, start=1, end=len(tree)+1)
 
@@ -86,7 +89,7 @@ def run_search(tree_depth, file_name,last_pages, algorithm_search, models, mse_d
 
     operators = get_operators(tree, path)
 
-    return (operators,len(tree))
+    return (operators,len(tree),current_depth)
     
 
 
