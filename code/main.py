@@ -1147,10 +1147,10 @@ if __name__ == "__main__":
         type_of_experiment = "loop-search-atOnce"
 
     # loading models
-    if type_of_experiment.find("search") != -1:
-        models = reload_models.load_regression_models_cat(models_path_cat)
-    else:
-        models = greedy.load_models(models_path_xgb)
+    # if type_of_experiment.find("search") != -1:
+    #     models = reload_models.load_regression_models_cat(models_path_cat)
+    # else:
+    models = greedy.load_models(models_path_xgb)
 
     results(path_for_docs, type_of_experiment, operators_max, models,
                            bibliograph_path)

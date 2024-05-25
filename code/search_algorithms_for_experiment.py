@@ -26,13 +26,15 @@ def create_graph_networkx(dct, depth):
         nodes.append(key)
         if value:
             for neighbor in value:
-                if neighbor[0]>0:
-                    edges.append((key, neighbor[7], (alpha * (1/(neighbor[0] * neighbor[1])))+ ((1-alpha) * neighbor[9]) ))
+                if neighbor[0]>0: #if prediction is 1 then we want to be smallest weight so like prediction is 0
+                    edges.append((key, neighbor[7], ((1-alpha) * neighbor[9])))
+                else: #if prediction is 0 then we want to be biggest weight so like prediction is 1
+                    edges.append((key, neighbor[7], (alpha * (1/(1* neighbor[1])))+ ((1-alpha) * neighbor[9]) ))
+
                 
                 if len(neighbor[8]) == depth:
                     edges.append((neighbor[7], last_node_id, 0))
 
-            
         #else:
             #edges.append((key, last_node_id, 0))
             
