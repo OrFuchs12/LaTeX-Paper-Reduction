@@ -162,7 +162,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
                 # make a new pdf only with 2 last pages:
                 last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
-                last_page_height = read_single_file.order(last_pages_pdf)
+                last_page_height = 0
                 lines, pages = greedy.check_lines(last_pages_pdf)
                 cost += operators_list[index][0]
                 current_path_for_pdf=last_pages_pdf
@@ -173,6 +173,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     
                     break
                 iter += 1
+            
+
             else:
                 break
         end = time.time()
@@ -289,8 +291,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
                 last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
                 current_path_for_pdf = last_pages_pdf
-                last_page_height = read_single_file.order(current_path_for_pdf)
-                current_path_for_pdf = last_pages_pdf
+                last_page_height = 0
                 cost += first_element_new_list[0]
                 iter += 1
                 count_operators += 1
@@ -324,6 +325,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         compilations = 0
         operators_applied = 0
         for i in range(operators_max):
+            if reduced:
+                break
             df1, lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                          bibliograph_path,
                                                          "code/~/results/dct0",
@@ -380,7 +383,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
                     # make a new pdf only with 2 last pages:
                     last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
-                    last_page_height = read_single_file.order(last_pages_pdf)
+                    last_page_height = 0
                     lines, pages = greedy.check_lines(last_pages_pdf)
                     
                     if (pages < 2 or new_number_of_pages< num_of_pages):
@@ -476,7 +479,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                         lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
                         last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
                         current_path_for_pdf = last_pages_pdf
-                        last_page_height = read_single_file.order(current_path_for_pdf)
+                        last_page_height = 0
                         cost += first_element_new_list[0]
                         iter += 1
                         count_operators += 1
@@ -490,6 +493,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         lines, pages = greedy.check_lines(current_path_for_pdf)
         if (pages < 2 or new_number_of_pages< num_of_pages):
             reduced = True
+
 
         iterations = 1
         operators_activated = count_operators
@@ -581,7 +585,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
                     # make a new pdf only with 2 last pages:
                     last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
-                    last_page_height = read_single_file.order(last_pages_pdf)
+                    last_page_height =0
                     lines, pages = greedy.check_lines(last_pages_pdf)
                     current_path_for_pdf = last_pages_pdf
                     if (pages < 2 or new_number_of_pages< num_of_pages):
@@ -735,7 +739,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
                     # make a new pdf only with 2 last pages:
                     last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
-                    last_page_height = read_single_file.order(last_pages_pdf)
+                    last_page_height = 0
                     
                     current_path_for_pdf = last_pages_pdf
                     iter += 1
@@ -862,7 +866,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                             lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
                             # make a new pdf only with 2 last pages:
                             last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
-                            last_page_height = read_single_file.order(last_pages_pdf)
+                            last_page_height =0
                             
                             current_path_for_pdf = last_pages_pdf
                             cost += first_element_new_list[0]
@@ -934,6 +938,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 if not results:
                     break
                 for i in range(operators_max):
+                    if reduced==True:
+                        break
                     first_element = results[0]
                     if first_element in operators_done:
                         continue
@@ -987,7 +993,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                             lines, new_number_of_pages= greedy.check_lines(current_path_for_pdf)
                             # make a new pdf only with 2 last pages:
                             last_pages_pdf= handle_full_paper.copy_last_pages(current_path_for_pdf,2,iter)
-                            last_page_height = read_single_file.order(last_pages_pdf)
+                            last_page_height = 0
                             lines, pages = greedy.check_lines(last_pages_pdf)
                             current_path_for_pdf=last_pages_pdf
                             cost += first_element_new_list[0]
@@ -1000,7 +1006,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
 
                     # if (last_page_height == 0):
                     #     break
-
+                    if reduced == True:
+                        break
                     if found == False:
                         operators_done.append(first_element)
                         continue
