@@ -4457,20 +4457,21 @@ def simulating_using_combining_pars_operator(value_of_operator,object_used_on,nu
         new_key_for_par = ''.join(i for i in key if not i.isdigit())
         if(new_key_for_par == 'Par'):
             counter+=1
+            if key in dict_for_indexes_inverse.keys():
             #get his represented number in the csv
-            df_copy.at['page' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['page']
-            df_copy.at['column' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['column']
-            df_copy.at['start_y' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['start_y']
-            df_copy.at['end_y' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['end_y']
-            df_copy.at['spread_on_more_than_1_column' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['spread_on_more_than_1_column']
-            df_copy.at['height' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['height']
-            df_copy.at['number_of_lines' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['number_of_lines']
-            df_copy.at['num_of_chars' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['num_of_chars']
-            df_copy.at['num_of_words' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['num_of_words']
-            df_copy.at['last_line_length_chars' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['last_line_length_chars']
-            df_copy.at['single_word_in_last_line' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['single_word_in_last_line']
-            df_copy.at['space_between_this_object_and_last_object' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['space_between_this_object_and_last_object']
-            df_copy.at['space_between_this_object_and_the_next_object' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['space_between_this_object_and_the_next_object']
+                df_copy.at['page' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['page']
+                df_copy.at['column' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['column']
+                df_copy.at['start_y' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['start_y']
+                df_copy.at['end_y' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['end_y']
+                df_copy.at['spread_on_more_than_1_column' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['spread_on_more_than_1_column']
+                df_copy.at['height' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['height']
+                df_copy.at['number_of_lines' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['number_of_lines']
+                df_copy.at['num_of_chars' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['num_of_chars']
+                df_copy.at['num_of_words' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['num_of_words']
+                df_copy.at['last_line_length_chars' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['last_line_length_chars']
+                df_copy.at['single_word_in_last_line' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['single_word_in_last_line']
+                df_copy.at['space_between_this_object_and_last_object' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['space_between_this_object_and_last_object']
+                df_copy.at['space_between_this_object_and_the_next_object' + str(dict_for_indexes_inverse[key]), 'Doc0'] = new_dct_of_elements_in_order[key]['space_between_this_object_and_the_next_object']
 
     for i in range(counter,8):
         df_copy.at['page' + str(i), 'Doc0'] = 0
@@ -4627,7 +4628,10 @@ def simulating_using_combining_pars_operator(value_of_operator,object_used_on,nu
         elif (
                 object_without_index == 'Figure' or object_without_index == 'Table'):  # we will need to move them as a chunk
             #print(j)
-            before_object_key = objects_after_chosen_object[indexx - 1]
+            if indexx == 0:
+                before_object_key = new_key_to_remember
+            else:
+                before_object_key = objects_after_chosen_object[indexx - 1]
             get_index_representing_before_object_in_csv = dict_for_indexes_inverse[before_object_key]
             if (indexx != len(objects_after_chosen_object) - 1):
                 after_object_key = objects_after_chosen_object[indexx + 1]  # captions
@@ -4889,7 +4893,7 @@ def simulating_using_combining_pars_operator(value_of_operator,object_used_on,nu
     found = False
     last = -1
     while not found:
-        last_element = list(new_dct_of_elements_in_order)[-1]
+        last_element = list(new_dct_of_elements_in_order)[last]
         if last_element in dict_for_indexes_inverse.keys():
             found = True
             get_index_of_last_element = dict_for_indexes_inverse[last_element]
