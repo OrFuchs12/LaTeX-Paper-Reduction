@@ -881,6 +881,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 lines, pages = greedy.check_lines(current_path_for_pdf)
                 if (pages < 2 or new_number_of_pages< num_of_pages):
                     reduced = True
+                    if current_depth<operators_max and current_depth!=0:
+                        operators_applied -= operators_max-current_depth
                     break
                 if current_depth<operators_max and current_depth!=0:
                     operators_applied -= operators_max-current_depth
@@ -940,7 +942,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 for i in range(operators_max):
                     if reduced==True:
                         break
-                    first_element = results[0]
+                    first_element = results[i]
                     if first_element in operators_done:
                         continue
 
@@ -1001,23 +1003,24 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                             if (pages < 2 or new_number_of_pages< num_of_pages):
                                 reduced = True
                                 count_operators += 1
-        
-                                break
+                            break
 
                     # if (last_page_height == 0):
                     #     break
-                    if reduced == True:
+                    if reduced == True or found == True:
                         break
                     if found == False:
                         operators_done.append(first_element)
                         continue
 
-                    results, len_tree ,current_depth = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
-                                                                                    file_name=current_path_for_tex,last_pages=current_path_for_pdf,
-                                                                                    algorithm_search=search_algorithms_for_experiment.dijkstra,
-                                                                                    models=models, mse_dct=mse_dct, bib_path=bibliograph_path, operators_list=original_operators_list)
-                    if not results:
-                        break
+                if reduced == True:
+                    break
+                results, len_tree ,current_depth = search_algorithms_for_experiment.run_search(tree_depth=operators_max,
+                                                                                file_name=current_path_for_tex,last_pages=current_path_for_pdf,
+                                                                                algorithm_search=search_algorithms_for_experiment.dijkstra,
+                                                                                models=models, mse_dct=mse_dct, bib_path=bibliograph_path, operators_list=original_operators_list)
+                if not results:
+                    break
 
         end = time.time()
         time_taken = end - start
