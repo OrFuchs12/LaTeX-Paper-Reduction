@@ -1,1 +1,0 @@
-# LaTeX-Paper-Reduction
