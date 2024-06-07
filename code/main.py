@@ -75,51 +75,53 @@ def run(path_to_original_excel,created_excel_path,path_to_excel_dct,path_to_late
                         max_counter+=1
 
                         os.system(f"echo {i}")
-                        cmd_line_act = cmd_line_create_pdf + i[0]
+                        # cmd_line_act = cmd_line_create_pdf + i[0]
+                        
                         os.system(f"echo {i}")
-                        df[column + '_with_operator' + str(index_of_new_doc)] = df.loc[:,column]  # create a new column
                         try:
-                            
-                            subprocess.run(['pdflatex', '-interaction=nonstopmode', i[1][0]], cwd="results\\oper_files\\files\\") #On mac
+                            subprocess.run(['pdflatex', '-interaction=nonstopmode', i[1][0].split("/")[-1]], cwd="results/oper_files/files/") #On mac
+                            df[column + '_with_operator' + str(index_of_new_doc)] = df.loc[:,column]  # create a new column
 
-                            os.system(f"echo 7")
-                            if (i[3] == 'vspace'):
-                                df.at['type', column + '_with_operator' + str(
-                                    index_of_new_doc)] = 1  # switch to i[3] when it is all set
-                            elif (i[3] == 'change_figure_size'):
-                                df.at['type', column + '_with_operator' + str(
-                                    index_of_new_doc)] = 2  # switch to i[3] when it is all set
-                            elif (i[3] == 'change_algorithm_size'):
-                                df.at['type', column + '_with_operator' + str(
-                                    index_of_new_doc)] = 3  # switch to i[3] when it is all set
-                            elif (i[3] == 'convert_enum'):
-                                df.at['type', column + '_with_operator' + str(
-                                    index_of_new_doc)] = 4  # switch to i[3] when it is all set
-                            elif (i[3] == 'remove_par_tag'):
-                                df.at['type', column + '_with_operator' + str(
-                                    index_of_new_doc)] = 5  # switch to i[3] when it is all set
-                            elif (i[3] == 'combine_two_paragraphs'):
-                                df.at['type', column + '_with_operator' + str(
-                                    index_of_new_doc)] = 6  # switch to i[3] when it is all set
-                            elif (i[3] == 'change_table_size'):
-                                df.at['type', column + '_with_operator' + str(
-                                    index_of_new_doc)] = 7  # switch to i[3] when it is all set
-                            elif (i[3] == 'remove_special_positional_chars'):
-                                df.at['type', column + '_with_operator' + str(
-                                    index_of_new_doc)] = 8  # switch to i[3] when it is all set
-                            elif (i[3] == 'remove_last_2_words'):
-                                df.at['type', column + '_with_operator' + str(
-                                    index_of_new_doc)] = 9  # switch to i[3] when it is all set
-                            df.at['value', column + '_with_operator' + str(index_of_new_doc)] = i[4]
-                            df.at['object_used_on', column + '_with_operator' + str(index_of_new_doc)] = i[2]
-                            df.at['num_of_object', column + '_with_operator' + str(index_of_new_doc)] = \
-                                re.findall(r'\d+', str(i[5]))[0]
-                            df.at['herustica', column + '_with_operator' + str(index_of_new_doc)] = i[6]
+                            for op_num in range(2):
+
+                                os.system(f"echo 7")
+                                if (i[op_num][3] == 'vspace'):
+                                    df.at['type'+str(op_num), column + '_with_operator' + str(
+                                        index_of_new_doc)] = 1  # switch to i[3] when it is all set
+                                elif (i[op_num][3] == 'change_figure_size'):
+                                    df.at['type'+str(op_num), column + '_with_operator' + str(
+                                        index_of_new_doc)] = 2  # switch to i[3] when it is all set
+                                elif (i[op_num][3] == 'change_algorithm_size'):
+                                    df.at['type'+str(op_num), column + '_with_operator' + str(
+                                        index_of_new_doc)] = 3  # switch to i[3] when it is all set
+                                elif (i[op_num][3] == 'convert_enum'):
+                                    df.at['type'+str(op_num), column + '_with_operator' + str(
+                                        index_of_new_doc)] = 4  # switch to i[3] when it is all set
+                                elif (i[op_num][3] == 'remove_par_tag'):
+                                    df.at['type'+str(op_num), column + '_with_operator' + str(
+                                        index_of_new_doc)] = 5  # switch to i[3] when it is all set
+                                elif (i[op_num][3] == 'combine_two_paragraphs'):
+                                    df.at['type'+str(op_num), column + '_with_operator' + str(
+                                        index_of_new_doc)] = 6  # switch to i[3] when it is all set
+                                elif (i[op_num][3] == 'change_table_size'):
+                                    df.at['type'+str(op_num), column + '_with_operator' + str(
+                                        index_of_new_doc)] = 7  # switch to i[3] when it is all set
+                                elif (i[op_num][3] == 'remove_special_positional_chars'):
+                                    df.at['type'+str(op_num), column + '_with_operator' + str(
+                                        index_of_new_doc)] = 8  # switch to i[3] when it is all set
+                                elif (i[op_num][3] == 'remove_last_2_words'):
+                                    df.at['type'+str(op_num), column + '_with_operator' + str(
+                                        index_of_new_doc)] = 9  # switch to i[3] when it is all set
+                                df.at['value'+str(op_num), column + '_with_operator' + str(index_of_new_doc)] = i[op_num][4]
+                                df.at['object_used_on'+str(op_num), column + '_with_operator' + str(index_of_new_doc)] = i[op_num][2]
+                                df.at['num_of_object'+str(op_num), column + '_with_operator' + str(index_of_new_doc)] = \
+                                    re.findall(r'\d+', str(i[op_num][5]))[0]
+                                df.at['herustica'+str(op_num), column + '_with_operator' + str(index_of_new_doc)] = i[op_num][6]
                             df.at['ending_y_of_doc', column + '_with_operator' + str(index_of_new_doc)] = old_y
                             index = 0
                             os.system(f"echo 8")
                             os.system(f"echo {i[1]}")
-                            x = read_single_file.order(i[1]) #height of second page after operator activation
+                            x = read_single_file.order(i[1][1]) #height of second page after operator activation
                             os.system(f"echo 9")
                             if (x == 0):  # the new paper has only_one_page
                                 binary = 1
@@ -143,11 +145,11 @@ def run(path_to_original_excel,created_excel_path,path_to_excel_dct,path_to_late
                             index_of_new_doc += 1
                             os.system(f"echo 10")
                             cmd_line_del_pdf = ""
-                            cmd_line_act = i[1]
-                            os.remove(cmd_line_act)
+                            # cmd_line_act = i[1]
+                            # os.remove(cmd_line_act)
                             os.system(f"echo 11")
-                            cmd_line_act = i[0]
-                            os.remove(cmd_line_act)
+                            # cmd_line_act = i[0]
+                            # os.remove(cmd_line_act)
                             os.system(f"echo 12")
                         except Exception as e:
                             print(e)
@@ -156,20 +158,22 @@ def run(path_to_original_excel,created_excel_path,path_to_excel_dct,path_to_late
                             df.at['lines_we_gained', column + '_with_operator' + str(index_of_new_doc)] = -1
                             df.at['binary_class', column + '_with_operator' + str(index_of_new_doc)] = -1
                             df.at['type', column + '_with_operator' + str(index_of_new_doc)] = 9
-                            df.at['value', column + '_with_operator' + str(index_of_new_doc)] = i[4]
-                            df.at['object_used_on', column + '_with_operator' + str(index_of_new_doc)] = i[2]
-                            df.at['num_of_object', column + '_with_operator' + str(index_of_new_doc)] = \
-                                re.findall(r'\d+', str(i[5]))[0]
-                            df.at['herustica', column + '_with_operator' + str(index_of_new_doc)] = i[6]
+                            
+                            for opt_num in range(2):
+                                df.at['value'+ str(opt_num), column + '_with_operator' + str(index_of_new_doc)] = i[opt_num][4]
+                                df.at['object_used_on'+ str(opt_num), column + '_with_operator' + str(index_of_new_doc)] = i[opt_num][2]
+                                df.at['num_of_object'+ str(opt_num), column + '_with_operator' + str(index_of_new_doc)] = \
+                                    re.findall(r'\d+', str(i[opt_num][5]))[0]
+                                df.at['herustica'+ str(opt_num), column + '_with_operator' + str(index_of_new_doc)] = i[opt_num][6]
                             df.at['ending_y_of_doc', column + '_with_operator' + str(index_of_new_doc)] = old_y
-                            try:
-                                cmd_line_act = i[1]
-                                os.remove(cmd_line_act)
+                            # try:
+                            #     # cmd_line_act = i[1]
+                            #     # os.remove(cmd_line_act)
 
-                            except Exception as e:
-                                print(e)
-                                print("here5")
-                                counter_problems += 1
+                            # except Exception as e:
+                            #     print(e)
+                            #     print("here5")
+                            #     counter_problems += 1
             except Exception as e:
                 print(e)
                 

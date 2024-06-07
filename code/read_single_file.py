@@ -90,9 +90,9 @@ def order(path):
             return 792 - last_obj
         else:
             return 792+ 792-last_obj
-    else:
-        if len(pdf_total_order[1][0]) > 0 and len(pdf_total_order[1][1]) == 0:
-            return 0
+    # else:
+    #     if len(pdf_total_order[1][0]) > 0 and len(pdf_total_order[1][1]) == 0:
+    #         return 0
     if len(pdf_total_order[1][0]) == 0:
         first_obj = pdf_total_order[0][0][0][0][0]
         last_obj = pdf_total_order[0][0][-1][0][1]
@@ -103,10 +103,16 @@ def order(path):
             return 792 - last_obj
         else:
             return 792 + 792 - last_obj
-    else:
-        first_obj = pdf_total_order[1][1][0][0][0]
-        last_obj=pdf_total_order[1][1][-1][0][1]
-        return -(last_obj-first_obj)
+    else: #we have first col in second page
+        #only left col
+        if len(pdf_total_order[1][1]) == 0:
+            first_obj = pdf_total_order[1][0][0][0][0]
+            last_obj = pdf_total_order[1][0][-1][0][1]
+            return -(last_obj-first_obj)
+        else:   #both left and right col 
+            first_obj = pdf_total_order[1][1][0][0][0]
+            last_obj=pdf_total_order[1][1][-1][0][1]
+            return -(last_obj-first_obj)
 
 
 if __name__ == '__main__':

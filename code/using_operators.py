@@ -711,9 +711,34 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
         #print('Done')
         index_for_all_operators += 1
     
+    
+    
     files_created2= []
     for file in files_created:
         path_to_file = file[0]
+        
+        original_lines_lst=[]
+        # doc = file.read()
+        latex_clean_lines = []
+        with open(path_to_file, encoding='UTF-8') as fi:
+            # doc = file.read()
+
+            foundHeader = False
+            foundBottom = False
+            for line in fi:
+                latex_clean_lines.append(line)
+                if foundHeader == False:
+                    if line.startswith("\\begin{document}"):
+                        foundHeader = True
+                    original_lines_lst.append("\n")
+                else:
+                    if foundBottom == False and line.startswith("\\end{document}"):
+                        foundBottom = True
+                    else:
+                        if foundBottom == False:
+                            original_lines_lst.append(line)
+        
+        
         index_for_all_operators = 1
         ############################
         ### SECOND HALF OF THE FILE
@@ -722,17 +747,18 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
         for i in range(len(arr_of_places_and_vspace_to_add)):
             ##print("clean: ")
             ##print(new_clean_latex_to_remember)
-            latex_clean_lines = []
-            latex_clean_lines = copy.deepcopy(new_clean_latex_to_remember)
+            # latex_clean_lines = []
+            # latex_clean_lines = copy.deepcopy(new_clean_latex_to_remember)
+            tmp_latex_clean_lines = copy.deepcopy(latex_clean_lines)
             file_path = path_to_file.split(".tex")[0] + f"{index_for_all_operators}" + "b.tex"
 
             with open(file_path,"w") as f:
                 files_created2.append((file, (path_to_file.split(".tex")[0] + f"{index_for_all_operators}" + "b.tex",path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",arr_of_places_and_vspace_to_add[i][2],'vspace',arr_of_places_and_vspace_to_add[i][3],arr_of_places_and_vspace_to_add[i][4],arr_of_places_and_vspace_to_add[i][5]))) # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
                 chosen_index_to_insert = arr_of_places_and_vspace_to_add[i][0]
                 str__ = arr_of_places_and_vspace_to_add[i][1]
-                latex_clean_lines.insert(chosen_index_to_insert,str__)
-                latex_clean_lines = latex_clean_lines[1:]
-                for item in latex_clean_lines:
+                tmp_latex_clean_lines.insert(chosen_index_to_insert,str__)
+                tmp_latex_clean_lines = tmp_latex_clean_lines[1:]
+                for item in tmp_latex_clean_lines:
                     # write each item on a new line
                     f.write(item)
                 f.close()
