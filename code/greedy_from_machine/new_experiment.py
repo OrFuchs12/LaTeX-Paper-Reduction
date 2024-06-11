@@ -350,7 +350,7 @@ def combine_two_paragraphs(lst, index_1, index_2):
     # return lst
     # Start removing newlines from index_2 backward until a non-newline is found above it
     orig_2 = index_2
-    while index_2 > index_1 + 1 and lst[index_2 - 1] == '\n':
+    while index_2 > index_1 + 1 and (lst[index_2 - 1] == '\n' or lst[index_2 - 1].startswith("\\vspace")):            
         del lst[index_2 - 1]
         index_2 -= 1
     #remove \n from lst[index_2 - 1]

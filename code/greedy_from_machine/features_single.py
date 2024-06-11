@@ -673,6 +673,7 @@ def run_feature_extraction(latex_path, pdf_path, bib_path, path_to_save_lidor_dc
 
             if (first_object):
                 last_object_name = object_name
+                first_object = False
 
             # spaces part
             if (last_object['Type'] == 'Matrix' or last_object['Type'] == 'Formula' or last_object[
@@ -706,7 +707,9 @@ def run_feature_extraction(latex_path, pdf_path, bib_path, path_to_save_lidor_dc
                     dct[object_name]['space_between_this_object_and_last_object'] = abs(
                         50.01389562499992 - object['First_line_bbox'][0])
                 else:
-                    if (last_object['Last_line_bbox'][1] - object['First_line_bbox'][
+                    if object['Type'] == 'Par' and object["Text"].split(" ")[:2] != object["LaTeX"].split(" ")[:2] and (res[0]["Type"] == 'Table' or res[0]["Type"] == 'Figure'):
+                        dct[object_name]['space_between_this_object_and_last_object'] = 0
+                    elif (last_object['Last_line_bbox'][1] - object['First_line_bbox'][
                         0] > 100):  # next page difference, so we will take space from the top of the page which is: (50.01389562499992)
                         dct[object_name]['space_between_this_object_and_last_object'] = abs(
                             50.01389562499992 - object['First_line_bbox'][0])
@@ -714,8 +717,8 @@ def run_feature_extraction(latex_path, pdf_path, bib_path, path_to_save_lidor_dc
                     else:
                         dct[object_name]['space_between_this_object_and_last_object'] = abs(
                             last_object['Last_line_bbox'][1] - object['First_line_bbox'][0])
-                    dct[last_object_name]['space_between_this_object_and_the_next_object'] = dct[object_name][
-                        'space_between_this_object_and_last_object']
+                dct[last_object_name]['space_between_this_object_and_the_next_object'] = dct[object_name][
+                    'space_between_this_object_and_last_object']
 
             if (dct[object_name]['height'] >= 0):
                 sum_space_taken += dct[object_name]['height']
