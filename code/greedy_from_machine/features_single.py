@@ -678,7 +678,7 @@ def run_feature_extraction(latex_path, pdf_path, bib_path, path_to_save_lidor_dc
             # spaces part
             if (last_object['Type'] == 'Matrix' or last_object['Type'] == 'Formula' or last_object[
                 'Type'] == 'Figure' or last_object['Type'] == 'Table'):
-                if (object['Type'] == 'Figure' or object['Type'] == 'Table'):  # trying to detect subfigures
+                if (object['Type'] == 'Figure' or object['Type'] == 'Table'):  # trying to detect subfigures                        
                     if (object['First_line_bbox'] == last_object['First_line_bbox']):
                         #print(dct)
                         if ('space_between_this_object_and_last_object' not in dct[
@@ -694,16 +694,18 @@ def run_feature_extraction(latex_path, pdf_path, bib_path, path_to_save_lidor_dc
                 else:
                     # print(last_object['Type'])
                     # print(object['Type'])
-                    dct[object_name]['space_between_this_object_and_last_object'] = abs(
-                        last_object['First_line_bbox'][1] - object['First_line_bbox'][0])
+                    if object['Type'] == 'Par' and object["Text"].split(" ")[:2] != object["LaTeX"].split(" ")[:2] and (res[0]["Type"] == 'Table' or res[0]["Type"] == 'Figure'):
+                        dct[object_name]['space_between_this_object_and_last_object'] = 0
+                    else:
+                        dct[object_name]['space_between_this_object_and_last_object'] = abs(
+                            last_object['First_line_bbox'][1] - object['First_line_bbox'][0])
                 dct[last_object_name]['space_between_this_object_and_the_next_object'] = dct[object_name][
                     'space_between_this_object_and_last_object']
             else:
                 # print(last_object['Last_line_bbox'][1])
                 # print(object['First_line_bbox'][0])
                 # print(abs(last_object['Last_line_bbox'][1] -object['First_line_bbox'][0]))
-                if (
-                        last_object == object):  # for title we will calculate the space between the title and the coords of the first figure if it existed (coords of first figure in a page is: (50.01389562499992))
+                if (last_object == object):  # for title we will calculate the space between the title and the coords of the first figure if it existed (coords of first figure in a page is: (50.01389562499992))
                     dct[object_name]['space_between_this_object_and_last_object'] = abs(
                         50.01389562499992 - object['First_line_bbox'][0])
                 else:

@@ -792,6 +792,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
         if (key.startswith('Figure')):  # changing size of figure
             chosen_index_to_insert = mapping_dict[key][0]  # index where the figure starts
             flag = False
+            is_scale = False
             index_to_go_through = chosen_index_to_insert
             while (flag != True):
                 if (index_to_go_through >= len(latex_clean_lines)):
@@ -810,6 +811,12 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                 found_index]  # the line that we need to edit in order to change the scale
             # we will look for width and if it exists we will change it
             start_index = string_to_edit.find('width')
+            if start_index == -1:
+                start_index = string_to_edit.find('scale')
+                if start_index != -1:
+                    #find float after scale=
+                    is_scale = True
+                    
             running_index = 0
             if (start_index != -1):  # find the number for width
                 running_index = start_index
@@ -826,7 +833,10 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                                 running_index += 1
                         if number == '':
                             number= 1
-                        width = float(number)
+                        if is_scale:
+                            scale = float(number)
+                        else:
+                            width = float(number)
                         break
                     running_index += 1
             given_height = False
@@ -850,7 +860,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                         height = float(number)
                         break
                     running_index += 1
-            else: #no height declared in latex, we will find the height using proportion of width 
+            elif not is_scale: #no height declared in latex, we will find the height using proportion of width 
                 #get height in point and convert to inches
                 height = round(value['height']/72, 2)
 
@@ -859,10 +869,9 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                 
             # create 5 options:
             options = [0.9, 0.8, 0.7, 0.6, 0.5]  # scale options
-            figure_name_key_new_latex_list_value[
-                key] = []  # this dict will have the key as the figure name and then value will be the lists of the new latex content for the new file
+            figure_name_key_new_latex_list_value[key] = []  # this dict will have the key as the figure name and then value will be the lists of the new latex content for the new file
             string_to_edit = latex_clean_lines[found_index]  # the string to edit
-            if not given_height:
+            if not given_height and not is_scale:
                 index_for_height = string_to_edit.find(']')
                 string_to_edit = string_to_edit[:index_for_height] + ",height=" + str(height) +"in "+ string_to_edit[index_for_height:]
             heuristic = 0
@@ -877,10 +886,14 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                     heuristic = value['height'] - (value['height'] * 0.6)
                 elif (i == 4):
                     heuristic = value['height'] - (value['height'] * 0.5)
-                new_width = width * options[i]
-                new_height = height * options[i]
-                new_str = string_to_edit.replace(str(width), str(new_width))
-                new_str = new_str.replace(str(height), str(new_height))
+                if is_scale:
+                    new_scale = scale * options[i]
+                    new_str = string_to_edit.replace(str(scale), str(new_scale))
+                else:
+                    new_width = width * options[i]
+                    new_height = height * options[i]
+                    new_str = string_to_edit.replace(str(width), str(new_width))
+                    new_str = new_str.replace(str(height), str(new_height))
 
                     
                 copy_list = copy.deepcopy(latex_clean_lines)
@@ -945,6 +958,19 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
         latex_clean_lines = []
         latex_clean_lines = copy.deepcopy(new_clean_latex_to_remember)
         chosen_index_to_insert = arr_of_places_and_vspace_to_add[i][0]
+        #if latex_clean_lines[chosen_index_to_insert +1] includes flags with ! skip
+        if '!' in latex_clean_lines[chosen_index_to_insert] and (arr_of_places_and_vspace_to_add[i][4].startswith('Figure') or arr_of_places_and_vspace_to_add[i][4].startswith('Table')):
+            continue
+        #if sum of vsapce is larger than actual space (can happen becuase some vspace dont have an affect)
+        tmp_index = chosen_index_to_insert - 1
+        vspace_sum_mm =(arr_of_places_and_vspace_to_add[i][5] * 4 / arr_of_places_and_vspace_to_add[i][6]) / 2.845
+        vspace_sum_mm -= float(arr_of_places_and_vspace_to_add[i][3])
+        while latex_clean_lines[tmp_index].startswith("\\vspace"):
+            vspace_sum_mm -= float(latex_clean_lines[tmp_index].split("-")[1].split("mm")[0])
+            tmp_index -= 1
+        if vspace_sum_mm < 0:
+            continue
+            
         str__ = arr_of_places_and_vspace_to_add[i][1]
         latex_clean_lines.insert(chosen_index_to_insert, str__)
         latex_clean_lines = latex_clean_lines  # [1:]
