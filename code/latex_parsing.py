@@ -290,8 +290,9 @@ def count_paragraphs(lines,ans,new_dict):
                 if str_line.startswith("\\end"):
                     is_in_begin-=1
                     if str_line.startswith("\\end{theorem}") or str_line.startswith("\\end{lemma}") or str_line.startswith("\\end{proposition}") or str_line.startswith("\\end{corollary}") or str_line.startswith("\\end{proof}") or str_line.startswith("\\end{example}"):
-                        counter[count].append(line_number)
-                        count+=1
+                        if count in counter:
+                            counter[count].append(line_number)
+                            count+=1
                 else:
                     continue
             if not str_line.startswith("\\") or any(str_line.startswith(prefix) for prefix in allowed_beginnings):

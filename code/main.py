@@ -221,7 +221,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
             else:
                 oper = (str(original_operators_list[index][2]), str(original_operators_list[index][3]),
                         original_operators_list[index][5])
-            if oper in operators_list:
+            if oper in operators_list or oper in operators_done:
                 index += 1
                 continue
             else:
@@ -271,6 +271,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                         found = True
                         break
             if found:
+                operators_done.append(oper)
                 latex_after_operator = first_element_new_list[1]
                 current_path_for_tex = os.path.join(f"code/~/results/new_files/{paper_directory}", "new_1.tex")
                 f = open(current_path_for_tex, "w")
@@ -324,6 +325,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         iter = 0
         compilations = 0
         operators_applied = 0
+        operators_done = []
+        
         for i in range(operators_max):
             if reduced:
                 break
@@ -358,8 +361,10 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                         first_element_new_list[5])
                 else:
                     oper = (str(first_element_new_list[2]), str(first_element_new_list[3]), first_element_new_list[5])
-
+                if oper in operators_done:
+                    continue
                 if oper == first_element:
+                    operators_done.append(oper)
                     latex_after_operator = first_element_new_list[1]
                     current_path_for_tex = os.path.join(f"code/~/results/new_files/{paper_directory}", "new_2.tex")
                     f = open(current_path_for_tex, "w")
@@ -412,6 +417,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         iter = 0
         compilations = 0
         operators_applied = 0
+        operators_done = []
 
         df1, lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                     bibliograph_path,
@@ -434,6 +440,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
         if results:    
             print(results)
             for operator in results:
+                if reduced:
+                    break
                 df1, lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                             bibliograph_path,
                                                             "code/~/results/dct0",
@@ -456,10 +464,12 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                             first_element_new_list[5])
                     else:
                         oper = (str(first_element_new_list[2]), str(first_element_new_list[3]), first_element_new_list[5])
-
+                    if oper in operators_done:
+                        continue
                     print(f"oper:{oper}")
                     print(operator)
                     if oper == operator:
+                        operators_done.append(oper)
                         latex_after_operator = first_element_new_list[1]
                         current_path_for_tex = os.path.join(f"code/~/results/new_files/{paper_directory}", "new_3.tex")
                         f = open(current_path_for_tex, "w")
@@ -483,6 +493,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                         cost += first_element_new_list[0]
                         iter += 1
                         count_operators += 1
+                        if (new_number_of_pages< num_of_pages):
+                            reduced = True
                         break
 
         # if (last_page_height < original_height or last_page_height == 0):
@@ -660,7 +672,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                 else:
                     oper = (str(original_operators_list[index][2]), str(original_operators_list[index][3]),
                             original_operators_list[index][5])
-                if oper in operators_list:
+                if oper in operators_list or oper in operators_done:
                     index += 1
                     continue
                 else:
@@ -821,7 +833,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
 
                 iterations += 1
                 for operator in results:
-
+                    if reduced or not has_more_operators_to_check(operators_done, results):
+                        break
                     df1 , lidor= features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                                 bibliograph_path,
                                                                 "code/~/results/dct0",
@@ -847,7 +860,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                         else:
                             oper = (
                                 str(first_element_new_list[2]), str(first_element_new_list[3]), first_element_new_list[5])
-
+                        if oper in operators_done:
+                            continue
                         if oper == operator:
                             operators_done.append(oper)
                             latex_after_operator = first_element_new_list[1]
