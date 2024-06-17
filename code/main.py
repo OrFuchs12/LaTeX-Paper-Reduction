@@ -684,7 +684,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
             
 
             while count_operators < operators_max:
-                if count_operators != 0:
+                if count_operators != 0 and found == True:
                     df1, lidor = features_extraction_single_paper.run_feature_extraction(current_path_for_tex, current_path_for_pdf,
                                                                  bibliograph_path,
                                                                  "code/~/results/dct0",
@@ -716,7 +716,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     else:
                         oper = (
                             str(first_element_new_list[2]), str(first_element_new_list[3]), first_element_new_list[5])
-
+                    if oper in operators_done:
+                        continue
                     if oper == first_element:
                         try:
                             prediction = models[oper].predict(df1.to_numpy())[0]
@@ -725,7 +726,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                             break
                         if prediction > 0:
                             found = True
-                            break
+                        break
                 
                 if found:
                     operators_done.append(oper)
@@ -758,10 +759,8 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     cost += first_element_new_list[0]
 
                     count_operators += 1
-                    check_index += 1
-                else:
-                    check_index += 1
-                    operators_done.append(oper)
+                check_index += 1
+
                 lines, pages = greedy.check_lines(current_path_for_pdf)
                 if (pages < 2 or new_number_of_pages< num_of_pages):
                     reduced = True

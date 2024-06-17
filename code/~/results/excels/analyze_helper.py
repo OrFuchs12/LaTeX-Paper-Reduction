@@ -19,17 +19,20 @@ file_paths = [
 
 dfs = [pd.read_csv(os.path.join(current_directory, csv_directory, file)) for file in file_paths]
 
-def not_in_intersection(file1, file2):
-    """
-    Returns the rows of df1 that are not in the intersection of df1 and df2
-    """
-    with open(file1, 'r') as f:
-        df1 = pd.read_csv(f)
-    with open(file2, 'r') as f:
-        df2 = pd.read_csv(f)
-    #find all rows not in intersection of col docName
-    not_in_intersection = df1[~df1['docName'].isin(df2['docName'])]
-    return not_in_intersection
+def compare_csv_files(file1, file2):
+    # Read the CSV files into DataFrames
+    df1 = pd.read_csv(file1)
+    df2 = pd.read_csv(file2)
+    
+    # Filter rows where `reduced` is False in df1 and True in df2
+    df1_filtered = df1[df1['reduced'] == False]
+    df2_filtered = df2[df2['reduced'] == True]
+    
+    merged_df = pd.merge(df1_filtered, df2_filtered, on='docName')
+    cols_to_keep = ['docName', 'compilations_x', 'compilations_y', 'reduced_x', 'reduced_y']
+    return merged_df[cols_to_keep]
+
+
 
 
 def find_non_readable():
@@ -40,8 +43,8 @@ def find_non_readable():
             print(row)
 
 
-find_non_readable()
-# print(not_in_intersection("code/~/results/excels/results6.csv", "code/~/results/excels/results7.csv"))
+# find_non_readable()
+print(compare_csv_files("code/~/results/excels/results7.csv", "code/~/results/excels/results5.csv"))
     
 
 
