@@ -591,8 +591,14 @@ def perform_operators(objects, latex_path,lidor):  # ,path_to_file):
                 else:
                     new_width = width * options[i]
                     new_height = height * options[i]
-                    new_str = string_to_edit.replace(str(width), str(new_width))
-                    new_str = new_str.replace(str(height), str(new_height))
+                    if str(width) in string_to_edit:
+                        new_str = string_to_edit.replace(str(width), str(new_width))
+                    else: 
+                        new_str = re.sub(str(int(width)), str(new_width), string_to_edit, 1)
+                    if str(height) in string_to_edit:
+                        new_str = new_str.replace(str(height), str(new_height))
+                    else:
+                        new_str = new_str.replace(str(int(height)), str(new_height))
 
                     
                 copy_list = copy.deepcopy(latex_clean_lines)

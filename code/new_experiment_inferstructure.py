@@ -15,7 +15,7 @@ import pickle
 
 index_for_object = {'Par':1,'Paragraph':1,'Figure':2,'CaptionFigure':3,'Table':4,'CaptionTable':5,'Section':6,'SubSection':7,'Matrix':8,'Enum':9,'Formula':10,'Algorithm':11}
 threshold_low = 10
-threshold_high = 40
+threshold_high = 45
 
 
 
