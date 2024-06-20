@@ -492,6 +492,7 @@ def perform_operators(objects, latex_path,lidor):  # ,path_to_file):
             chosen_index_to_insert = mapping_dict[key][0]  # index where the figure starts
             flag = False
             is_scale = False
+            missing_width = False
             index_to_go_through = chosen_index_to_insert
             while (flag != True):
                 if (index_to_go_through > len(latex_clean_lines)):
@@ -530,6 +531,7 @@ def perform_operators(objects, latex_path,lidor):  # ,path_to_file):
                                 number += string_to_edit[running_index]
                                 running_index += 1
                         if number == '':
+                            missing_width = True
                             number= 1
                         if is_scale:
                             scale = float(number)
@@ -574,6 +576,9 @@ def perform_operators(objects, latex_path,lidor):  # ,path_to_file):
                 index_for_height = string_to_edit.find(']')
                 string_to_edit = string_to_edit[:index_for_height] + ",height=" + str(height) +"in "+ string_to_edit[index_for_height:]
             heuristic = 0
+            if missing_width:
+                index_for_width = (string_to_edit.find('=')) + 1
+                string_to_edit = string_to_edit[:index_for_width] +  str(width) + string_to_edit[index_for_width:]
             for i in range(5):
                 if (i == 0):
                     heuristic = value['height'] - (value['height'] * 0.9)
@@ -590,7 +595,7 @@ def perform_operators(objects, latex_path,lidor):  # ,path_to_file):
                     new_str = string_to_edit.replace(str(scale), str(new_scale))
                 else:
                     new_width = width * options[i]
-                    new_height = height * options[i]
+                    new_height = round(height * options[i], 2)
                     if str(width) in string_to_edit:
                         new_str = string_to_edit.replace(str(width), str(new_width))
                     else: 
@@ -674,7 +679,7 @@ def perform_operators(objects, latex_path,lidor):  # ,path_to_file):
         while latex_clean_lines[tmp_index].startswith("\\vspace"):
             vspace_sum_mm -= float(latex_clean_lines[tmp_index].split("-")[1].split("mm")[0])
             tmp_index -= 1
-        if vspace_sum_mm < 0:
+        if vspace_sum_mm < 0.5:
             continue
 
         str__ = arr_of_places_and_vspace_to_add[i][1]
