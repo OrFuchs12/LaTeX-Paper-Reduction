@@ -22,6 +22,7 @@ from handle_full_paper import copy_last_pages
 from handle_full_paper import remove_comments
 from handle_full_paper import remove_astrik_inside_paranthases
 import cv2
+import traceback
 from pdf2image import convert_from_path
 import numpy as np
 NUMBER_OF_LAST_PAGES = 2
@@ -793,9 +794,10 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
             chosen_index_to_insert = mapping_dict[key][0]  # index where the figure starts
             flag = False
             is_scale = False
+            missing_width = False
             index_to_go_through = chosen_index_to_insert
             while (flag != True):
-                if (index_to_go_through >= len(latex_clean_lines)):
+                if (index_to_go_through > len(latex_clean_lines)):
                     break
                 if (latex_clean_lines[index_to_go_through].startswith(
                         '\\includegraphics')):  # finding the line where we can change the scale of the figure
@@ -816,7 +818,6 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                 if start_index != -1:
                     #find float after scale=
                     is_scale = True
-                    
             running_index = 0
             if (start_index != -1):  # find the number for width
                 running_index = start_index
@@ -832,6 +833,7 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                                 number += string_to_edit[running_index]
                                 running_index += 1
                         if number == '':
+                            missing_width = True
                             number= 1
                         if is_scale:
                             scale = float(number)
@@ -869,12 +871,16 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                 
             # create 5 options:
             options = [0.9, 0.8, 0.7, 0.6, 0.5]  # scale options
-            figure_name_key_new_latex_list_value[key] = []  # this dict will have the key as the figure name and then value will be the lists of the new latex content for the new file
+            figure_name_key_new_latex_list_value[
+                key] = []  # this dict will have the key as the figure name and then value will be the lists of the new latex content for the new file
             string_to_edit = latex_clean_lines[found_index]  # the string to edit
             if not given_height and not is_scale:
                 index_for_height = string_to_edit.find(']')
                 string_to_edit = string_to_edit[:index_for_height] + ",height=" + str(height) +"in "+ string_to_edit[index_for_height:]
             heuristic = 0
+            if missing_width:
+                index_for_width = (string_to_edit.find('=')) + 1
+                string_to_edit = string_to_edit[:index_for_width] +  str(width) + string_to_edit[index_for_width:]
             for i in range(5):
                 if (i == 0):
                     heuristic = value['height'] - (value['height'] * 0.9)
@@ -891,16 +897,21 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
                     new_str = string_to_edit.replace(str(scale), str(new_scale))
                 else:
                     new_width = width * options[i]
-                    new_height = height * options[i]
-                    new_str = string_to_edit.replace(str(width), str(new_width))
-                    new_str = new_str.replace(str(height), str(new_height))
+                    new_height = round(height * options[i], 2)
+                    if str(width) in string_to_edit:
+                        new_str = string_to_edit.replace(str(width), str(new_width))
+                    else: 
+                        new_str = re.sub(str(int(width)), str(new_width), string_to_edit, 1)
+                    if str(height) in string_to_edit:
+                        new_str = new_str.replace(str(height), str(new_height))
+                    else:
+                        new_str = new_str.replace(str(int(height)), str(new_height))
 
                     
                 copy_list = copy.deepcopy(latex_clean_lines)
                 copy_list[found_index] = new_str
                 figure_name_key_new_latex_list_value[key].append(
                     (copy_list, heuristic))  # changing the string and adding the new latex list into the dict
-
             # another operator for Table, remove special postion letter:
             new_list_2 = copy.deepcopy(latex_clean_lines)
             string_to_edit = new_list_2[chosen_index_to_insert]
@@ -965,13 +976,15 @@ def perform_operators(objects, doc_index, latex_path, pdf_path,path_to_file, pap
         tmp_index = chosen_index_to_insert - 1
         vspace_sum_mm =(arr_of_places_and_vspace_to_add[i][5] * 4 / arr_of_places_and_vspace_to_add[i][6]) / 2.845
         vspace_sum_mm -= float(arr_of_places_and_vspace_to_add[i][3])
+       
         while latex_clean_lines[tmp_index].startswith("\\vspace"):
             vspace_sum_mm -= float(latex_clean_lines[tmp_index].split("-")[1].split("mm")[0])
             tmp_index -= 1
-        if vspace_sum_mm < 0:
+        if vspace_sum_mm < 0.5:
             continue
             
         str__ = arr_of_places_and_vspace_to_add[i][1]
+        
         latex_clean_lines.insert(chosen_index_to_insert, str__)
         latex_clean_lines = latex_clean_lines  # [1:]
         latex_string = ''.join(latex_clean_lines) #todo find why putting all the latexstring
@@ -1270,11 +1283,12 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
             if oper in operators_done or oper not in allowed_operators:
                 index += 1
                 continue
-            else:
-                operators_done.append(oper)
+            # else:
+            #     operators_done.append(oper)
 
             # condition to apply the operator
             if res[index][0] >= LINE_WIDTH:
+                operators_done.append(oper)
                 count_operators += 1
                 latex_after_operator = res[index][1]
                 
@@ -1296,7 +1310,9 @@ def heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_name):
         print("RESULTS: heuristic, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
         return iteration, end - start, reduced, total_cost,count_operators
     except Exception as e:
-        print(e)
+        # print traceback
+        traceback.print_exc()
+        # print(e.with_traceback)
         if iteration > 0:
             end = time.time()
             return iteration, end - start, reduced, total_cost,count_operators
@@ -1351,12 +1367,13 @@ def non_stop_heuristic_greedy(path_to_pdf, path_to_latex,num_of_pages, paper_nam
             if oper in operators_done or oper not in allowed_operators:
                 index += 1
                 continue
-            else:
-                operators_done.append(oper)
+            # else:
+            #     operators_done.append(oper)
             
 
             # condition to apply the operator
             if res[index][0] >= LINE_WIDTH or start_check_operators_that_faild:
+                operators_done.append(oper)
                 count_operators += 1
                 latex_after_operator = res[index][1]
                 
@@ -1868,7 +1885,7 @@ def classification_regression_greedy (path_to_pdf, path_to_latex, models_list ,n
                     break
 
         end = time.time()
-        print("RESULTS: non stop classification, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
+        print("RESULTS:  classification regression, ", paper_name, ": ", iteration, " iterations, ", end - start, " seconds, ", reduced, " reduced, ", total_cost, " total cost")
         return iteration, end - start, reduced, total_cost,count_operators
     except Exception as e:
         print(e)
@@ -2065,21 +2082,20 @@ if __name__ == "__main__":
     #0 -> simple greedy algorithm.
     #1 -> heuristic greedy algorithm.
     #2 -> model greedy algorithm.
-    for x in range(8):
-        if x==0:  
-            run_greedy_experiment(simple_greedy, "simple greedy", "results_simple_greedy", pdf_tex_files_dir, dir_to_results)
-        elif x==1:
-            run_greedy_experiment(heuristic_greedy, "heuristic greedy", "results_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
-        elif x==2:
-            run_greedy_experiment(non_stop_heuristic_greedy, "non stop heuristic greedy", "results_non_stop_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
-        elif x == 3:
-            run_greedy_experiment(model_greedy, "model greedy", "results_model_greedy", pdf_tex_files_dir, dir_to_results, load_models())
-        elif x == 4:
-            run_greedy_experiment(non_stop_classification_greedy, "non stop classification greedy", "non_stop_results_classification_greedy", pdf_tex_files_dir, dir_to_results, load_models())
-        elif x == 5:
-            run_greedy_experiment(regreession_model_greedy, "regreession model greedy", "results_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat())
-        elif x == 6:
-            run_greedy_experiment(non_stop_regreession_model_greedy, "non stop regreession model greedy", "results_non_stop_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat())
-        elif x == 7:
-            run_greedy_experiment(classification_regression_greedy, "classifciation and regreession model greedy", "results_classification_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, [load_models(), load_regression_models_cat()])
-   
+    
+    if x==0:  
+        run_greedy_experiment(simple_greedy, "simple greedy", "results_simple_greedy", pdf_tex_files_dir, dir_to_results)
+    elif x==1:
+        run_greedy_experiment(heuristic_greedy, "heuristic greedy", "results_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
+    elif x==2:
+        run_greedy_experiment(non_stop_heuristic_greedy, "non stop heuristic greedy", "results_non_stop_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
+    elif x == 3:
+        run_greedy_experiment(model_greedy, "model greedy", "results_model_greedy", pdf_tex_files_dir, dir_to_results, load_models())
+    elif x == 4:
+        run_greedy_experiment(non_stop_classification_greedy, "non stop classification greedy", "non_stop_results_classification_greedy", pdf_tex_files_dir, dir_to_results, load_models())
+    elif x == 5:
+        run_greedy_experiment(regreession_model_greedy, "regreession model greedy", "results_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat())
+    elif x == 6:
+        run_greedy_experiment(non_stop_regreession_model_greedy, "non stop regreession model greedy", "results_non_stop_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat())
+    elif x == 7:
+        run_greedy_experiment(classification_regression_greedy, "classifciation and regreession model greedy", "results_classification_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, [load_models(), load_regression_models_cat()])
