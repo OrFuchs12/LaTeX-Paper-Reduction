@@ -30,9 +30,24 @@ def compare_csv_files(file1, file2):
     
     merged_df = pd.merge(df1_filtered, df2_filtered, on='docName')
     cols_to_keep = ['docName', 'compilations_x', 'compilations_y', 'reduced_x', 'reduced_y']
-    return merged_df[cols_to_keep]
+    for row in merged_df.iterrows():
+        print(row)
 
-
+def find_doc_that_dont_exist(file1, file2):
+    df1 = pd.read_csv(file1)
+    df2 = pd.read_csv(file2)
+    
+    # Find the docNames that are in df1 but not in df2
+    docNames1 = set(df1['docName'])
+    docNames2 = set(df2['docName'])
+    
+    docNames_not_in_df2 = docNames1 - docNames2
+    docNames_not_in_df1 = docNames2 - docNames1
+    
+    print("DocNames in df1 but not in df2:")
+    print(docNames_not_in_df2)
+    print("DocNames in df2 but not in df1:")
+    print(docNames_not_in_df1)
 
 
 def find_non_readable():
@@ -44,7 +59,7 @@ def find_non_readable():
 
 
 # find_non_readable()
-print(compare_csv_files("code/~/results/excels/results7.csv", "code/~/results/excels/results5.csv"))
+print(find_doc_that_dont_exist("code/~/results/excels/results4.csv", "code/~/results/excels/files_results_model_greedy (5).csv"))
     
 
 
