@@ -56,10 +56,29 @@ def find_non_readable():
         tmp = df[df['compilations'] > 5]
         for row in tmp.iterrows():
             print(row)
+            
+            
+#find all papers where redcued is True in both files but compilation is bigger in first file
+def find_reduced_compilations(file1, file2):
+    df1 = pd.read_csv(file1)
+    df2 = pd.read_csv(file2)
+    
+    # Filter rows where `reduced` is True in both DataFrames
+    df1_filtered = df1[df1['reduced'] == True]
+    df2_filtered = df2[df2['reduced'] == True]
+    
+    # Merge the two DataFrames on 'docName'
+    merged_df = pd.merge(df1_filtered, df2_filtered, on='docName')
+    
+    # Filter rows where compilations are greater in df1 than in df2
+    merged_df_filtered = merged_df[merged_df['cost_x'] - merged_df['cost_y'] > 30]
+    
+    col_to_keep = ['docName', 'compilations_x', 'compilations_y', 'cost_x', 'cost_y']
+    return merged_df_filtered[col_to_keep]
 
 
 # find_non_readable()
-print(find_doc_that_dont_exist("code/~/results/excels/results4.csv", "code/~/results/excels/files_results_model_greedy (5).csv"))
+# print(find_doc_that_dont_exist("code/~/results/excels/results4.csv", "code/~/results/excels/files_results_model_greedy (5).csv"))
     
 
-
+print(find_reduced_compilations("code/~/results/excels/results6.csv", "code/~/results/excels/results4.csv"))

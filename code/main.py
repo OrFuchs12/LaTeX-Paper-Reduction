@@ -1022,9 +1022,7 @@ def experiment_on_document(path_for_tex, type_of_experiment, path_for_pdf, opera
                     #     break
                     if reduced == True or found == True:
                         break
-                    if found == False:
-                        operators_done.append(first_element)
-                        continue
+
 
                 if reduced == True:
                     break

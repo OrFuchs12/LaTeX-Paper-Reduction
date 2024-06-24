@@ -351,7 +351,8 @@ def perform_operators(objects, latex_path,lidor):  # ,path_to_file):
                 occurrence_num += 1
                 heuristic = number - 2
                 heuristic = heuristic * 3.3
-                enum_list.append((new_list, key, heuristic))
+                if heuristic > 0:
+                    enum_list.append((new_list, key, heuristic))
 
             if (value['last_line_length_words'] == 1):
                 # remove last 2 words

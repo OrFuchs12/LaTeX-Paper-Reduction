@@ -90,7 +90,7 @@ def simulating_vspace_for_prediction(value, key,operator_value,df_copy,models,pr
         probability = float(prob_dict[model_to_predict])
         #print(prediction)
         cost  = get_cost(operators_list, model_to_predict)
-        if cost == -1:
+        if prediction * probability < threshold_low or prediction * probability > threshold_high or cost == -1:
             return -1,-1,-1,-1,-1,-1,-1,-1
 
         
@@ -134,7 +134,7 @@ def simulating_figure_reduction_for_prediction(value, key,operator_value,df_copy
     #print(prediction)
     cost  = get_cost(operators_list, model_to_predict)
 
-    if cost == -1:
+    if prediction * probability < threshold_low or prediction * probability > threshold_high or cost == -1 :
         return -1,-1,-1,-1,-1,-1,-1, -1
 
     #return the prediction and confidance
@@ -175,7 +175,7 @@ def simulating_algo_reduction_for_prediction(value, key,operator_value,df_copy,m
     #print(prediction)
     cost  = get_cost(operators_list, model_to_predict)
 
-    if cost == -1:
+    if prediction * probability < threshold_low or prediction * probability > threshold_high or cost == -1:
         return -1,-1,-1,-1,-1,-1,-1, -1
     #return the prediction and confidance
     return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy, cost
@@ -215,7 +215,7 @@ def simulating_enum_operator_for_prediction(value, key,operator_value,df_copy,mo
     #print(prediction)
     cost  = get_cost(operators_list, model_to_predict)
 
-    if cost == -1:
+    if prediction * probability < threshold_low or prediction * probability > threshold_high or cost == -1:
         return -1,-1,-1,-1,-1,-1,-1, -1
     #return the prediction and confidance
     return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy, cost
@@ -255,7 +255,7 @@ def simulating_paragraph_tag_operator_for_prediction(value, key,operator_value,d
     #print(prediction)
     cost  = get_cost(operators_list, model_to_predict)
 
-    if cost == -1:
+    if prediction * probability < threshold_low or prediction * probability > threshold_high or cost == -1:
         return -1,-1,-1,-1,-1,-1,-1, -1
     #return the prediction and confidance
     return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy, cost
@@ -295,10 +295,12 @@ def simulating_combine_paragraphs_for_prediction(value,key_1, key_2,operator_val
     #print(prediction)
     cost  = get_cost(operators_list, model_to_predict)
 
-    if cost == -1:
+    if prediction * probability < threshold_low or prediction * probability > threshold_high or cost == -1:
         return -1,-1,-1,-1,-1,-1,-1, -1
     #return the prediction and confidance
     return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy, cost
+
+
 
 def simulating_table_reduction_for_prediction(value, key,operator_value,df_copy,models,prob_dict, operators_list):  # value = object_used_on(dict),key = object_used_on_name+index,operator_value = which operator value to use, in the case of vspace its 1,2,3,4
     type = 7
@@ -335,7 +337,7 @@ def simulating_table_reduction_for_prediction(value, key,operator_value,df_copy,
     #print(prediction)
     cost  = get_cost(operators_list, model_to_predict)
 
-    if cost == -1:
+    if prediction * probability < threshold_low or prediction * probability > threshold_high or cost == -1:
         return -1,-1,-1,-1,-1,-1,-1, -1
     #return the prediction and confidance
     return prediction,probability,type,value_of_operator,object_used_on,num_of_object,df_copy, cost
