@@ -21,6 +21,7 @@ from Last_2_pages_rows_extract import convert_Latex_to_rows_list
 from handle_full_paper import copy_last_pages
 from handle_full_paper import remove_comments
 from handle_full_paper import remove_astrik_inside_paranthases
+from handle_only_text_papers import is_text_only
 import cv2
 import traceback
 from pdf2image import convert_from_path
@@ -2007,6 +2008,7 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
     results = []
     idx = 0
     done = 1
+    txt_only_file_path = "code/greedy_from_machine/text_only.txt"
     #get last name of files_dir
     dir_name = files_dir.split('\\')[-1]
     for paper_dir in os.scandir(directory):
@@ -2033,6 +2035,16 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
                 if path_to_pdf:
                     num_of_pages = check_lines(path_to_pdf)[1]
                     last_pages_pdf_path = copy_last_pages(path_to_pdf,NUMBER_OF_LAST_PAGES, 0)
+                    # check if the paper  last_pages_pdf_path first page is only text
+                    if is_text_only(last_pages_pdf_path):
+                        with open (txt_only_file_path, 'a') as f:
+                            f.write(paper_directory + '\n')
+                            print("text only paper")
+                    break
+                            
+                        
+
+        
 
             elif file.is_dir():
                 # move all the directories in 'code/greedy_from_machine/files' directory to 'code/~/results/new_files' directory
@@ -2044,7 +2056,8 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
                 # if directory already exists in destination, do not copy it
                 if not os.path.exists(destination_path):
                     shutil.copytree(source_path, destination_path)
-
+        
+        continue
         # whether you want to run the model-based greedy algorithm
         if models: 
             iterations, time_taken, reduced, cost,count_operators = variant_function(last_pages_pdf_path, path_to_latex, models,num_of_pages, paper_directory)
@@ -2064,7 +2077,7 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
 
             print("Done!", done)
             done += 1
-
+    return
     # write the final results
     df = pd.DataFrame(results, columns=["Name", "Algorithm", "Reduced", "Iterations", "Time", "Cost","Total_operators"])
     df.to_csv(f'{results_dir}/{dir_name}_{variant_file_name}.csv', index=False)  # change here
@@ -2082,20 +2095,20 @@ if __name__ == "__main__":
     #0 -> simple greedy algorithm.
     #1 -> heuristic greedy algorithm.
     #2 -> model greedy algorithm.
-    for x in range(8):
-        if x==0:  
-            run_greedy_experiment(simple_greedy, "simple greedy", "results_simple_greedy", pdf_tex_files_dir, dir_to_results)
-        elif x==1:
-            run_greedy_experiment(heuristic_greedy, "heuristic greedy", "results_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
-        elif x==2:
-            run_greedy_experiment(non_stop_heuristic_greedy, "non stop heuristic greedy", "results_non_stop_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
-        elif x == 3:
-            run_greedy_experiment(model_greedy, "model greedy", "results_model_greedy", pdf_tex_files_dir, dir_to_results, load_models())
-        elif x == 4:
-            run_greedy_experiment(non_stop_classification_greedy, "non stop classification greedy", "non_stop_results_classification_greedy", pdf_tex_files_dir, dir_to_results, load_models())
-        elif x == 5:
-            run_greedy_experiment(regreession_model_greedy, "regreession model greedy", "results_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat())
-        elif x == 6:
-            run_greedy_experiment(non_stop_regreession_model_greedy, "non stop regreession model greedy", "results_non_stop_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat())
-        elif x == 7:
-            run_greedy_experiment(classification_regression_greedy, "classifciation and regreession model greedy", "results_classification_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, [load_models(), load_regression_models_cat()])
+
+    if x==0:  
+        run_greedy_experiment(simple_greedy, "simple greedy", "results_simple_greedy", pdf_tex_files_dir, dir_to_results)
+    elif x==1:
+        run_greedy_experiment(heuristic_greedy, "heuristic greedy", "results_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
+    elif x==2:
+        run_greedy_experiment(non_stop_heuristic_greedy, "non stop heuristic greedy", "results_non_stop_heuristic_greedy", pdf_tex_files_dir, dir_to_results)
+    elif x == 3:
+        run_greedy_experiment(model_greedy, "model greedy", "results_model_greedy", pdf_tex_files_dir, dir_to_results, load_models())
+    elif x == 4:
+        run_greedy_experiment(non_stop_classification_greedy, "non stop classification greedy", "non_stop_results_classification_greedy", pdf_tex_files_dir, dir_to_results, load_models())
+    elif x == 5:
+        run_greedy_experiment(regreession_model_greedy, "regreession model greedy", "results_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat())
+    elif x == 6:
+        run_greedy_experiment(non_stop_regreession_model_greedy, "non stop regreession model greedy", "results_non_stop_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, load_regression_models_cat())
+    elif x == 7:
+        run_greedy_experiment(classification_regression_greedy, "classifciation and regreession model greedy", "results_classification_regreession_model_greedy", pdf_tex_files_dir, dir_to_results, [load_models(), load_regression_models_cat()])

@@ -21,7 +21,10 @@ file_paths = [
     "files_results_classification_regreession_model_greedy.csv",
 ]
 
-dfs = [pd.read_csv(os.path.join(current_directory, csv_directory, file)) for file in file_paths]
+dfs = [
+    pd.read_csv(os.path.join(current_directory, csv_directory, file))
+    for file in file_paths
+]
 # print(len(dfs[0]))
 # for df in dfs:
 #     df['Reduced'] = df['Reduced'].astype(int) * len(df)
@@ -59,7 +62,7 @@ dfs = [pd.read_csv(os.path.join(current_directory, csv_directory, file)) for fil
 
 # reduced_means = {}
 # for key, df in zip(means.keys(), dfs):
-#     reduced_df = df[df['Reduced'].astype(bool)] 
+#     reduced_df = df[df['Reduced'].astype(bool)]
 #     tmp_reduced_df = reduced_df.drop(columns=['Name'])
 #     reduced_means[key] = tmp_reduced_df.mean()
 
@@ -115,13 +118,15 @@ dfs = [pd.read_csv(os.path.join(current_directory, csv_directory, file)) for fil
 # plt.tight_layout()
 # plt.show()
 
+
 def find_not_reduced_at_all():
-   # find the intersection of all the rows that reduced == false in all the dataframes 
-    not_reduced = dfs[0][dfs[0]['Reduced'] == False]
+    # find the intersection of all the rows that reduced == false in all the dataframes
+    not_reduced = dfs[0][dfs[0]["Reduced"] == False]
     for df in dfs[1:]:
-        not_reduced = not_reduced[not_reduced['Name'].isin(df[df['Reduced'] == False]['Name'])]
+        not_reduced = not_reduced[
+            not_reduced["Name"].isin(df[df["Reduced"] == False]["Name"])
+        ]
     return not_reduced
-       
-   
+
 
 print(find_not_reduced_at_all())
