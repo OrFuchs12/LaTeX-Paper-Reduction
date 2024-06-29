@@ -80,8 +80,8 @@ def run(path_to_original_excel,created_excel_path,path_to_excel_dct,path_to_late
                         os.system(f"echo {i}")
                         try:
                             subprocess.run(['pdflatex', '-interaction=nonstopmode', i[1][0].split("/")[-1]], cwd="results/oper_files/files/") #On mac
-                            df[column + '_with_operator' + str(index_of_new_doc)] = df.loc[:,column]  # create a new column
-
+                            # df[column + '_with_operator' + str(index_of_new_doc)] = df.loc[:,column]  # create a new column
+                            df[i[1][0]] = df.loc[:,column] 
                             for op_num in range(2):
 
                                 os.system(f"echo 7")
@@ -182,6 +182,12 @@ def run(path_to_original_excel,created_excel_path,path_to_excel_dct,path_to_late
 
         os.system(f"echo 13")
         df2 = df.T
+        # remove "['type', 'value', 'object_used_on', 'num_of_object']" columns
+        df2 = df2.drop('type', axis=1)
+        df2 = df2.drop('value', axis=1)
+        df2 = df2.drop('object_used_on', axis=1)
+        df2 = df2.drop('num_of_object', axis=1)
+        df2 = df2.drop('herustica', axis=1)
         df2.to_csv(created_excel_path)
         os.system(f"echo 14")
     except Exception as e:

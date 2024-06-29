@@ -90,6 +90,8 @@ def order(path):
             return 792 - last_obj
         else:
             return 792+ 792-last_obj
+    
+
     # else:
     #     if len(pdf_total_order[1][0]) > 0 and len(pdf_total_order[1][1]) == 0:
     #         return 0
@@ -103,16 +105,69 @@ def order(path):
             return 792 - last_obj
         else:
             return 792 + 792 - last_obj
-    else: #we have first col in second page
-        #only left col
-        if len(pdf_total_order[1][1]) == 0:
-            first_obj = pdf_total_order[1][0][0][0][0]
-            last_obj = pdf_total_order[1][0][-1][0][1]
-            return -(last_obj-first_obj)
-        else:   #both left and right col 
-            first_obj = pdf_total_order[1][1][0][0][0]
-            last_obj=pdf_total_order[1][1][-1][0][1]
-            return -(last_obj-first_obj)
+    elif len(pdf_total_order[1][0]) > 0 and len(pdf_total_order[1][1]) == 0:
+        first_obj = pdf_total_order[1][0][0][0][0]
+        last_obj = pdf_total_order[1][0][-1][0][1]
+        return last_obj
+    else:
+        first_obj = pdf_total_order[1][1][0][0][0]
+        last_obj=pdf_total_order[1][1][-1][0][1]
+        return last_obj
+# def order(path):
+#     """
+
+#     :param path: path to pdf file
+#     :return: combination of textual & figures & tables elements in pdf, arrange by order in 4 columns.
+#     """
+#     pdf_total_order={}
+#     frompdf = run(path)
+
+#     tables_dict = tables(path)
+#     pictures_dict = pictures(path)
+
+
+#     for i in range(len(frompdf)-1):
+#         pdf_total_order[i]=order_page(path,i,tables_dict,pictures_dict,frompdf)
+
+
+
+#     #calculation of height in last page:
+
+#     last_obj=0
+#     first_obj=0
+#     if len(pdf_total_order)==1:
+#         first_obj = pdf_total_order[0][0][0][0][0]
+#         last_obj = pdf_total_order[0][0][-1][0][1]
+
+#         if len(pdf_total_order[0][1]) != 0:
+#             first_obj = pdf_total_order[0][1][0][0][0]
+#             last_obj = pdf_total_order[0][1][-1][0][1]
+#             return 792 - last_obj
+#         else:
+#             return 792+ 792-last_obj
+#     else:
+#         if len(pdf_total_order[1][0]) > 0 and len(pdf_total_order[1][1]) == 0:
+#             return 0
+#     if len(pdf_total_order[1][0]) == 0:
+#         first_obj = pdf_total_order[0][0][0][0][0]
+#         last_obj = pdf_total_order[0][0][-1][0][1]
+
+#         if len(pdf_total_order[0][1]) != 0:
+#             first_obj = pdf_total_order[0][1][0][0][0]
+#             last_obj = pdf_total_order[0][1][-1][0][1]
+#             return 792 - last_obj
+#         else:
+#             return 792 + 792 - last_obj
+#     else: #we have first col in second page
+#         #only left col
+#         if len(pdf_total_order[1][1]) == 0:
+#             first_obj = pdf_total_order[1][0][0][0][0]
+#             last_obj = pdf_total_order[1][0][-1][0][1]
+#             return -(last_obj-first_obj)
+#         else:   #both left and right col 
+#             first_obj = pdf_total_order[1][1][0][0][0]
+#             last_obj=pdf_total_order[1][1][-1][0][1]
+#             return -(last_obj-first_obj)
 
 
 if __name__ == '__main__':

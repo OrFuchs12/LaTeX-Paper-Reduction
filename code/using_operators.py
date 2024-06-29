@@ -681,35 +681,35 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
         #print('Done')
         index_for_all_operators += 1
 
-    for key,value in object_name_key_new_latex_list_value.items():
-        f = open(path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex", "w")
-        files_created.append((path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex",path_to_file +str(doc_index)+str(index_for_all_operators)+"a.pdf",
-                              value[1], 'remove_special_positional_chars',
-                              1,
-                              key, value[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-        x_list = value[0][1:]
-        #print(x_list)
-        for item in x_list:
-            # write each item on a new line
-            f.write(item)
-        f.close()
-        #print('Done')
-        index_for_all_operators += 1
+    # for key,value in object_name_key_new_latex_list_value.items():
+    #     f = open(path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex", "w")
+    #     files_created.append((path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex",path_to_file +str(doc_index)+str(index_for_all_operators)+"a.pdf",
+    #                           value[1], 'remove_special_positional_chars',
+    #                           1,
+    #                           key, value[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+    #     x_list = value[0][1:]
+    #     #print(x_list)
+    #     for item in x_list:
+    #         # write each item on a new line
+    #         f.write(item)
+    #     f.close()
+    #     #print('Done')
+    #     index_for_all_operators += 1
 
-    for key,value in dict_for_removing_last_2_words_operator.items():
-        f = open(path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex", "w")
-        files_created.append((path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex",path_to_file +str(doc_index)+str(index_for_all_operators)+"a.pdf",
-                              value[1], 'remove_last_2_words',
-                              1,
-                              key,value[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-        x_list = value[0][1:]
-        #print(x_list)
-        for item in x_list:
-            # write each item on a new line
-            f.write(item)
-        f.close()
-        #print('Done')
-        index_for_all_operators += 1
+    # for key,value in dict_for_removing_last_2_words_operator.items():
+    #     f = open(path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex", "w")
+    #     files_created.append((path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex",path_to_file +str(doc_index)+str(index_for_all_operators)+"a.pdf",
+    #                           value[1], 'remove_last_2_words',
+    #                           1,
+    #                           key,value[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+    #     x_list = value[0][1:]
+    #     #print(x_list)
+    #     for item in x_list:
+    #         # write each item on a new line
+    #         f.write(item)
+    #     f.close()
+    #     #print('Done')
+    #     index_for_all_operators += 1
     
     
     
@@ -873,37 +873,37 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
             #print('Done')
             index_for_all_operators += 1
 
-        for key,value in object_name_key_new_latex_list_value.items():
-            f = open(path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex", "w")
-            files_created2.append((file, (path_to_file.split(".tex")[0] +f"{index_for_all_operators}" + "b.tex",
-                                path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
-                                value[1], 'remove_special_positional_chars',
-                                1,
-                                key, value[2])))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-            x_list = value[0][1:]
-            #print(x_list)
-            for item in x_list:
-                # write each item on a new line
-                f.write(item)
-            f.close()
-            #print('Done')
-            index_for_all_operators += 1
+        # for key,value in object_name_key_new_latex_list_value.items():
+        #     f = open(path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex", "w")
+        #     files_created2.append((file, (path_to_file.split(".tex")[0] +f"{index_for_all_operators}" + "b.tex",
+        #                         path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
+        #                         value[1], 'remove_special_positional_chars',
+        #                         1,
+        #                         key, value[2])))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+        #     x_list = value[0][1:]
+        #     #print(x_list)
+        #     for item in x_list:
+        #         # write each item on a new line
+        #         f.write(item)
+        #     f.close()
+        #     #print('Done')
+        #     index_for_all_operators += 1
 
-        for key,value in dict_for_removing_last_2_words_operator.items():
-            f = open(path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex", "w")
-            files_created2.append((file, (path_to_file.split(".tex")[0] +f"{index_for_all_operators}" + "b.tex",
-                                path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
-                                value[1], 'remove_last_2_words',
-                                1,
-                                key,value[2])))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-            x_list = value[0][1:]
-            #print(x_list)
-            for item in x_list:
-                # write each item on a new line
-                f.write(item)
-            f.close()
-            #print('Done')
-            index_for_all_operators += 1
+        # for key,value in dict_for_removing_last_2_words_operator.items():
+        #     f = open(path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex", "w")
+        #     files_created2.append((file, (path_to_file.split(".tex")[0] +f"{index_for_all_operators}" + "b.tex",
+        #                         path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
+        #                         value[1], 'remove_last_2_words',
+        #                         1,
+        #                         key,value[2])))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+        #     x_list = value[0][1:]
+        #     #print(x_list)
+        #     for item in x_list:
+        #         # write each item on a new line
+        #         f.write(item)
+        #     f.close()
+        #     #print('Done')
+        #     index_for_all_operators += 1
             
         
         
