@@ -81,7 +81,7 @@ def run(path_to_original_excel,created_excel_path,path_to_excel_dct,path_to_late
                         # cmd_line_act = cmd_line_create_pdf + i[0]
                         
                         os.system(f"echo {i}")
-                        row_name = i[1][0]
+                        row_name = column + '_with_operator' + str(index_of_new_doc)
                         try:
                             subprocess.run(['pdflatex', '-interaction=nonstopmode', i[1][0].split("/")[-1]], cwd=path_to_file) #On mac
                             # df[column + '_with_operator' + str(index_of_new_doc)] = df.loc[:,column]  # create a new column
