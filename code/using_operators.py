@@ -516,8 +516,8 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
                         for i in index_for_object.keys():
                             if(key.startswith(i)):
                                 num = index_for_object[i]
-                        arr_of_places_and_vspace_to_add.append((chosen_index_to_insert, '\\vspace{-' + str(vspace_size) + 'mm}\n',num,vspace_size,key,herustica))
-                        offset += 1
+                                arr_of_places_and_vspace_to_add.append((chosen_index_to_insert, '\\vspace{-' + str(vspace_size) + 'mm}\n',num,vspace_size,key,herustica))
+                                offset += 1
                 else:
                     vspace_size_max = value['space_between_this_object_and_last_object']/3.5
                     vspace_size_part = vspace_size_max / 4
@@ -533,8 +533,8 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
                             #if(key.startswith(i)):
                             if(new_key==i):
                                 num = index_for_object[i]
-                        arr_of_places_and_vspace_to_add.append((chosen_index_to_insert, '\\vspace{-' + str(vspace_size) + 'mm}\n', num, vspace_size,key,herustica))
-                        offset += 1
+                                arr_of_places_and_vspace_to_add.append((chosen_index_to_insert, '\\vspace{-' + str(vspace_size) + 'mm}\n', num, vspace_size,key,herustica))
+                                offset += 1
 
 
 ############################
@@ -555,24 +555,31 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
         latex_clean_lines = []
         latex_clean_lines = copy.deepcopy(new_clean_latex_to_remember)
         file_path = os.path.join(path_to_file, f"{doc_index}{index_for_all_operators}a.tex")
-
-        with open(file_path,"w") as f:
-            files_created.append((path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex",path_to_file +str(doc_index)+str(index_for_all_operators)+"a.pdf",arr_of_places_and_vspace_to_add[i][2],'vspace',arr_of_places_and_vspace_to_add[i][3],arr_of_places_and_vspace_to_add[i][4],arr_of_places_and_vspace_to_add[i][5])) # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-            chosen_index_to_insert = arr_of_places_and_vspace_to_add[i][0]
-            str__ = arr_of_places_and_vspace_to_add[i][1]
-            latex_clean_lines.insert(chosen_index_to_insert,str__)
-            latex_clean_lines = latex_clean_lines[1:]
-            for item in latex_clean_lines:
-                # write each item on a new line
-                f.write(item)
-            f.close()
+        try:
+            with open(file_path,"w") as f:
+                files_created.append((path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex",path_to_file +str(doc_index)+str(index_for_all_operators)+"a.pdf",arr_of_places_and_vspace_to_add[i][2],'vspace',arr_of_places_and_vspace_to_add[i][3],arr_of_places_and_vspace_to_add[i][4],arr_of_places_and_vspace_to_add[i][5])) # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+                chosen_index_to_insert = arr_of_places_and_vspace_to_add[i][0]
+                str__ = arr_of_places_and_vspace_to_add[i][1]
+                latex_clean_lines.insert(chosen_index_to_insert,str__)
+                latex_clean_lines = latex_clean_lines[1:]
+                for item in latex_clean_lines:
+                    # write each item on a new line
+                    f.write(item)
+                f.close()
+        except Exception as e:
+            print(e)
+            continue 
         index_for_all_operators+=1
 
     # here we will create the new files for figure changes
     options = [0.9, 0.8, 0.7, 0.6, 0.5]
     for key,value in figure_name_key_new_latex_list_value.items():
         for i in range(5):
-            f = open(path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex", "w")
+            try:
+                f = open(path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex", "w")
+            except Exception as e:
+                print(e)
+                continue
             files_created.append((path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex",path_to_file +str(doc_index)+str(index_for_all_operators)+"a.pdf",
                                   2, 'change_figure_size',  options[i],key,value[i][1]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
             x_list = value[i][0][1:]
@@ -588,7 +595,11 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
     options = [0.9, 0.8, 0.7, 0.6]
     for key, value in table_name_key_new_latex_list_value.items():
         for i in range(4):
-            f = open(path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex", "w")
+            try:
+                f = open(path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex", "w")
+            except Exception as e:
+                print(e)
+                continue
             files_created.append((path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex",path_to_file +str(doc_index)+str(index_for_all_operators)+"a.pdf",
                                   4, 'change_table_size',
                                   options[i], key, value[i][1]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
@@ -602,9 +613,13 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
             index_for_all_operators += 1
 
     for al in algorithm_list:
-        f = open(
-            path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex",
-            "w")
+        try:
+            f = open(
+                path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex",
+                "w")
+        except Exception as e:
+            print(e)
+            continue
         files_created.append((path_to_file + str(doc_index) + str(
             index_for_all_operators) + "a.tex", path_to_file + str(doc_index) + str(
             index_for_all_operators) + "a.pdf",
@@ -622,9 +637,13 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
         index_for_all_operators += 1
 
     for enum in enum_list:
-        f = open(
-            path_to_file +str(doc_index)+str(index_for_all_operators)+".tex",
-            "w")
+        try:
+            f = open(
+                path_to_file +str(doc_index)+str(index_for_all_operators)+".tex",
+                "w")
+        except Exception as e:
+            print(e)
+            continue
         files_created.append((path_to_file + str(doc_index) + str(
             index_for_all_operators) + "a.tex", path_to_file + str(doc_index) + str(
             index_for_all_operators) + "a.pdf",
@@ -642,9 +661,13 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
         index_for_all_operators += 1
 
     for par in par_remove_list:
-        f = open(
-            path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex",
-            "w")
+        try:
+            f = open(
+                path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex",
+                "w")
+        except Exception as e:
+            print(e)
+            continue
         files_created.append((path_to_file + str(doc_index) + str(
             index_for_all_operators) + "a.tex", path_to_file + str(doc_index) + str(
             index_for_all_operators) + "a.pdf",
@@ -662,8 +685,12 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
         index_for_all_operators += 1
 
     for par in combined_paragraphs_list:
-        f = open(path_to_file + str(doc_index) + str(
-            index_for_all_operators) + "a.tex", "w")
+        try:
+            f = open(path_to_file + str(doc_index) + str(
+                index_for_all_operators) + "a.tex", "w")
+        except Exception as e:
+            print(e)
+            continue
         files_created.append((path_to_file + str(doc_index) + str(
             index_for_all_operators) + "a.tex",
                               path_to_file + str(doc_index) + str(
@@ -720,24 +747,27 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
         original_lines_lst=[]
         # doc = file.read()
         latex_clean_lines = []
-        with open(path_to_file, encoding='UTF-8') as fi:
-            # doc = file.read()
+        try:
+            with open(path_to_file, encoding='UTF-8') as fi:
+                # doc = file.read()
 
-            foundHeader = False
-            foundBottom = False
-            for line in fi:
-                latex_clean_lines.append(line)
-                if foundHeader == False:
-                    if line.startswith("\\begin{document}"):
-                        foundHeader = True
-                    original_lines_lst.append("\n")
-                else:
-                    if foundBottom == False and line.startswith("\\end{document}"):
-                        foundBottom = True
+                foundHeader = False
+                foundBottom = False
+                for line in fi:
+                    latex_clean_lines.append(line)
+                    if foundHeader == False:
+                        if line.startswith("\\begin{document}"):
+                            foundHeader = True
+                        original_lines_lst.append("\n")
                     else:
-                        if foundBottom == False:
-                            original_lines_lst.append(line)
-        
+                        if foundBottom == False and line.startswith("\\end{document}"):
+                            foundBottom = True
+                        else:
+                            if foundBottom == False:
+                                original_lines_lst.append(line)
+        except Exception as e:
+            print("e")
+            continue        
         
         index_for_all_operators = 1
         ############################
@@ -751,24 +781,31 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
             # latex_clean_lines = copy.deepcopy(new_clean_latex_to_remember)
             tmp_latex_clean_lines = copy.deepcopy(latex_clean_lines)
             file_path = path_to_file.split(".tex")[0] + f"{index_for_all_operators}" + "b.tex"
-
-            with open(file_path,"w") as f:
-                files_created2.append((file, (path_to_file.split(".tex")[0] + f"{index_for_all_operators}" + "b.tex",path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",arr_of_places_and_vspace_to_add[i][2],'vspace',arr_of_places_and_vspace_to_add[i][3],arr_of_places_and_vspace_to_add[i][4],arr_of_places_and_vspace_to_add[i][5]))) # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-                chosen_index_to_insert = arr_of_places_and_vspace_to_add[i][0]
-                str__ = arr_of_places_and_vspace_to_add[i][1]
-                tmp_latex_clean_lines.insert(chosen_index_to_insert,str__)
-                tmp_latex_clean_lines = tmp_latex_clean_lines[1:]
-                for item in tmp_latex_clean_lines:
-                    # write each item on a new line
-                    f.write(item)
-                f.close()
+            try:
+                with open(file_path,"w") as f:
+                    files_created2.append((file, (path_to_file.split(".tex")[0] + f"{index_for_all_operators}" + "b.tex",path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",arr_of_places_and_vspace_to_add[i][2],'vspace',arr_of_places_and_vspace_to_add[i][3],arr_of_places_and_vspace_to_add[i][4],arr_of_places_and_vspace_to_add[i][5]))) # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+                    chosen_index_to_insert = arr_of_places_and_vspace_to_add[i][0]
+                    str__ = arr_of_places_and_vspace_to_add[i][1]
+                    tmp_latex_clean_lines.insert(chosen_index_to_insert,str__)
+                    tmp_latex_clean_lines = tmp_latex_clean_lines[1:]
+                    for item in tmp_latex_clean_lines:
+                        # write each item on a new line
+                        f.write(item)
+                    f.close()
+            except Exception as e:
+                print(e)
+                continue
             index_for_all_operators+=1
 
         # here we will create the new files for figure changes
         options = [0.9, 0.8, 0.7, 0.6, 0.5]
         for key,value in figure_name_key_new_latex_list_value.items():
             for i in range(5):
-                f = open(path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex", "w")
+                try:
+                    f = open(path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex", "w")
+                except Exception as e:
+                    print(e)
+                    continue
                 files_created2.append((file, (path_to_file.split(".tex")[0] +f"{index_for_all_operators}" + "b.tex", path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
                                     2, 'change_figure_size',  options[i],key,value[i][1])))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
                 x_list = value[i][0][1:]
@@ -784,7 +821,11 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
         options = [0.9, 0.8, 0.7, 0.6]
         for key, value in table_name_key_new_latex_list_value.items():
             for i in range(4):
-                f = open(path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex", "w")
+                try:
+                    f = open(path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex", "w")
+                except Exception as e:
+                    print(e)
+                    continue
                 files_created2.append((file, (path_to_file.split(".tex")[0] +f"{index_for_all_operators}" + "b.tex",
                                     path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
                                     4, 'change_table_size',
@@ -799,9 +840,13 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
                 index_for_all_operators += 1
 
         for al in algorithm_list:
-            f = open(
-               path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex",
-                "w")
+            try:
+                f = open(
+                path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex",
+                    "w")
+            except Exception as e:
+                print(e)
+                continue
             files_created2.append((file,(path_to_file + str(doc_index) + str(
                 index_for_all_operators) + ".tex",path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
                                 11, 'change_algorithm_size',
@@ -818,9 +863,13 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
             index_for_all_operators += 1
 
         for enum in enum_list:
-            f = open(
-                path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex" + ".tex",
-                "w")
+            try:
+                f = open(
+                    path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex" + ".tex",
+                    "w")
+            except Exception as e:
+                print(e)
+                continue
             files_created2.append((file, (path_to_file + str(doc_index) + str(
                 index_for_all_operators) + ".tex",path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
                                 9, 'convert_enum',
@@ -837,9 +886,13 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
             index_for_all_operators += 1
 
         for par in par_remove_list:
-            f = open(
-                path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex",
-                "w")
+            try:
+                f = open(
+                    path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex",
+                    "w")
+            except Exception as e:
+                print(e)
+                continue
             files_created2.append((file, (path_to_file + str(doc_index) + str(
                 index_for_all_operators) + ".tex", path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
                                 1, 'remove_par_tag',
@@ -856,7 +909,11 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
             index_for_all_operators += 1
 
         for par in combined_paragraphs_list:
-            f = open(path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex", "w")
+            try:
+                f = open(path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex", "w")
+            except Exception as e:
+                print(e)
+                continue
             files_created2.append((file, (path_to_file + str(doc_index) + str(
                 index_for_all_operators) + ".tex",
                                path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",

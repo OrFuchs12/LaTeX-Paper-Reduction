@@ -32,9 +32,12 @@ def run(path_to_original_excel,created_excel_path,path_to_excel_dct,path_to_late
         old_y = df.at['ending_y_of_doc', column] #ending_y_of_doc means the height of second page
         if old_y == 0:
             continue
-        # try:
-        with open(path_to_excel_dct + column, 'rb') as dct_file:
-            dct = pickle.load(dct_file) #load the pickle
+        try:
+            with open(path_to_excel_dct + column, 'rb') as dct_file:
+                dct = pickle.load(dct_file) #load the pickle
+        except Exception as e:
+            print(e)
+            continue
 
         latex_path = path_to_latex_files + column + ".tex"
         os.system(f"echo 2")
@@ -78,10 +81,10 @@ def run(path_to_original_excel,created_excel_path,path_to_excel_dct,path_to_late
                         # cmd_line_act = cmd_line_create_pdf + i[0]
                         
                         os.system(f"echo {i}")
+                        row_name = i[1][0]
                         try:
                             subprocess.run(['pdflatex', '-interaction=nonstopmode', i[1][0].split("/")[-1]], cwd="results/oper_files/files/") #On mac
                             # df[column + '_with_operator' + str(index_of_new_doc)] = df.loc[:,column]  # create a new column
-                            row_name = i[1][0]
                             df[row_name] = df.loc[:,column] 
                             for op_num in range(2):
 
