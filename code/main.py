@@ -41,7 +41,10 @@ def run(path_to_original_excel,created_excel_path,path_to_excel_dct,path_to_late
 
         latex_path = path_to_latex_files + column + ".tex"
         os.system(f"echo 2")
-        files_created_small = using_operators.perform_operators(dct, column, latex_path, path_to_file) #get list of files of activated operators
+        try:
+            files_created_small = using_operators.perform_operators(dct, column, latex_path, path_to_file) #get list of files of activated operators
+        except Exception as e:
+            continue
         os.system(f"echo 3")
         files_created[column] = files_created_small
         # print(files_created)
@@ -86,7 +89,7 @@ def run(path_to_original_excel,created_excel_path,path_to_excel_dct,path_to_late
                         # cmd_line_act = cmd_line_create_pdf + i[0]
                         
                         os.system(f"echo {i}")
-                        row_name = column + '_with_operator' + str(index_of_new_doc)
+                        row_name = i[1][0].split("/")[-1] #pdfname + index_of_new_doc
                         try:
                             subprocess.run(['pdflatex', '-interaction=nonstopmode', i[1][0].split("/")[-1]], cwd=path_to_file) #On mac
                             # df[column + '_with_operator' + str(index_of_new_doc)] = df.loc[:,column]  # create a new column
