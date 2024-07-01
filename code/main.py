@@ -68,7 +68,12 @@ def run(path_to_original_excel,created_excel_path,path_to_excel_dct,path_to_late
                 pdf_path = path_to_latex_files + column + ".pdf"
 
                 if os.path.exists(pdf_path) == False:
-                    old_y = read_single_file.order(pdf_path)
+                    try:
+                        old_y = read_single_file.order(pdf_path)
+                    except Exception as e:
+                        print(e)
+                        df = df.drop(column, axis=1) #remove original row
+                        continue
 
                 os.system(f"echo 5")
                 binary = 0
@@ -85,7 +90,11 @@ def run(path_to_original_excel,created_excel_path,path_to_excel_dct,path_to_late
                         try:
                             subprocess.run(['pdflatex', '-interaction=nonstopmode', i[1][0].split("/")[-1]], cwd=path_to_file) #On mac
                             # df[column + '_with_operator' + str(index_of_new_doc)] = df.loc[:,column]  # create a new column
-                            df[row_name] = df.loc[:,column] 
+                            x = read_single_file.order(i[1][1]) #height of second page after operator activation
+                            if column in df.columns:
+                                df[row_name] = df.loc[:, column]
+                            else:
+                                continue
                             for op_num in range(2):
 
                                 os.system(f"echo 7")
@@ -107,16 +116,17 @@ def run(path_to_original_excel,created_excel_path,path_to_excel_dct,path_to_late
                                     df.at['type'+str(op_num), row_name] = 8  # switch to i[3] when it is all set
                                 elif (i[op_num][3] == 'remove_last_2_words'):
                                     df.at['type'+str(op_num), row_name] = 9  # switch to i[3] when it is all set
-                                df.at['value'+str(op_num), row_name] = i[op_num][4]
+                                # df.at['value'+str(op_num), row_name] = i[op_num][4]
+                                df.at['value'+str(op_num), row_name] = float(i[op_num][4])
                                 df.at['object_used_on'+str(op_num), row_name] = i[op_num][2]
-                                df.at['num_of_object'+str(op_num), row_name] = \
-                                    re.findall(r'\d+', str(i[op_num][5]))[0]
+                                # df.at['num_of_object'+str(op_num), row_name] = re.findall(r'\d+', str(i[op_num][5]))[0]
+                                extracted_number = re.findall(r'\d+', str(i[op_num][5]))[0]
+                                df.at['num_of_object'+str(op_num), row_name] = float(extracted_number)
                                 df.at['herustica'+str(op_num), row_name] = i[op_num][6]
                             df.at['ending_y_of_doc', row_name] = old_y
                             index = 0
                             os.system(f"echo 8")
                             os.system(f"echo {i[1]}")
-                            x = read_single_file.order(i[1][1]) #height of second page after operator activation
                             os.system(f"echo 9")
                             if (x == 0):  # the new paper has only_one_page
                                 binary = 1

@@ -268,7 +268,7 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
             pair_to_check.clear()
 
         if (key.startswith('Enum')):  # convert enum to paragraph operator
-            if (int(key[4:]) not in items_seen):
+            if (int(key[4:]) not in items_seen and key in mapping_dict.keys()):
                 chosen_index_to_insert = mapping_dict[key][0]
                 new_list = copy.deepcopy(latex_clean_lines)
                 number = 1
@@ -287,7 +287,7 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
                 heuristic = heuristic * 3.3
                 enum_list.append((new_list, key, heuristic))
 
-            if (value['last_line_length_words'] == 1):
+            if (value['last_line_length_words'] == 1 and key in mapping_dict.keys()):
                 # remove last 2 words
                 chosen_index_to_insert = mapping_dict[key][0]
                 new_list_2 = copy.deepcopy(latex_clean_lines)
@@ -374,13 +374,13 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
             heuristic = 0
             for i in range(4):
                 if(i == 0):
-                    heuristic = 0
+                    heuristic =value['height'] * 0.1
                 elif(i == 1):
-                    heuristic = value['height'] * 0.1111
+                    heuristic = value['height'] * 0.2
                 elif(i ==2):
-                    heuristic = value['height'] * 0.2222
+                    heuristic = value['height'] * 0.3
                 elif(i==3):
-                    heuristic = value['height'] * 0.3333
+                    heuristic = value['height'] * 0.4
                 new_width = options[i]
                 new_str = string_to_edit.replace(str(width), str(new_width))
                 copy_list = copy.deepcopy(latex_clean_lines)
@@ -554,10 +554,10 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
          ##print(new_clean_latex_to_remember)
         latex_clean_lines = []
         latex_clean_lines = copy.deepcopy(new_clean_latex_to_remember)
-        file_path = os.path.join(path_to_file, f"{doc_index}{index_for_all_operators}a.tex")
+        file_path = os.path.join(path_to_file, f"{doc_index}_{index_for_all_operators}a.tex")
         try:
             with open(file_path,"w") as f:
-                files_created.append((path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex",path_to_file +str(doc_index)+str(index_for_all_operators)+"a.pdf",arr_of_places_and_vspace_to_add[i][2],'vspace',arr_of_places_and_vspace_to_add[i][3],arr_of_places_and_vspace_to_add[i][4],arr_of_places_and_vspace_to_add[i][5])) # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+                files_created.append((path_to_file +str(doc_index)+"_"+str(index_for_all_operators)+"a.tex",path_to_file +str(doc_index)+"_"+str(index_for_all_operators)+"a.pdf",arr_of_places_and_vspace_to_add[i][2],'vspace',arr_of_places_and_vspace_to_add[i][3],arr_of_places_and_vspace_to_add[i][4],arr_of_places_and_vspace_to_add[i][5])) # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
                 chosen_index_to_insert = arr_of_places_and_vspace_to_add[i][0]
                 str__ = arr_of_places_and_vspace_to_add[i][1]
                 latex_clean_lines.insert(chosen_index_to_insert,str__)
@@ -568,7 +568,6 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
                 f.close()
         except Exception as e:
             print(e)
-            continue 
         index_for_all_operators+=1
 
     # here we will create the new files for figure changes
@@ -576,19 +575,19 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
     for key,value in figure_name_key_new_latex_list_value.items():
         for i in range(5):
             try:
-                f = open(path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex", "w")
+                f = open(path_to_file +str(doc_index)+"_"+str(index_for_all_operators)+"a.tex", "w")
+
+                files_created.append((path_to_file +str(doc_index)+"_"+str(index_for_all_operators)+"a.tex",path_to_file +str(doc_index)+"_"+str(index_for_all_operators)+"a.pdf",
+                                    2, 'change_figure_size',  options[i],key,value[i][1]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+                x_list = value[i][0][1:]
+                #print(x_list)
+                for item in x_list:
+                    # write each item on a new line
+                    f.write(item)
+                f.close()
+                #print('Done')
             except Exception as e:
                 print(e)
-                continue
-            files_created.append((path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex",path_to_file +str(doc_index)+str(index_for_all_operators)+"a.pdf",
-                                  2, 'change_figure_size',  options[i],key,value[i][1]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-            x_list = value[i][0][1:]
-            #print(x_list)
-            for item in x_list:
-                # write each item on a new line
-                f.write(item)
-            f.close()
-            #print('Done')
             index_for_all_operators += 1
 
     #create new files for table changes
@@ -596,116 +595,104 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
     for key, value in table_name_key_new_latex_list_value.items():
         for i in range(4):
             try:
-                f = open(path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex", "w")
+                f = open(path_to_file +str(doc_index)+"_"+str(index_for_all_operators)+"a.tex", "w")
+
+                files_created.append((path_to_file +str(doc_index)+"_"+str(index_for_all_operators)+"a.tex",path_to_file +str(doc_index)+"_"+str(index_for_all_operators)+"a.pdf",
+                                    4, 'change_table_size',
+                                    options[i], key, value[i][1]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+                x_list = value[i][0][1:]
+                #print(x_list)
+                for item in x_list:
+                    # write each item on a new line
+                    f.write(item)
+                f.close()
+            #print('Done')
             except Exception as e:
                 print(e)
-                continue
-            files_created.append((path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex",path_to_file +str(doc_index)+str(index_for_all_operators)+"a.pdf",
-                                  4, 'change_table_size',
-                                  options[i], key, value[i][1]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-            x_list = value[i][0][1:]
+            index_for_all_operators += 1
+
+    for al in algorithm_list:
+        try:
+            f = open(path_to_file +str(doc_index)+"_"+str(index_for_all_operators)+"a.tex","w")
+            files_created.append((path_to_file + str(doc_index)+"_" + str(
+                index_for_all_operators) + "a.tex", path_to_file + str(doc_index)+"_" + str(
+                index_for_all_operators) + "a.pdf",
+                                11, 'change_algorithm_size',
+                                1, al[1], al[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+
+            x_list = al[0][1:]
+            #print(x_list)
+
+            for item in x_list:
+                # write each item on a new line
+                f.write(item)
+            f.close()
+            #print('Done')
+        except Exception as e:
+                print(e)
+        index_for_all_operators += 1
+
+    for enum in enum_list:
+        try:
+            f = open(path_to_file +str(doc_index)+"_"+str(index_for_all_operators)+".tex","w")
+            files_created.append((path_to_file + str(doc_index) +"_"+ str(
+                index_for_all_operators) + "a.tex", path_to_file + str(doc_index)+"_" + str(
+                index_for_all_operators) + "a.pdf",
+                                9, 'convert_enum',
+                                1, enum[1], enum[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+            x_list = enum[0][1:]
             #print(x_list)
             for item in x_list:
                 # write each item on a new line
                 f.write(item)
             f.close()
             #print('Done')
-            index_for_all_operators += 1
-
-    for al in algorithm_list:
-        try:
-            f = open(
-                path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex",
-                "w")
         except Exception as e:
-            print(e)
-            continue
-        files_created.append((path_to_file + str(doc_index) + str(
-            index_for_all_operators) + "a.tex", path_to_file + str(doc_index) + str(
-            index_for_all_operators) + "a.pdf",
-                              11, 'change_algorithm_size',
-                              1, al[1], al[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-
-        x_list = al[0][1:]
-        #print(x_list)
-
-        for item in x_list:
-            # write each item on a new line
-            f.write(item)
-        f.close()
-        #print('Done')
-        index_for_all_operators += 1
-
-    for enum in enum_list:
-        try:
-            f = open(
-                path_to_file +str(doc_index)+str(index_for_all_operators)+".tex",
-                "w")
-        except Exception as e:
-            print(e)
-            continue
-        files_created.append((path_to_file + str(doc_index) + str(
-            index_for_all_operators) + "a.tex", path_to_file + str(doc_index) + str(
-            index_for_all_operators) + "a.pdf",
-                              9, 'convert_enum',
-                              1, enum[1], enum[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-
-        x_list = enum[0][1:]
-        #print(x_list)
-
-        for item in x_list:
-            # write each item on a new line
-            f.write(item)
-        f.close()
-        #print('Done')
+                print(e)
         index_for_all_operators += 1
 
     for par in par_remove_list:
         try:
-            f = open(
-                path_to_file +str(doc_index)+str(index_for_all_operators)+"a.tex",
-                "w")
+            f = open(path_to_file +str(doc_index)+"_"+str(index_for_all_operators)+"a.tex","w")
+            files_created.append((path_to_file + str(doc_index)+"_" + str(
+                index_for_all_operators) + "a.tex", path_to_file + str(doc_index) +"_"+ str(
+                index_for_all_operators) + "a.pdf",
+                                1, 'remove_par_tag',
+                                1, par[1], par[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+
+            x_list = par[0][1:]
+            #print(x_list)
+
+            for item in x_list:
+                # write each item on a new line
+                f.write(item)
+            f.close()
+            #print('Done')
         except Exception as e:
             print(e)
-            continue
-        files_created.append((path_to_file + str(doc_index) + str(
-            index_for_all_operators) + "a.tex", path_to_file + str(doc_index) + str(
-            index_for_all_operators) + "a.pdf",
-                              1, 'remove_par_tag',
-                              1, par[1], par[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-
-        x_list = par[0][1:]
-        #print(x_list)
-
-        for item in x_list:
-            # write each item on a new line
-            f.write(item)
-        f.close()
-        #print('Done')
         index_for_all_operators += 1
 
     for par in combined_paragraphs_list:
         try:
-            f = open(path_to_file + str(doc_index) + str(
+            f = open(path_to_file + str(doc_index) +"_"+ str(
                 index_for_all_operators) + "a.tex", "w")
+            files_created.append((path_to_file + str(doc_index)+"_" + str(
+                index_for_all_operators) + "a.tex",
+                                path_to_file + str(doc_index) +"_"+ str(
+                                    index_for_all_operators) + "a.pdf",
+                                1, 'combine_two_paragraphs',
+                                1, par[1], par[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+
+            x_list = par[0][1:]
+            #print(x_list)
+
+            for item in x_list:
+                # write each item on a new line
+                f.write(item)
+            f.close()
+            #print('Done')
         except Exception as e:
-            print(e)
-            continue
-        files_created.append((path_to_file + str(doc_index) + str(
-            index_for_all_operators) + "a.tex",
-                              path_to_file + str(doc_index) + str(
-                                  index_for_all_operators) + "a.pdf",
-                              1, 'combine_two_paragraphs',
-                              1, par[1], par[2]))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-
-        x_list = par[0][1:]
-        #print(x_list)
-
-        for item in x_list:
-            # write each item on a new line
-            f.write(item)
-        f.close()
-        #print('Done')
+                print(e)
         index_for_all_operators += 1
 
     # for key,value in object_name_key_new_latex_list_value.items():
@@ -794,7 +781,6 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
                     f.close()
             except Exception as e:
                 print(e)
-                continue
             index_for_all_operators+=1
 
         # here we will create the new files for figure changes
@@ -803,18 +789,17 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
             for i in range(5):
                 try:
                     f = open(path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex", "w")
+                    files_created2.append((file, (path_to_file.split(".tex")[0] +f"{index_for_all_operators}" + "b.tex", path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
+                                        2, 'change_figure_size',  options[i],key,value[i][1])))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+                    x_list = value[i][0][1:]
+                    #print(x_list)
+                    for item in x_list:
+                        # write each item on a new line
+                        f.write(item)
+                    f.close()
+                    #print('Done')
                 except Exception as e:
                     print(e)
-                    continue
-                files_created2.append((file, (path_to_file.split(".tex")[0] +f"{index_for_all_operators}" + "b.tex", path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
-                                    2, 'change_figure_size',  options[i],key,value[i][1])))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-                x_list = value[i][0][1:]
-                #print(x_list)
-                for item in x_list:
-                    # write each item on a new line
-                    f.write(item)
-                f.close()
-                #print('Done')
                 index_for_all_operators += 1
 
         #create new files for table changes
@@ -823,111 +808,103 @@ def perform_operators(objects,doc_index,latex_path,path_to_file):
             for i in range(4):
                 try:
                     f = open(path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex", "w")
+
+                    files_created2.append((file, (path_to_file.split(".tex")[0] +f"{index_for_all_operators}" + "b.tex",
+                                        path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
+                                        4, 'change_table_size',
+                                        options[i], key, value[i][1])))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+                    x_list = value[i][0][1:]
+                    #print(x_list)
+                    for item in x_list:
+                        # write each item on a new line
+                        f.write(item)
+                    f.close()
+                    #print('Done')
                 except Exception as e:
                     print(e)
-                    continue
-                files_created2.append((file, (path_to_file.split(".tex")[0] +f"{index_for_all_operators}" + "b.tex",
-                                    path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
-                                    4, 'change_table_size',
-                                    options[i], key, value[i][1])))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-                x_list = value[i][0][1:]
+                index_for_all_operators += 1
+
+        for al in algorithm_list:
+            try:
+                f = open(path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex","w")
+                files_created2.append((file,(path_to_file + str(doc_index) + str(
+                    index_for_all_operators) + ".tex",path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
+                                    11, 'change_algorithm_size',
+                                    1, al[1], al[2])))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+
+                x_list = al[0][1:]
                 #print(x_list)
+
                 for item in x_list:
                     # write each item on a new line
                     f.write(item)
                 f.close()
                 #print('Done')
-                index_for_all_operators += 1
-
-        for al in algorithm_list:
-            try:
-                f = open(
-                path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex",
-                    "w")
             except Exception as e:
                 print(e)
-                continue
-            files_created2.append((file,(path_to_file + str(doc_index) + str(
-                index_for_all_operators) + ".tex",path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
-                                11, 'change_algorithm_size',
-                                1, al[1], al[2])))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-
-            x_list = al[0][1:]
-            #print(x_list)
-
-            for item in x_list:
-                # write each item on a new line
-                f.write(item)
-            f.close()
-            #print('Done')
             index_for_all_operators += 1
 
         for enum in enum_list:
             try:
-                f = open(
-                    path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex" + ".tex",
-                    "w")
+                f = open(path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex" + ".tex","w")
+                files_created2.append((file, (path_to_file + str(doc_index) + str(
+                    index_for_all_operators) + ".tex",path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
+                                    9, 'convert_enum',
+                                    1, enum[1], enum[2])))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+
+                x_list = enum[0][1:]
+                #print(x_list)
+
+                for item in x_list:
+                    # write each item on a new line
+                    f.write(item)
+                f.close()
+                #print('Done')
             except Exception as e:
                 print(e)
-                continue
-            files_created2.append((file, (path_to_file + str(doc_index) + str(
-                index_for_all_operators) + ".tex",path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
-                                9, 'convert_enum',
-                                1, enum[1], enum[2])))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-
-            x_list = enum[0][1:]
-            #print(x_list)
-
-            for item in x_list:
-                # write each item on a new line
-                f.write(item)
-            f.close()
-            #print('Done')
             index_for_all_operators += 1
 
         for par in par_remove_list:
             try:
-                f = open(
-                    path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex",
-                    "w")
+                f = open(path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex","w")
+
+                files_created2.append((file, (path_to_file + str(doc_index) + str(
+                    index_for_all_operators) + ".tex", path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
+                                    1, 'remove_par_tag',
+                                    1, par[1], par[2]))) # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+
+                x_list = par[0][1:]
+                #print(x_list)
+
+                for item in x_list:
+                    # write each item on a new line
+                    f.write(item)
+                f.close()
+                #print('Done')
             except Exception as e:
                 print(e)
-                continue
-            files_created2.append((file, (path_to_file + str(doc_index) + str(
-                index_for_all_operators) + ".tex", path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
-                                1, 'remove_par_tag',
-                                1, par[1], par[2]))) # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-
-            x_list = par[0][1:]
-            #print(x_list)
-
-            for item in x_list:
-                # write each item on a new line
-                f.write(item)
-            f.close()
-            #print('Done')
             index_for_all_operators += 1
 
         for par in combined_paragraphs_list:
             try:
                 f = open(path_to_file.split(".tex")[0] + f"{index_for_all_operators}b.tex", "w")
+
+                files_created2.append((file, (path_to_file + str(doc_index) + str(
+                    index_for_all_operators) + ".tex",
+                                path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
+                                    1, 'combine_two_paragraphs',
+                                    1, par[1], par[2])))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
+
+                x_list = par[0][1:]
+                #print(x_list)
+
+                for item in x_list:
+                    # write each item on a new line
+                    f.write(item)
+                f.close()
+                #print('Done')
             except Exception as e:
                 print(e)
-                continue
-            files_created2.append((file, (path_to_file + str(doc_index) + str(
-                index_for_all_operators) + ".tex",
-                               path_to_file.split(".tex")[0] +f"{index_for_all_operators}"+ "b.pdf",
-                                1, 'combine_two_paragraphs',
-                                1, par[1], par[2])))  # [(filename,pdfname,object,vspace(operator),vspace(operator)value,key-num_of_object_used_on)]
-
-            x_list = par[0][1:]
-            #print(x_list)
-
-            for item in x_list:
-                # write each item on a new line
-                f.write(item)
-            f.close()
-            #print('Done')
             index_for_all_operators += 1
 
         # for key,value in object_name_key_new_latex_list_value.items():
