@@ -2035,16 +2035,7 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
                 if path_to_pdf:
                     num_of_pages = check_lines(path_to_pdf)[1]
                     last_pages_pdf_path = copy_last_pages(path_to_pdf,NUMBER_OF_LAST_PAGES, 0)
-                    # check if the paper  last_pages_pdf_path first page is only text
-                    if is_text_only(last_pages_pdf_path):
-                        with open (txt_only_file_path, 'a') as f:
-                            f.write(paper_directory + '\n')
-                            print("text only paper")
-                    break
-                            
                         
-
-        
 
             elif file.is_dir():
                 # move all the directories in 'code/greedy_from_machine/files' directory to 'code/~/results/new_files' directory
@@ -2057,7 +2048,6 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
                 if not os.path.exists(destination_path):
                     shutil.copytree(source_path, destination_path)
         
-        continue
         # whether you want to run the model-based greedy algorithm
         if models: 
             iterations, time_taken, reduced, cost,count_operators = variant_function(last_pages_pdf_path, path_to_latex, models,num_of_pages, paper_directory)
@@ -2077,7 +2067,6 @@ def run_greedy_experiment(variant_function, variant_name, variant_file_name, fil
 
             print("Done!", done)
             done += 1
-    return
     # write the final results
     df = pd.DataFrame(results, columns=["Name", "Algorithm", "Reduced", "Iterations", "Time", "Cost","Total_operators"])
     df.to_csv(f'{results_dir}/{dir_name}_{variant_file_name}.csv', index=False)  # change here
