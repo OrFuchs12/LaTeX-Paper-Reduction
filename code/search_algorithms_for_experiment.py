@@ -46,13 +46,13 @@ def create_graph_networkx(dct, depth):
 
 
 def dijkstra(g, start, end):
-    # print(nx.dijkstra_path(g, start, end))
-    # return nx.dijkstra_path(g, start, end)[:-1]
-    shortes_list =  k_shortest_paths(g, start, end, 5)
-    if shortes_list:
-        shortes_list.sort(key=lambda x: x[1])
-        return shortes_list[0][0][:-1]
-    return None
+    print(nx.dijkstra_path(g, start, end))
+    return nx.dijkstra_path(g, start, end)[:-1]
+    # shortes_list =  k_shortest_paths(g, start, end, 5)
+    # if shortes_list:
+    #     shortes_list.sort(key=lambda x: x[1])
+    #     return shortes_list[0][0][:-1]
+    # return None
 
 def bellman_ford(g, start, end):
     return nx.bellman_ford_path(g, start, end)[:-1]
