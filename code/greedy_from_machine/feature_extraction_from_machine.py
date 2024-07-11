@@ -639,8 +639,6 @@ def run_feature_extraction(latex_path, pdf_path, bib_path, path_to_save_lidor_dc
         with open(path_to_save_lidor_dct, 'wb') as dct_file:
             pickle.dump(dct, dct_file)
 
-        # files_created_small = using_operators.perform_operators(dct,file_index,summative_features,latex_path="C:\\Users\\lidor\\Desktop\\FINAL PROJECT - OVERLEAF\\30.10.22\\Overleaf_project\\pdf-tests\\" + list_latex_files[file_index] + ".tex",pdf_path="C:\\Users\\lidor\\Desktop\\FINAL PROJECT - OVERLEAF\\30.10.22\\Overleaf_project\\pdf-tests\\"+list_pdf_files[file_index] +".pdf",bib_path="C:\\Users\\lidor\\Desktop\\FINAL PROJECT - OVERLEAF\\30.10.22\\Overleaf_project\\pdf-tests\\"+list_bib_files[file_index]+".bib")
-        # files_created.append(files_created_small)
 
         # summative_features_keys = ['max_lines_par','min_lines_par','max_lines_enum','min_lines_enum','max_lines_caption','min_lines_caption','max_figure_y_space','min_figure_y_space','max_height_object','min_height_object','num_of_elements','sum_space_taken','sum_open_space','sum_space_taken_by_figures','sum_of_chars_across_doc','sum_of_words_from_pars','sum_of_chars_from_pars','avg_num_of_words_from_pars','avg_num_of_chars_from_pars','num_of_paragraphs_with_1_word_at_the_end','num_of_figures_with_captions']
         # columns = ['Doc1']

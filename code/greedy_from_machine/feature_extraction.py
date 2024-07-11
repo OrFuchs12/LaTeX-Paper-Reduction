@@ -751,8 +751,6 @@ def run_feature_extraction(list_latex_files,list_pdf_files,list_bib_files):
             objject = "pdf-tests\\"+list_bib_files[file_index]+".bib"
             pickle.dump(objject, bib_path_file)
         """
-        #files_created_small = using_operators.perform_operators(dct,file_index,summative_features,latex_path="C:\\Users\\lidor\\Desktop\\FINAL PROJECT - OVERLEAF\\30.10.22\\Overleaf_project\\pdf-tests\\" + list_latex_files[file_index] + ".tex",pdf_path="C:\\Users\\lidor\\Desktop\\FINAL PROJECT - OVERLEAF\\30.10.22\\Overleaf_project\\pdf-tests\\"+list_pdf_files[file_index] +".pdf",bib_path="C:\\Users\\lidor\\Desktop\\FINAL PROJECT - OVERLEAF\\30.10.22\\Overleaf_project\\pdf-tests\\"+list_bib_files[file_index]+".bib")
-        #files_created.append(files_created_small)
 
 
 

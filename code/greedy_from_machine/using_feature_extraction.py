@@ -32,12 +32,7 @@ if __name__ == "__main__":
         index_doc_for_operators += 1
     index_of_new_doc = 0
     index_doc = 0
-    #compiling all the new files:
-    # for idd in range(len(files_created)):
-    #     for j in files_created[idd]:
-    #         cmd_line_act = '"C:\\Users\\lidor\\tectonic.exe" ' + j[0]
-    #         os.system(cmd_line_act)
-    #         time.sleep(2)
+
     for column in old_columns_list:
         old_y = df.at['ending_y_of_doc',column]
         binary = 0
@@ -68,7 +63,6 @@ if __name__ == "__main__":
             #print("OLD END Y ------------------------")
             print(end_y)
             #print("NEW END Y ------------------------")
-            #print(read_single_file.order('C:\\Users\\lidor\\OneDrive\\Desktop\\Overleaf_project\\pdf_extraction\\adi_comparing\\'+i[1]))
             if(pages == 1):
                 y_gained = 0
                 y_gained += old_y-50
@@ -93,5 +87,4 @@ if __name__ == "__main__":
     df2 = df.T
     df2.to_csv('example.csv')
 
-        # x = get_pdf_order.order('C:\\Users\\lidor\\Desktop\\FINAL PROJECT - OVERLEAF\\30.10.22\\Overleaf_project\\pdf-tests\\lidor_test_2.pdf')
-        # print(x)
+

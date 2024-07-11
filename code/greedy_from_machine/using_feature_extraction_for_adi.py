@@ -197,5 +197,3 @@ if __name__ == "__main__":
             df2 = df.T
             df2.to_csv(created_excel_path)
 
-        # x = get_pdf_order.order('C:\\Users\\lidor\\Desktop\\FINAL PROJECT - OVERLEAF\\30.10.22\\Overleaf_project\\pdf-tests\\lidor_test_2.pdf')
-        # print(x)

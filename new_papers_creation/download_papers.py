@@ -16,4 +16,4 @@ for r in client.results(search):
   result = ' '.join(words)
   
   if 'AAAI' in r.comment:
-    r.download_source(dirpath="C:/Users/micha/OneDrive/שולחן העבודה/LaTeX-Paper-Reduction/new_papers_creation/tar_files", filename=f"{result}.tar.gz")
+    r.download_source(dirpath="new_papers_creation/tar_files", filename=f"{result}.tar.gz")
